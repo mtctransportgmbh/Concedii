@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Concedii Persoane</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  :root {
+    --bg: #0f1419;
+    --bg-elev: #1a2028;
+    --bg-elev-2: #232b36;
+    --border: #2d3744;
+    --text: #e6edf3;
+    --text-dim: #8b98a8;
+    --accent: #f59e0b;
+    --accent-2: #3b82f6;
+    --green: #10b981;
+    --yellow: #eab308;
+    --orange: #f97316;
+    --red: #ef4444;
+    --holiday: #a855f7;
+    --holiday-bg: rgba(168,85,247,0.15);
+  }
+  
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* ===== AUTH SCREEN ===== */
+  .auth-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .auth-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 32px 28px;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+  }
+  .auth-logo { font-size: 32px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.5px; }
+  .auth-sub { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 32px; }
+
+  .auth-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+
+  .user-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .user-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 16px;
+    background: var(--bg-elev-2);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--text);
+  }
+  .user-btn:hover { border-color: var(--accent); background: rgba(245,158,11,0.08); transform: translateY(-2px); }
+  .user-btn-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .user-btn-name { font-size: 15px; font-weight: 600; }
+
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    color: var(--text-dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .auth-divider::before, .auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .admin-toggle {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: color 0.15s;
+    margin-bottom: 16px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .admin-toggle:hover { color: var(--text); }
+
+  .admin-form { display: none; text-align: left; }
+  .admin-form.show { display: block; }
+  .admin-form label { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; margin-top: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .admin-form input { width: 100%; }
+
+  .auth-login-btn {
+    width: 100%;
+    margin-top: 14px;
+    padding: 12px;
+    background: var(--accent-2);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .auth-login-btn:hover { opacity: 0.88; }
+
+  .auth-err { margin-top: 12px; color: var(--red); font-size: 12px; padding: 8px 12px; background: rgba(239,68,68,0.1); border-radius: 6px; border: 1px solid rgba(239,68,68,0.2); }
+
+  /* ===== APP ===== */
+  .app {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: 100vh;
+  }
+  
+  .sidebar {
+    background: var(--bg-elev);
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    overflow-y: auto;
+    max-height: 100vh;
+  }
+  
+  .logo {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    letter-spacing: -0.3px;
+  }
+  .logo-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--bg-elev-2);
+    border-radius: 6px;
+    margin-bottom: 12px;
+    font-size: 12px;
+  }
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .user-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); }
+  .logout-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px;
+    line-height: 1;
+  }
+  .logout-btn:hover { color: var(--red); }
+  
+  .save-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--green);
+    margin-bottom: 16px;
+    padding: 6px 10px;
+    background: rgba(16,185,129,0.1);
+    border-radius: 4px;
+    border: 1px solid rgba(16,185,129,0.2);
+  }
+  .save-status.saving { color: var(--accent); background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.2); }
+  .save-status.error { color: var(--red); background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.2); }
+  .save-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin: 20px 0 10px;
+  }
+  
+  .btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    width: 100%;
+    margin-bottom: 8px;
+    transition: opacity 0.15s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn-secondary {
+    background: var(--bg-elev-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-small { padding: 5px 10px; font-size: 12px; width: auto; margin: 0; }
+  .btn-big {
+    padding: 14px;
+    font-size: 14px;
+    background: var(--accent-2);
+    color: #fff;
+  }
+  .btn-big:hover { opacity: 0.9; }
+  
+  input, select {
+    width: 100%;
+    background: var(--bg-elev-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    border-radius: 5px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+    margin-top: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .driver-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .driver-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: var(--bg-elev-2);
+    border-radius: 5px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .driver-item:hover { border-color: var(--border); }
+  .driver-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .driver-days {
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+  }
+  .driver-actions {
+    display: none;
+    gap: 4px;
+    margin-left: 6px;
+  }
+  .driver-item:hover .driver-actions { display: flex; }
+  .icon-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 2px 4px;
+    font-size: 13px;
+  }
+  .icon-btn:hover { color: var(--text); }
+  
+  .main {
+    padding: 20px 24px;
+    overflow-y: auto;
+    max-height: 100vh;
+  }
+  
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .nav button {
+    background: var(--bg-elev);
+    color: var(--text);
+    border: 1px solid var(--border);
+    width: 32px;
+    height: 32px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .nav button:hover { background: var(--bg-elev-2); }
+  .nav h2 {
+    font-size: 20px;
+    font-weight: 600;
+    min-width: 200px;
+    text-align: center;
+    text-transform: capitalize;
+  }
+  
+  .view-tabs {
+    display: flex;
+    background: var(--bg-elev);
+    border-radius: 6px;
+    padding: 3px;
+    border: 1px solid var(--border);
+  }
+  .view-tab {
+    padding: 6px 14px;
+    background: transparent;
+    color: var(--text-dim);
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 4px;
+  }
+  .view-tab.active {
+    background: var(--accent);
+    color: #000;
+  }
+  
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat {
+    background: var(--bg-elev);
+    padding: 12px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+  }
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+  .stat.warn { border-left-color: var(--yellow); }
+  .stat.crit { border-left-color: var(--red); }
+  
+  .legend {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+  
+  .calendar {
+    background: var(--bg-elev);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    padding: 12px;
+  }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .cal-header {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: center;
+    padding: 8px 0;
+    font-weight: 600;
+  }
+  .cal-header.sun-header { color: var(--red); }
+  .cal-day {
+    aspect-ratio: 1;
+    background: var(--bg-elev-2);
+    border-radius: 5px;
+    padding: 6px;
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border: 2px solid transparent;
+    min-height: 70px;
+  }
+  .cal-day:hover { border-color: var(--accent); }
+  .cal-day.other-month { opacity: 0.3; }
+  .cal-day.today { box-shadow: inset 0 0 0 1px var(--accent-2); }
+  .cal-day-num { font-size: 13px; font-weight: 600; }
+  
+  .cal-day.sunday {
+    background: repeating-linear-gradient(45deg,rgba(239,68,68,0.06),rgba(239,68,68,0.06) 6px,rgba(239,68,68,0.12) 6px,rgba(239,68,68,0.12) 12px);
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+  .cal-day.sunday:hover { border-color: transparent; }
+  .cal-day.sunday .cal-day-num { font-size: 10px; color: var(--red); opacity: 0.6; font-weight: 500; }
+  .cal-day.sunday .sunday-mark { margin: auto 0; text-align: center; font-size: 10px; color: var(--red); opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  
+  .cal-day.holiday:not(.sunday) { background: linear-gradient(135deg,rgba(168,85,247,0.12),rgba(168,85,247,0.22)); border: 1px dashed rgba(168,85,247,0.45); }
+  .cal-day.holiday .holiday-name { font-size: 9px; color: var(--holiday); line-height: 1.15; margin-top: 2px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .cal-day.sunday.holiday { opacity: 0.85; background: linear-gradient(135deg,rgba(168,85,247,0.1),rgba(168,85,247,0.18)),repeating-linear-gradient(45deg,rgba(239,68,68,0.06),rgba(239,68,68,0.06) 6px,rgba(239,68,68,0.12) 6px,rgba(239,68,68,0.12) 12px); }
+  
+  .cal-day-count { margin-top: auto; font-size: 11px; font-weight: 700; padding: 1px 5px; border-radius: 3px; align-self: flex-end; }
+  .cal-day.lvl-0 { background: var(--bg-elev-2); }
+  .cal-day.lvl-1 { background: linear-gradient(135deg,rgba(16,185,129,0.25),rgba(16,185,129,0.4)); color: #fff; }
+  .cal-day.lvl-2 { background: linear-gradient(135deg,rgba(16,185,129,0.5),rgba(16,185,129,0.7)); color: #fff; }
+  .cal-day.lvl-3 { background: linear-gradient(135deg,rgba(234,179,8,0.6),rgba(249,115,22,0.7)); color: #fff; }
+  .cal-day.lvl-4 { background: linear-gradient(135deg,rgba(239,68,68,0.7),rgba(239,68,68,0.9)); color: #fff; }
+  .cal-day .cal-day-count { color: #fff; background: rgba(0,0,0,0.3); }
+  .cal-day.lvl-0 .cal-day-count { display: none; }
+  
+  .timeline-wrap { background: var(--bg-elev); border-radius: 8px; border: 1px solid var(--border); overflow: auto; max-height: calc(100vh - 220px); }
+  .timeline { display: grid; grid-template-columns: 180px 1fr; min-width: 100%; }
+  .tl-driver-col { position: sticky; left: 0; background: var(--bg-elev); z-index: 2; border-right: 2px solid var(--border); }
+  .tl-driver-header { padding: 8px 12px; font-size: 11px; text-transform: uppercase; color: var(--text-dim); border-bottom: 1px solid var(--border); font-weight: 600; letter-spacing: 0.5px; position: sticky; top: 0; background: var(--bg-elev); z-index: 3; }
+  .tl-driver-row { padding: 0 12px; height: 30px; display: flex; align-items: center; border-bottom: 1px solid var(--border); font-size: 12px; cursor: pointer; }
+  .tl-driver-row:hover { background: var(--bg-elev-2); }
+  .tl-grid-wrap { overflow: visible; }
+  .tl-day-headers { display: grid; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg-elev); z-index: 3; }
+  .tl-day-header { padding: 4px 0; font-size: 10px; text-align: center; border-right: 1px solid var(--border); color: var(--text-dim); }
+  .tl-day-header.sunday { background: repeating-linear-gradient(45deg,rgba(239,68,68,0.08),rgba(239,68,68,0.08) 4px,rgba(239,68,68,0.16) 4px,rgba(239,68,68,0.16) 8px); }
+  .tl-day-header.sunday .dnum,.tl-day-header.sunday .dow { color: var(--red); }
+  .tl-day-header.holiday { background: rgba(168,85,247,0.18); }
+  .tl-day-header.holiday .dnum,.tl-day-header.holiday .dow { color: var(--holiday); font-weight: 700; }
+  .tl-day-header .dow { font-size: 9px; color: var(--text-dim); }
+  .tl-day-header .dnum { font-size: 11px; font-weight: 600; color: var(--text); }
+  .tl-day-header.today .dnum { color: var(--accent); }
+  .tl-row { display: grid; height: 30px; border-bottom: 1px solid var(--border); position: relative; }
+  .tl-cell { border-right: 1px solid var(--border); cursor: pointer; }
+  .tl-cell.sunday { background: repeating-linear-gradient(45deg,rgba(239,68,68,0.05),rgba(239,68,68,0.05) 4px,rgba(239,68,68,0.1) 4px,rgba(239,68,68,0.1) 8px); cursor: not-allowed; }
+  .tl-cell.holiday:not(.sunday) { background: rgba(168,85,247,0.12); }
+  .tl-cell:not(.sunday):hover { background: rgba(245,158,11,0.15); }
+  .tl-cell.in-leave { background: var(--green); }
+  .tl-cell.in-leave:hover { background: #0ea271; }
+  .tl-totals { display: grid; border-top: 2px solid var(--border); background: var(--bg-elev-2); position: sticky; bottom: 0; }
+  .tl-total { text-align: center; padding: 6px 0; font-size: 11px; font-weight: 700; border-right: 1px solid var(--border); cursor: pointer; }
+  .tl-total.lvl-0 { color: var(--text-dim); }
+  .tl-total.lvl-1 { color: var(--green); }
+  .tl-total.lvl-2 { color: var(--green); background: rgba(16,185,129,0.15); }
+  .tl-total.lvl-3 { color: var(--orange); background: rgba(249,115,22,0.2); }
+  .tl-total.lvl-4 { color: var(--red); background: rgba(239,68,68,0.25); }
+  .tl-total.sunday { background: repeating-linear-gradient(45deg,rgba(239,68,68,0.05),rgba(239,68,68,0.05) 4px,rgba(239,68,68,0.1) 4px,rgba(239,68,68,0.1) 8px); color: var(--text-dim); }
+  .tl-total.holiday:not(.sunday) { background: rgba(168,85,247,0.12); }
+  
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
+  .modal-bg.show { display: flex; }
+  .modal { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px; padding: 24px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+  .modal h3 { font-size: 16px; margin-bottom: 4px; }
+  .modal-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 16px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+  .modal-actions .btn { width: auto; margin: 0; }
+  
+  .holiday-banner { background: var(--holiday-bg); border: 1px solid rgba(168,85,247,0.3); color: var(--holiday); padding: 8px 12px; border-radius: 5px; font-size: 12px; margin-bottom: 12px; font-weight: 600; }
+  
+  .combo { position: relative; }
+  .combo-input { width: 100%; background: var(--bg-elev-2); color: var(--text); border: 1px solid var(--border); padding: 10px 12px; border-radius: 5px; font-size: 14px; font-family: inherit; }
+  .combo-input:focus { outline: none; border-color: var(--accent); }
+  .combo-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: 5px; max-height: 240px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+  .combo-list.show { display: block; }
+  .combo-option { padding: 8px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--border); }
+  .combo-option:last-child { border-bottom: none; }
+  .combo-option:hover,.combo-option.active { background: rgba(245,158,11,0.15); color: var(--accent); }
+  .combo-option .match { font-weight: 700; color: var(--accent); }
+  .combo-option-add { background: rgba(59,130,246,0.1); color: var(--accent-2); font-weight: 600; }
+  .combo-option-add:hover,.combo-option-add.active { background: rgba(59,130,246,0.2); color: var(--accent-2); }
+  .combo-empty { padding: 12px; color: var(--text-dim); font-size: 13px; text-align: center; }
+  
+  .leave-list { margin-top: 12px; max-height: 200px; overflow-y: auto; }
+  .leave-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: var(--bg-elev-2); border-radius: 5px; margin-bottom: 4px; font-size: 13px; }
+  .day-drivers { margin-top: 12px; }
+  .day-driver { padding: 6px 10px; background: var(--bg-elev-2); border-radius: 4px; margin-bottom: 4px; font-size: 13px; display: flex; justify-content: space-between; }
+  .empty { text-align: center; color: var(--text-dim); padding: 20px; font-size: 13px; }
+  .threshold-row { display: grid; grid-template-columns: 1fr 80px; gap: 8px; align-items: end; }
+  .file-actions { display: flex; gap: 6px; }
+  .file-actions .btn { margin: 0; }
+  
+  .toast { position: fixed; bottom: 20px; right: 20px; background: var(--green); color: #000; padding: 10px 16px; border-radius: 6px; font-weight: 600; font-size: 13px; transform: translateY(100px); transition: transform 0.3s; z-index: 200; }
+  .toast.show { transform: translateY(0); }
+  .toast.error { background: var(--red); color: #fff; }
+  
+  .quick-action { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .quick-action .btn { width: auto; margin: 0; }
+  
+  @media (max-width: 768px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { max-height: none; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .main { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">📅 MTC Transport</div>
+    <div class="auth-sub">Tablou de bord concedii</div>
+
+    <div class="auth-label">Selectează utilizatorul</div>
+    <div class="user-btns" style="grid-template-columns: 1fr 1fr 1fr">
+      <button class="user-btn" onclick="loginAsUser('raluca')">
+        <div class="user-btn-avatar" style="background: linear-gradient(135deg, #ec4899, #a855f7)">R</div>
+        <span class="user-btn-name">Raluca</span>
+      </button>
+      <button class="user-btn" onclick="loginAsUser('tania')">
+        <div class="user-btn-avatar" style="background: linear-gradient(135deg, #3b82f6, #06b6d4)">T</div>
+        <span class="user-btn-name">Tania</span>
+      </button>
+      <button class="user-btn" onclick="loginAsUser('madalina')">
+        <div class="user-btn-avatar" style="background: linear-gradient(135deg, #10b981, #84cc16)">M</div>
+        <span class="user-btn-name">Mădălina</span>
+      </button>
+    </div>
+
+    <div class="auth-divider">sau</div>
+
+    <button class="admin-toggle" onclick="toggleAdminForm()">🔐 Login Admin</button>
+
+    <div class="admin-form" id="adminForm">
+      <label>Email</label>
+      <input type="email" id="adminEmail" value="paulandreimacarie@yahoo.com" readonly style="opacity:0.6; cursor:not-allowed">
+      <label>Parolă</label>
+      <input type="password" id="adminPass" placeholder="Introdu parola..." onkeydown="if(event.key==='Enter')loginAdmin()">
+      <button class="auth-login-btn" onclick="loginAdmin()">Intră ca Admin</button>
+    </div>
+
+    <div class="auth-err" id="authErr" style="display:none"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="app" id="appRoot" style="display:none">
+  <aside class="sidebar">
+    <div class="logo">MTC Transport</div>
+    <div class="logo-sub">Tablou de bord concedii</div>
+    
+    <div class="user-info" id="userInfo">
+      <div id="userAvatarDiv" style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;background:linear-gradient(135deg,#ec4899,#a855f7)"></div>
+      <span class="user-name" id="userName"></span>
+      <button class="logout-btn" onclick="doLogout()" title="Deconectare">⎋</button>
+    </div>
+    
+    <div class="save-status" id="saveStatus">
+      <div class="save-dot"></div>
+      <span id="saveStatusText">Salvat automat</span>
+    </div>
+    
+    <div class="section-title">Backup manual</div>
+    <div class="file-actions">
+      <button class="btn btn-secondary btn-small" onclick="exportData()" style="flex:1">💾 Descarcă</button>
+      <button class="btn btn-secondary btn-small" onclick="document.getElementById('importFile').click()" style="flex:1">📂 Restaurează</button>
+    </div>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+    
+    <div class="section-title">Praguri alertă</div>
+    <div class="threshold-row">
+      <div>
+        <label>Atenție (≥)</label>
+        <input type="number" id="thWarn" value="3" min="1" onchange="updateThresholds()">
+      </div>
+      <div>
+        <label>Critic (≥)</label>
+        <input type="number" id="thCrit" value="5" min="1" onchange="updateThresholds()">
+      </div>
+    </div>
+    
+    <div class="section-title" style="display:flex; justify-content:space-between; align-items:center">
+      <span>Persoane</span>
+      <span id="driverCount" style="text-transform:none; letter-spacing:0; color:var(--text-dim)">0</span>
+    </div>
+    <button class="btn btn-secondary btn-small" onclick="openAddDriver()" style="width:100%; margin-bottom:6px">+ Persoană nouă</button>
+    <input type="text" id="searchDriver" placeholder="🔍 Caută persoană..." oninput="renderDrivers()" style="margin-bottom:8px">
+    <div class="driver-list" id="driverList"></div>
+  </aside>
+  
+  <main class="main">
+    <div class="header">
+      <div class="nav">
+        <button onclick="changeMonth(-1)">‹</button>
+        <h2 id="monthLabel"></h2>
+        <button onclick="changeMonth(1)">›</button>
+        <button class="btn-small btn btn-secondary" onclick="goToday()" style="width:auto; margin-left:8px">Azi</button>
+      </div>
+      <div class="view-tabs">
+        <button class="view-tab active" onclick="setView('calendar')">📅 Calendar</button>
+        <button class="view-tab" onclick="setView('timeline')">📊 Timeline</button>
+      </div>
+    </div>
+    
+    <div class="quick-action">
+      <button class="btn btn-big" onclick="openQuickLeave()" style="flex:1; max-width:300px">
+        ➕ Adaugă concediu rapid
+      </button>
+    </div>
+    
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">Total persoane</div>
+        <div class="stat-value" id="statTotal">0</div>
+      </div>
+      <div class="stat" id="statTodayBox">
+        <div class="stat-label">În concediu azi</div>
+        <div class="stat-value" id="statToday">0</div>
+      </div>
+      <div class="stat" id="statPeakBox">
+        <div class="stat-label">Vârf în lună</div>
+        <div class="stat-value" id="statPeak">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Zile-om luna</div>
+        <div class="stat-value" id="statManDays">0</div>
+      </div>
+    </div>
+    
+    <div id="holidayBanner" class="holiday-banner" style="display:none"></div>
+    
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--bg-elev-2)"></div>0 persoane</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(16,185,129,0.5)"></div>1 - <span id="legWarn1">2</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(249,115,22,0.7)"></div><span id="legWarn">3</span> - <span id="legCrit1">4</span> (atenție)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(239,68,68,0.8)"></div>≥<span id="legCrit">5</span> (critic)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:repeating-linear-gradient(45deg,rgba(239,68,68,0.1),rgba(239,68,68,0.1) 3px,rgba(239,68,68,0.25) 3px,rgba(239,68,68,0.25) 6px)"></div>Duminică</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(168,85,247,0.4); border:1px dashed rgba(168,85,247,0.7)"></div>Sărbătoare BY</div>
+    </div>
+    
+    <div id="calendarView" class="calendar">
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+    
+    <div id="timelineView" class="timeline-wrap" style="display:none">
+      <div class="timeline" id="timeline"></div>
+    </div>
+  </main>
+</div>
+
+<!-- MODALS -->
+<div class="modal-bg" id="modalQuick">
+  <div class="modal">
+    <h3>Adaugă concediu</h3>
+    <div class="modal-sub">Caută persoana după nume, apoi selectează perioada.</div>
+    <label>Persoană</label>
+    <div class="combo">
+      <input type="text" class="combo-input" id="comboInput" placeholder="Începe să scrii numele..." autocomplete="off" oninput="onComboInput()" onfocus="onComboFocus()" onkeydown="onComboKey(event)">
+      <div class="combo-list" id="comboList"></div>
+    </div>
+    <label>De la</label>
+    <input type="date" id="quickStart">
+    <label>Până la (inclusiv)</label>
+    <input type="date" id="quickEnd">
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalQuick')">Anulează</button>
+      <button class="btn" onclick="saveQuickLeave()">✓ Salvează concediu</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalDriver">
+  <div class="modal">
+    <h3 id="modalDriverTitle">Adaugă persoană</h3>
+    <div class="modal-sub">Numele apare în lista din stânga și în timeline.</div>
+    <label>Nume persoană</label>
+    <input type="text" id="driverNameInput" placeholder="ex: Ion Popescu">
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalDriver')">Anulează</button>
+      <button class="btn" onclick="saveDriver()">Salvează</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalLeave">
+  <div class="modal">
+    <h3 id="modalLeaveTitle">Concedii</h3>
+    <div class="modal-sub" id="modalLeaveSub"></div>
+    <label>De la</label>
+    <input type="date" id="leaveStart">
+    <label>Până la (inclusiv)</label>
+    <input type="date" id="leaveEnd">
+    <div class="leave-list" id="leaveList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalLeave')">Închide</button>
+      <button class="btn" onclick="addLeave()">+ Adaugă perioadă</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalDay">
+  <div class="modal">
+    <h3 id="modalDayTitle">Ziua</h3>
+    <div class="modal-sub" id="modalDaySub"></div>
+    <div class="day-drivers" id="dayDriversList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalDay')">Închide</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ============================================================
+// 🔧 CONFIGURARE FIREBASE — înlocuiește cu datele tale reale
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBb0IFuofRG4vRlcnd9eMBuA8MyK_z0PRc",
+  authDomain: "calendar-f2589.firebaseapp.com",
+  projectId: "calendar-f2589",
+  storageBucket: "calendar-f2589.firebasestorage.app",
+  messagingSenderId: "124144206277",
+  appId: "1:124144206277:web:dc813e88dd100a0443cbac"
+};
+// ============================================================
+
+// ============================================================
+// 🔧 PAROLA ADMIN — schimb-o după prima intrare
+// ============================================================
+const ADMIN_EMAIL    = "paulandreimacarie@yahoo.com";
+// Parola admin e gestionată direct în Firebase Authentication
+// ============================================================
+
+// ============================================================
+// 👤 UTILIZATORI SIMPLI (Raluca & Tania) — fiecare are un doc
+//    separat în Firestore la concedii/raluca și concedii/tania
+//    Datele sunt COMUNE — toate 3 văd același calendar.
+//    Dacă vrei calendare separate, schimbă doctId-urile.
+// ============================================================
+const SHARED_DOC_ID = "shared"; // toți văd același calendar
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ---- USERS CONFIG ----
+const USERS = {
+  raluca:   { name: "Raluca",   color: "linear-gradient(135deg,#ec4899,#a855f7)", initial: "R" },
+  tania:    { name: "Tania",    color: "linear-gradient(135deg,#3b82f6,#06b6d4)", initial: "T" },
+  madalina: { name: "Mădălina", color: "linear-gradient(135deg,#10b981,#84cc16)", initial: "M" },
+  admin:    { name: "Admin",    color: "linear-gradient(135deg,#f59e0b,#ef4444)", initial: "A" }
+};
+
+let activeUserKey = null; // 'raluca' | 'tania' | 'admin'
+
+// ---- AUTH UI helpers ----
+function showErr(msg) {
+  const el = document.getElementById('authErr');
+  el.textContent = msg; el.style.display = 'block';
+}
+function hideErr() { document.getElementById('authErr').style.display = 'none'; }
+
+// ---- Simple user login (Raluca / Tania) ----
+window.loginAsUser = function(userKey) {
+  hideErr();
+  activeUserKey = userKey;
+  enterApp(userKey);
+};
+
+// ---- Admin login with Firebase email/password ----
+window.toggleAdminForm = function() {
+  document.getElementById('adminForm').classList.toggle('show');
+};
+
+window.loginAdmin = async function() {
+  hideErr();
+  const pass = document.getElementById('adminPass').value.trim();
+  if (!pass) { showErr('Introdu parola'); return; }
+  try {
+    await signInWithEmailAndPassword(auth, ADMIN_EMAIL, pass);
+    // onAuthStateChanged will fire and call enterApp
+  } catch(e) {
+    if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') showErr('Parolă greșită');
+    else if (e.code === 'auth/too-many-requests') showErr('Prea multe încercări. Încearcă mai târziu.');
+    else showErr('Eroare: ' + e.message);
+  }
+};
+
+// ---- Firebase auth state (only used for admin) ----
+onAuthStateChanged(auth, (user) => {
+  if (user && user.email === ADMIN_EMAIL) {
+    activeUserKey = 'admin';
+    enterApp('admin');
+  } else if (!user && activeUserKey === 'admin') {
+    // Admin logged out
+    activeUserKey = null;
+    showAuthScreen();
+  }
+});
+
+// ---- Enter app ----
+function enterApp(userKey) {
+  const user = USERS[userKey];
+  // Update sidebar avatar
+  const avatarDiv = document.getElementById('userAvatarDiv');
+  avatarDiv.textContent = user.initial;
+  avatarDiv.style.background = user.color;
+  document.getElementById('userName').textContent = user.name + (userKey === 'admin' ? ' 👑' : '');
+
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'grid';
+  initApp();
+}
+
+function showAuthScreen() {
+  document.getElementById('authScreen').style.display = 'flex';
+  document.getElementById('appRoot').style.display = 'none';
+  document.getElementById('adminPass').value = '';
+  document.getElementById('adminForm').classList.remove('show');
+}
+
+// ---- Logout ----
+window.doLogout = async function() {
+  if (activeUserKey === 'admin') {
+    await fbSignOut(auth);
+  }
+  activeUserKey = null;
+  showAuthScreen();
+};
+
+// ===== FIRESTORE SAVE / LOAD =====
+let saveTimer = null;
+let lastSavedAt = null;
+let isSaving = false;
+
+async function initApp() {
+  setSaveStatus('saving', 'Se încarcă...');
+  const docRef = doc(db, 'concedii', SHARED_DOC_ID);
+  try {
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      state = snap.data();
+      if (!state.thresholds) state.thresholds = { warn: 3, crit: 5 };
+    } else {
+      loadDefaultDrivers();
+      await setDoc(docRef, JSON.parse(JSON.stringify(state)));
+    }
+  } catch (e) {
+    console.error('Load error:', e);
+    setSaveStatus('error', 'Eroare la încărcare!');
+    loadDefaultDrivers();
+  }
+
+  document.getElementById('thWarn').value = state.thresholds.warn;
+  document.getElementById('thCrit').value = state.thresholds.crit;
+  updateThresholdLegend();
+  renderAll();
+  lastSavedAt = new Date();
+  setSaveStatus('ok', 'Date încărcate');
+
+  document.querySelectorAll('.modal-bg').forEach(m => {
+    m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); });
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.querySelectorAll('.modal-bg.show').forEach(m => m.classList.remove('show'));
+  });
+}
+
+window.scheduleSave = function() {
+  if (saveTimer) clearTimeout(saveTimer);
+  setSaveStatus('saving', 'Se salvează...');
+  saveTimer = setTimeout(async () => {
+    try {
+      isSaving = true;
+      const docRef = doc(db, 'concedii', SHARED_DOC_ID);
+      await setDoc(docRef, JSON.parse(JSON.stringify(state)));
+      lastSavedAt = new Date();
+      const t = lastSavedAt;
+      const time = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
+      setSaveStatus('ok', `Salvat la ${time}`);
+    } catch (e) {
+      console.error('Save error:', e);
+      setSaveStatus('error', 'Eroare la salvare!');
+    } finally {
+      isSaving = false;
+    }
+  }, 600);
+};
+
+</script>
+
+<script>
+// ===== HOLIDAYS (Bavaria) =====
+function getEaster(year) {
+  const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),month=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;
+  return new Date(year,month-1,day);
+}
+function addDays(date,n){const d=new Date(date);d.setDate(d.getDate()+n);return d;}
+function fmtDateStr(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
+function computeBavarianHolidays(year){
+  const easter=getEaster(year),h={};
+  h[`${year}-01-01`]='Anul Nou (Neujahr)';h[`${year}-01-06`]='Boboteaza (Heilige Drei Könige)';
+  h[`${year}-05-01`]='Ziua Muncii (Tag der Arbeit)';h[`${year}-08-15`]='Adormirea Maicii Domnului (Mariä Himmelfahrt)';
+  h[`${year}-10-03`]='Ziua Unității Germane (Tag der Deutschen Einheit)';h[`${year}-11-01`]='Ziua Tuturor Sfinților (Allerheiligen)';
+  h[`${year}-12-25`]='Crăciunul (1. Weihnachtstag)';h[`${year}-12-26`]='A doua zi de Crăciun (2. Weihnachtstag)';
+  h[fmtDateStr(addDays(easter,-2))]='Vinerea Mare (Karfreitag)';h[fmtDateStr(addDays(easter,1))]='A doua zi de Paște (Ostermontag)';
+  h[fmtDateStr(addDays(easter,39))]='Înălțarea Domnului (Christi Himmelfahrt)';h[fmtDateStr(addDays(easter,50))]='A doua zi de Rusalii (Pfingstmontag)';
+  h[fmtDateStr(addDays(easter,60))]='Joia Verde / Corpus Christi (Fronleichnam)';
+  return h;
+}
+let HOLIDAYS_CACHE={};
+function getHoliday(date){const y=date.getFullYear();if(!HOLIDAYS_CACHE[y])HOLIDAYS_CACHE[y]=computeBavarianHolidays(y);return HOLIDAYS_CACHE[y][fmtDateStr(date)]||null;}
+
+// ===== STATE =====
+const DEFAULT_DRIVERS=["Pop Marcel","Stan Ionel","Ciobotaru Adrian","Farkas Rudolf","Maricosu Adelin","Zestrea Mihail","Tuca Valentin","Ciobotaru Iulian","Moise Alexandru","Bisoc Ionut","Birlaba Mihaela","Stinga Valeriu","Ciobotaru Larisa","Bitiusca Gabriel","Simon Ferent","Iacob Mihai","Mereacre Mihail","Serban Florin","Buciu Petre","Dutescu Daniel","Feraru Razvan","Mihai Adrian","Dobanda Dumitru","Crainic Adrian","Rudareanu Vladut","Maies Antonio","Macarie Paul","Musteata Ioan","Sparios Eduard","Raghinaru Marian","Burlacu Andrei","Stanciu Dumitru","Plesca Costel","Cazan Ionut","Alin Florut","Ghebu Andreas","Morosanu Lucian","Stanciu Anastasia","Toth Cristina","Toiu Georgiana","Tufeanu Claudia"];
+
+let state={drivers:[],thresholds:{warn:3,crit:5}};
+let view='calendar',currentDate=new Date(),editingDriverId=null,leaveDriverId=null;
+let comboSelectedId=null,comboHighlightIdx=0,comboFiltered=[];
+const MONTHS=['Ianuarie','Februarie','Martie','Aprilie','Mai','Iunie','Iulie','August','Septembrie','Octombrie','Noiembrie','Decembrie'];
+const DOW_MIN=['L','M','M','J','V','S','D'];
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function fmtDate(d){if(typeof d==='string')return d;return fmtDateStr(d);}
+function parseDate(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
+function sameDay(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();}
+function isSunday(d){return d.getDay()===0;}
+function dateInLeave(date,leave){const ds=fmtDate(date);return ds>=leave.start&&ds<=leave.end;}
+function driversOnDate(date){return state.drivers.filter(dr=>dr.leaves.some(l=>dateInLeave(date,l)));}
+function getLevel(count){const{warn,crit}=state.thresholds;if(count===0)return 0;if(count>=crit)return 4;if(count>=warn)return 3;if(count>=Math.ceil(warn/2)+1)return 2;return 1;}
+function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function normalizeForSearch(s){return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[ăâ]/g,'a').replace(/î/g,'i').replace(/[șş]/g,'s').replace(/[țţ]/g,'t');}
+
+function setSaveStatus(status,text){
+  const el=document.getElementById('saveStatus'),txt=document.getElementById('saveStatusText');
+  el.classList.remove('saving','error');
+  if(status==='saving')el.classList.add('saving');
+  if(status==='error')el.classList.add('error');
+  txt.textContent=text;
+}
+
+function toast(msg,isError){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.toggle('error',!!isError);t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+function formatDateRO(ds){
+  const[y,m,d]=ds.split('-');
+  return `${parseInt(d)} ${['Ian','Feb','Mar','Apr','Mai','Iun','Iul','Aug','Sep','Oct','Nov','Dec'][parseInt(m)-1]} ${y}`;
+}
+
+function exportData(){
+  const data=JSON.stringify(state,null,2),blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=`concedii-${fmtDate(new Date())}.json`;a.click();URL.revokeObjectURL(url);toast('💾 Backup descărcat');
+}
+
+function importData(e){
+  const file=e.target.files[0];if(!file)return;
+  if(!confirm('Restaurarea va înlocui toate datele actuale. Continui?')){e.target.value='';return;}
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const loaded=JSON.parse(ev.target.result);
+      if(!loaded.drivers)throw new Error('Format invalid');
+      state=loaded;if(!state.thresholds)state.thresholds={warn:3,crit:5};
+      document.getElementById('thWarn').value=state.thresholds.warn;
+      document.getElementById('thCrit').value=state.thresholds.crit;
+      renderAll();scheduleSave();toast(`📂 ${state.drivers.length} persoane încărcate`);
+    }catch(err){toast('Eroare la încărcare: '+err.message,true);}
+  };
+  reader.readAsText(file);e.target.value='';
+}
+
+function loadDefaultDrivers(){state.drivers=DEFAULT_DRIVERS.map(name=>({id:uid(),name,leaves:[]}));}
+
+// ===== MODALS =====
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+
+function openAddDriver(){
+  editingDriverId=null;
+  document.getElementById('modalDriverTitle').textContent='Adaugă persoană';
+  document.getElementById('driverNameInput').value='';
+  openModal('modalDriver');
+  setTimeout(()=>document.getElementById('driverNameInput').focus(),50);
+}
+
+function openEditDriver(id){
+  editingDriverId=id;
+  const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
+  document.getElementById('modalDriverTitle').textContent='Editează persoană';
+  document.getElementById('driverNameInput').value=dr.name;
+  openModal('modalDriver');
+  setTimeout(()=>document.getElementById('driverNameInput').focus(),50);
+}
+
+function saveDriver(){
+  const name=document.getElementById('driverNameInput').value.trim();
+  if(!name){toast('Introdu un nume',true);return;}
+  if(editingDriverId){
+    const dr=state.drivers.find(d=>d.id===editingDriverId);
+    if(dr){dr.name=name;toast(`✓ "${name}" actualizat`);}
+  } else {
+    state.drivers.push({id:uid(),name,leaves:[]});
+    toast(`+ "${name}" adăugat(ă)`);
+  }
+  closeModal('modalDriver');renderAll();scheduleSave();
+}
+
+function deleteDriver(id){
+  const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
+  if(!confirm(`Ștergi "${dr.name}" și toate concediile sale?`))return;
+  state.drivers=state.drivers.filter(d=>d.id!==id);
+  renderAll();scheduleSave();toast(`🗑 "${dr.name}" șters`);
+}
+
+function openLeaveModal(id){
+  leaveDriverId=id;
+  const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
+  document.getElementById('modalLeaveTitle').textContent=`Concedii — ${dr.name}`;
+  document.getElementById('modalLeaveSub').textContent=`${dr.leaves.length} perioadă(e) înregistrată(e)`;
+  document.getElementById('leaveStart').value='';
+  document.getElementById('leaveEnd').value='';
+  renderLeaveList(dr);
+  openModal('modalLeave');
+}
+
+function renderLeaveList(dr){
+  const list=document.getElementById('leaveList');
+  if(!dr.leaves.length){list.innerHTML='<div class="empty">Nicio perioadă de concediu</div>';return;}
+  const sorted=[...dr.leaves].sort((a,b)=>a.start.localeCompare(b.start));
+  list.innerHTML=sorted.map((l,i)=>{
+    const days=Math.round((parseDate(l.end)-parseDate(l.start))/86400000)+1;
+    return `<div class="leave-row">
+      <span>${formatDateRO(l.start)} → ${formatDateRO(l.end)} <span style="color:var(--text-dim);font-size:11px">(${days}z)</span></span>
+      <button class="icon-btn" onclick="deleteLeave('${dr.id}','${l.start}','${l.end}')" title="Șterge">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+function addLeave(){
+  if(!leaveDriverId)return;
+  const start=document.getElementById('leaveStart').value,end=document.getElementById('leaveEnd').value;
+  if(!start||!end){toast('Selectează ambele date',true);return;}
+  if(start>end){toast('Data început după data sfârșit',true);return;}
+  const dr=state.drivers.find(d=>d.id===leaveDriverId);if(!dr)return;
+  dr.leaves.push({start,end});
+  renderLeaveList(dr);
+  document.getElementById('modalLeaveSub').textContent=`${dr.leaves.length} perioadă(e) înregistrată(e)`;
+  renderMain();scheduleSave();
+  const days=Math.round((parseDate(end)-parseDate(start))/86400000)+1;
+  toast(`✓ ${days} zile adăugate`);
+}
+
+function deleteLeave(driverId,start,end){
+  const dr=state.drivers.find(d=>d.id===driverId);if(!dr)return;
+  dr.leaves=dr.leaves.filter(l=>!(l.start===start&&l.end===end));
+  renderLeaveList(dr);
+  document.getElementById('modalLeaveSub').textContent=`${dr.leaves.length} perioadă(e) înregistrată(e)`;
+  renderMain();scheduleSave();toast('🗑 Perioadă ștearsă');
+}
+
+// ===== COMBO =====
+function openQuickLeave(){
+  comboSelectedId=null;
+  document.getElementById('comboInput').value='';
+  document.getElementById('quickStart').value='';
+  document.getElementById('quickEnd').value='';
+  document.getElementById('comboList').classList.remove('show');
+  openModal('modalQuick');
+  setTimeout(()=>document.getElementById('comboInput').focus(),50);
+}
+
+function onComboFocus(){comboSelectedId=null;filterCombo(document.getElementById('comboInput').value);}
+function onComboInput(){comboSelectedId=null;filterCombo(document.getElementById('comboInput').value);}
+
+function filterCombo(q){
+  const norm=normalizeForSearch(q.trim()),list=document.getElementById('comboList');
+  if(!norm){comboFiltered=[...state.drivers].sort((a,b)=>a.name.localeCompare(b.name,'ro'));}
+  else{comboFiltered=state.drivers.filter(d=>normalizeForSearch(d.name).includes(norm)).sort((a,b)=>{const as=normalizeForSearch(a.name).startsWith(norm)?0:1,bs=normalizeForSearch(b.name).startsWith(norm)?0:1;if(as!==bs)return as-bs;return a.name.localeCompare(b.name,'ro');});}
+  comboHighlightIdx=0;renderComboList(q.trim());list.classList.add('show');
+}
+
+function renderComboList(query){
+  const list=document.getElementById('comboList');let html='';
+  if(!comboFiltered.length&&!query){html='<div class="combo-empty">Nicio persoană încă</div>';}
+  else{
+    comboFiltered.slice(0,50).forEach((d,i)=>{
+      let dn=escapeHtml(d.name);
+      if(query){const ln=d.name.toLowerCase(),lq=query.toLowerCase(),idx=ln.indexOf(lq);if(idx!==-1)dn=escapeHtml(d.name.slice(0,idx))+'<span class="match">'+escapeHtml(d.name.slice(idx,idx+query.length))+'</span>'+escapeHtml(d.name.slice(idx+query.length));}
+      const cls='combo-option'+(i===comboHighlightIdx?' active':'');
+      const td=d.leaves.reduce((s,l)=>s+Math.round((parseDate(l.end)-parseDate(l.start))/86400000)+1,0);
+      const ds=td>0?`<span style="float:right;color:var(--text-dim);font-size:11px">${td}z</span>`:'';
+      html+=`<div class="${cls}" onmousedown="event.preventDefault()" onclick="selectComboOption('${d.id}')">${dn}${ds}</div>`;
+    });
+  }
+  if(query){
+    const exact=state.drivers.some(d=>d.name.toLowerCase()===query.toLowerCase());
+    if(!exact){const cls='combo-option combo-option-add'+(comboHighlightIdx===comboFiltered.length?' active':'');const eq=escapeHtml(query).replace(/'/g,"\\'");html+=`<div class="${cls}" onmousedown="event.preventDefault()" onclick="createDriverFromCombo('${eq}')">➕ Adaugă persoană nouă: "<strong>${escapeHtml(query)}</strong>"</div>`;}
+  }
+  list.innerHTML=html;
+}
+
+function selectComboOption(id){
+  const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
+  comboSelectedId=id;document.getElementById('comboInput').value=dr.name;
+  document.getElementById('comboList').classList.remove('show');document.getElementById('quickStart').focus();
+}
+
+function createDriverFromCombo(name){
+  name=name.trim();if(!name)return;
+  const nd={id:uid(),name,leaves:[]};state.drivers.push(nd);
+  comboSelectedId=nd.id;document.getElementById('comboInput').value=name;
+  document.getElementById('comboList').classList.remove('show');
+  renderDrivers();scheduleSave();toast(`+ "${name}" adăugat(ă)`);document.getElementById('quickStart').focus();
+}
+
+function onComboKey(e){
+  const list=document.getElementById('comboList'),isOpen=list.classList.contains('show'),query=e.target.value.trim();
+  const hasAdd=query&&!state.drivers.some(d=>d.name.toLowerCase()===query.toLowerCase());
+  const total=comboFiltered.length+(hasAdd?1:0);
+  if(e.key==='ArrowDown'){e.preventDefault();if(!isOpen){filterCombo(query);return;}comboHighlightIdx=Math.min(comboHighlightIdx+1,total-1);renderComboList(query);}
+  else if(e.key==='ArrowUp'){e.preventDefault();comboHighlightIdx=Math.max(comboHighlightIdx-1,0);renderComboList(query);}
+  else if(e.key==='Enter'){e.preventDefault();if(!isOpen)return;if(comboHighlightIdx<comboFiltered.length)selectComboOption(comboFiltered[comboHighlightIdx].id);else if(hasAdd)createDriverFromCombo(query);}
+  else if(e.key==='Escape')list.classList.remove('show');
+}
+
+document.addEventListener('click',e=>{if(!e.target.closest('.combo')){const l=document.getElementById('comboList');if(l)l.classList.remove('show');}});
+
+function saveQuickLeave(){
+  const input=document.getElementById('comboInput').value.trim();
+  if(!input){toast('Selectează o persoană',true);return;}
+  if(!comboSelectedId){const found=state.drivers.find(d=>d.name.toLowerCase()===input.toLowerCase());if(found)comboSelectedId=found.id;else{toast('Persoană negăsită. Folosește dropdown-ul.',true);return;}}
+  const start=document.getElementById('quickStart').value,end=document.getElementById('quickEnd').value;
+  if(!start||!end){toast('Selectează ambele date',true);return;}
+  if(start>end){toast('Data început după data sfârșit',true);return;}
+  const dr=state.drivers.find(d=>d.id===comboSelectedId);dr.leaves.push({start,end});
+  closeModal('modalQuick');renderAll();scheduleSave();
+  const days=Math.round((parseDate(end)-parseDate(start))/86400000)+1;toast(`✓ ${dr.name}: ${days} zile`);
+}
+
+// ===== RENDER =====
+function renderDrivers(){
+  const q=normalizeForSearch((document.getElementById('searchDriver').value||'').trim());
+  const filtered=q?state.drivers.filter(d=>normalizeForSearch(d.name).includes(q)):[...state.drivers];
+  filtered.sort((a,b)=>a.name.localeCompare(b.name,'ro'));
+  document.getElementById('driverCount').textContent=state.drivers.length;
+  document.getElementById('statTotal').textContent=state.drivers.length;
+  const list=document.getElementById('driverList');
+  if(!filtered.length){list.innerHTML='<div class="empty">Nicio persoană</div>';return;}
+  list.innerHTML=filtered.map(dr=>{
+    const td=dr.leaves.reduce((s,l)=>s+Math.round((parseDate(l.end)-parseDate(l.start))/86400000)+1,0);
+    return `<div class="driver-item">
+      <span class="driver-name" onclick="openLeaveModal('${dr.id}')">${escapeHtml(dr.name)}</span>
+      ${td>0?`<span class="driver-days">${td}z</span>`:''}
+      <div class="driver-actions">
+        <button class="icon-btn" onclick="openEditDriver('${dr.id}')" title="Editează">✏️</button>
+        <button class="icon-btn" onclick="deleteDriver('${dr.id}')" title="Șterge">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setStatLevel(id,count){const el=document.getElementById(id);el.classList.remove('warn','crit');const{warn,crit}=state.thresholds;if(count>=crit)el.classList.add('crit');else if(count>=warn)el.classList.add('warn');}
+
+function renderHolidayBanner(){
+  const today=new Date(),banner=document.getElementById('holidayBanner');
+  const y=currentDate.getFullYear(),m=currentDate.getMonth();
+  const holidays=[];
+  for(let d=1;d<=new Date(y,m+1,0).getDate();d++){const dt=new Date(y,m,d);const h=getHoliday(dt);if(h&&!isSunday(dt))holidays.push({date:dt,name:h});}
+  if(!holidays.length){banner.style.display='none';return;}
+  banner.style.display='block';
+  banner.textContent='🎉 Sărbători în '+MONTHS[m]+': '+holidays.map(h=>`${h.date.getDate()} ${h.name.split('(')[0].trim()}`).join(' · ');
+}
+
+function renderCalendar(){
+  const y=currentDate.getFullYear(),m=currentDate.getMonth();
+  document.getElementById('monthLabel').textContent=`${MONTHS[m]} ${y}`;
+  const today=new Date(),firstDay=new Date(y,m,1),lastDay=new Date(y,m+1,0);
+  const startDow=(firstDay.getDay()+6)%7;
+  const DOW_SHORT=['Lun','Mar','Mie','Joi','Vin','Sâm','Dum'];
+  let html=DOW_SHORT.map((d,i)=>`<div class="cal-header${i===6?' sun-header':''}">${d}</div>`).join('');
+  const cells=[];
+  for(let i=0;i<startDow;i++){const d=new Date(y,m,1-startDow+i);cells.push({d,otherMonth:true});}
+  for(let d=1;d<=lastDay.getDate();d++)cells.push({d:new Date(y,m,d),otherMonth:false});
+  while(cells.length%7!==0){const last=cells[cells.length-1].d;cells.push({d:new Date(last.getFullYear(),last.getMonth(),last.getDate()+1),otherMonth:true});}
+  html+=cells.map(({d,otherMonth})=>renderCalDay(d,otherMonth,today)).join('');
+  document.getElementById('calGrid').innerHTML=html;
+  renderHolidayBanner();
+  let onLeaveToday=driversOnDate(today).length;
+  document.getElementById('statToday').textContent=onLeaveToday;setStatLevel('statTodayBox',onLeaveToday);
+  const daysInMonth=lastDay.getDate();
+  const counts=[];for(let d=1;d<=daysInMonth;d++){const dt=new Date(y,m,d);counts.push(isSunday(dt)?0:driversOnDate(dt).length);}
+  const peak=Math.max(...counts,0),manDays=counts.reduce((a,b)=>a+b,0);
+  document.getElementById('statPeak').textContent=peak;document.getElementById('statManDays').textContent=manDays;
+  setStatLevel('statPeakBox',peak);
+}
+
+function renderCalDay(d,otherMonth,today){
+  const dnum=d.getDate(),isSun=isSunday(d),holiday=getHoliday(d),isToday=sameDay(d,today);
+  const drivers=(otherMonth||isSun)?[]:driversOnDate(d);
+  const classes=['cal-day'];
+  if(isSun)classes.push('sunday');else classes.push(`lvl-${getLevel(drivers.length)}`);
+  if(holiday)classes.push('holiday');if(otherMonth)classes.push('other-month');if(isToday)classes.push('today');
+  const ds=fmtDate(d),clickHandler=isSun?'':`onclick="openDayDetail('${ds}')"`;
+  let inner;
+  if(isSun)inner=`<div class="cal-day-num">${dnum}</div>`+(holiday?`<div class="holiday-name">${escapeHtml(holiday.split('(')[0].trim())}</div>`:'')+`<div class="sunday-mark">${holiday?'':'Liber'}</div>`;
+  else if(holiday)inner=`<div class="cal-day-num">${dnum}</div><div class="holiday-name">${escapeHtml(holiday.split('(')[0].trim())}</div>${drivers.length>0?`<div class="cal-day-count">${drivers.length}</div>`:''}`;
+  else inner=`<div class="cal-day-num">${dnum}</div>${drivers.length>0?`<div class="cal-day-count">${drivers.length}</div>`:''}`;
+  const titleAttr=holiday?`title="${escapeHtml(holiday)}"`:''
+  return `<div class="${classes.join(' ')}" ${clickHandler} ${titleAttr}>${inner}</div>`;
+}
+
+function openDayDetail(dateStr){
+  const d=parseDate(dateStr);if(isSunday(d))return;
+  const drivers=driversOnDate(d),holiday=getHoliday(d);
+  document.getElementById('modalDayTitle').textContent=formatDateRO(dateStr);
+  const dowName=['Duminică','Luni','Marți','Miercuri','Joi','Vineri','Sâmbătă'][d.getDay()];
+  let sub=`${dowName} • ${drivers.length} persoane în concediu`;if(holiday)sub+=` • 🎉 ${holiday}`;
+  document.getElementById('modalDaySub').textContent=sub;
+  const list=document.getElementById('dayDriversList');
+  if(!drivers.length){list.innerHTML='<div class="empty">Nicio persoană în concediu</div>';}
+  else{list.innerHTML=drivers.map(dr=>{const leave=dr.leaves.find(l=>dateInLeave(d,l));return`<div class="day-driver"><span>${escapeHtml(dr.name)}</span><span style="color:var(--text-dim);font-size:11px">${formatDateRO(leave.start)} → ${formatDateRO(leave.end)}</span></div>`;}).join('');}
+  openModal('modalDay');
+}
+
+function renderTimeline(){
+  const y=currentDate.getFullYear(),m=currentDate.getMonth(),daysInMonth=new Date(y,m+1,0).getDate(),today=new Date();
+  document.getElementById('monthLabel').textContent=`${MONTHS[m]} ${y}`;
+  const tl=document.getElementById('timeline');
+  if(!state.drivers.length){tl.innerHTML='<div style="padding:40px;text-align:center;color:var(--text-dim);grid-column:1/-1">Adaugă persoane pentru a vedea timeline-ul</div>';return;}
+  const sortedDrivers=[...state.drivers].sort((a,b)=>a.name.localeCompare(b.name,'ro'));
+  const colWidthPx=32,gridCols=`repeat(${daysInMonth},${colWidthPx}px)`;
+  let driverHtml='<div class="tl-driver-col"><div class="tl-driver-header">Persoană</div>';
+  sortedDrivers.forEach(dr=>{driverHtml+=`<div class="tl-driver-row" onclick="openLeaveModal('${dr.id}')">${escapeHtml(dr.name)}</div>`;});
+  driverHtml+='<div class="tl-driver-row" style="background:var(--bg-elev-2);font-weight:700;font-size:11px;text-transform:uppercase;color:var(--text-dim);letter-spacing:0.5px;cursor:default">Total / zi</div></div>';
+  let gridHtml='<div class="tl-grid-wrap">';
+  gridHtml+=`<div class="tl-day-headers" style="grid-template-columns:${gridCols}">`;
+  for(let dn=1;dn<=daysInMonth;dn++){const d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d),isTd=sameDay(d,today);const cls=['tl-day-header'];if(isSun)cls.push('sunday');if(holiday)cls.push('holiday');if(isTd)cls.push('today');gridHtml+=`<div class="${cls.join(' ')}"${holiday?` title="${escapeHtml(holiday)}"`:''} ><div class="dnum">${dn}</div><div class="dow">${DOW_MIN[(d.getDay()+6)%7]}</div></div>`;}
+  gridHtml+='</div>';
+  const dailyCounts=new Array(daysInMonth+1).fill(0);
+  sortedDrivers.forEach(dr=>{
+    gridHtml+=`<div class="tl-row" style="grid-template-columns:${gridCols}">`;
+    for(let dn=1;dn<=daysInMonth;dn++){const d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d),onLeave=!isSun&&dr.leaves.some(l=>dateInLeave(d,l));const cls=['tl-cell'];if(isSun)cls.push('sunday');if(holiday)cls.push('holiday');if(onLeave){cls.push('in-leave');dailyCounts[dn]++;}const ds=fmtDate(d),onClick=isSun?'':`onclick="openDayDetail('${ds}')"`;gridHtml+=`<div class="${cls.join(' ')}" ${onClick} title="${escapeHtml(dr.name+' - '+formatDateRO(ds)+(holiday?' • '+holiday:'')+(isSun?' • Duminică':''))}"></div>`;}
+    gridHtml+='</div>';
+  });
+  gridHtml+=`<div class="tl-totals" style="grid-template-columns:${gridCols}">`;
+  for(let dn=1;dn<=daysInMonth;dn++){const c=dailyCounts[dn],d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d),lvl=isSun?0:getLevel(c);const cls=['tl-total',`lvl-${lvl}`];if(isSun)cls.push('sunday');if(holiday)cls.push('holiday');const ds=fmtDate(d),onClick=isSun?'':`onclick="openDayDetail('${ds}')"`;gridHtml+=`<div class="${cls.join(' ')}" ${onClick}>${isSun?'—':(c||'·')}</div>`;}
+  gridHtml+='</div></div>';
+  tl.innerHTML=driverHtml+gridHtml;
+  let onLeaveToday=driversOnDate(today).length;
+  document.getElementById('statToday').textContent=onLeaveToday;setStatLevel('statTodayBox',onLeaveToday);
+  const peak=Math.max(...dailyCounts),manDays=dailyCounts.reduce((a,b)=>a+b,0);
+  document.getElementById('statPeak').textContent=peak;document.getElementById('statManDays').textContent=manDays;
+  setStatLevel('statPeakBox',peak);renderHolidayBanner();
+}
+
+function changeMonth(delta){currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+delta,1);renderMain();}
+function goToday(){currentDate=new Date();renderMain();}
+function setView(v){
+  view=v;
+  document.querySelectorAll('.view-tab').forEach((t,i)=>t.classList.toggle('active',(i===0&&v==='calendar')||(i===1&&v==='timeline')));
+  document.getElementById('calendarView').style.display=v==='calendar'?'block':'none';
+  document.getElementById('timelineView').style.display=v==='timeline'?'block':'none';
+  renderMain();
+}
+function updateThresholds(){
+  const w=parseInt(document.getElementById('thWarn').value)||3,c=parseInt(document.getElementById('thCrit').value)||5;
+  state.thresholds.warn=w;state.thresholds.crit=Math.max(c,w+1);
+  document.getElementById('thCrit').value=state.thresholds.crit;
+  updateThresholdLegend();renderMain();scheduleSave();
+}
+function updateThresholdLegend(){
+  const w=state.thresholds.warn,c=state.thresholds.crit;
+  document.getElementById('legWarn').textContent=w;document.getElementById('legWarn1').textContent=w-1;
+  document.getElementById('legCrit').textContent=c;document.getElementById('legCrit1').textContent=c-1;
+}
+function renderMain(){if(view==='calendar')renderCalendar();else renderTimeline();}
+function renderAll(includeDrivers=true){if(includeDrivers)renderDrivers();renderMain();}
+</script>
+</body>
+</html>
