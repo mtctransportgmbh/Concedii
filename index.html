@@ -456,19 +456,19 @@
   .cal-day {
     aspect-ratio: 1;
     background: var(--bg-elev-2);
-    border-radius: 4px;
-    padding: 4px 5px;
+    border-radius: 3px;
+    padding: 3px 4px;
     cursor: pointer;
     position: relative;
     display: flex;
     flex-direction: column;
     border: 2px solid transparent;
-    min-height: 46px;
+    min-height: 36px;
   }
   .cal-day:hover { border-color: var(--accent); }
   .cal-day.other-month { opacity: 0.3; }
   .cal-day.today { box-shadow: inset 0 0 0 1px var(--accent-2); }
-  .cal-day-num { font-size: 11px; font-weight: 600; }
+  .cal-day-num { font-size: 10px; font-weight: 600; }
   
   .cal-day.sunday {
     background: repeating-linear-gradient(45deg,rgba(239,68,68,0.06),rgba(239,68,68,0.06) 6px,rgba(239,68,68,0.12) 6px,rgba(239,68,68,0.12) 12px);
@@ -515,6 +515,25 @@
   .tl-cell:not(.sunday):hover { background: rgba(245,158,11,0.15); }
   .tl-cell.in-leave { background: var(--green); }
   .tl-cell.in-leave:hover { background: #0ea271; }
+  .tl-cell.tl-selecting { background: rgba(245,158,11,0.45) !important; }
+  .tl-cell.in-leave.tl-selecting { background: rgba(239,68,68,0.55) !important; }
+  
+  /* Tooltip de selectie */
+  #tlSelectTooltip {
+    position: fixed;
+    background: var(--bg-elev);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 500;
+    display: none;
+    white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
   .tl-totals { display: grid; border-top: 2px solid var(--border); background: var(--bg-elev-2); position: sticky; bottom: 0; }
   .tl-total { text-align: center; padding: 6px 0; font-size: 11px; font-weight: 700; border-right: 1px solid var(--border); cursor: pointer; }
   .tl-total.lvl-0 { color: var(--text-dim); }
@@ -787,6 +806,7 @@
   </div>
 </div>
 
+<div id="tlSelectTooltip"></div>
 <div class="toast" id="toast"></div>
 
 <!-- Firebase SDKs -->
@@ -1589,30 +1609,134 @@ function openDayDetail(dateStr){
   openModal('modalDay');
 }
 
+// ===== TIMELINE DRAG SELECT STATE =====
+let tlDrag = { active:false, driverId:null, startDay:null, endDay:null, removing:false };
+
+function tlDragStart(driverId, dn, isSun, onLeave) {
+  if(isSun) return;
+  tlDrag.active = true;
+  tlDrag.driverId = driverId;
+  tlDrag.startDay = dn;
+  tlDrag.endDay = dn;
+  tlDrag.removing = onLeave; // dacă ziua e verde, drag = ștergere
+  tlDragUpdate(dn);
+}
+
+function tlDragMove(dn, pageX, pageY) {
+  if(!tlDrag.active) return;
+  tlDrag.endDay = dn;
+  tlDragUpdate(dn);
+  const tip = document.getElementById('tlSelectTooltip');
+  if(tip) {
+    const s=Math.min(tlDrag.startDay,tlDrag.endDay), e=Math.max(tlDrag.startDay,tlDrag.endDay);
+    const days = e - s + 1;
+    const y=currentDate.getFullYear(), m=currentDate.getMonth();
+    tip.textContent = tlDrag.removing
+      ? `🗑 Șterge ${days} zile (${s}–${e})`
+      : `✓ Adaugă ${days} zile concediu (${s}–${e})`;
+    tip.style.display = 'block';
+    tip.style.left = (pageX + 14) + 'px';
+    tip.style.top  = (pageY - 32) + 'px';
+  }
+}
+
+function tlDragUpdate(currentDn) {
+  const s = Math.min(tlDrag.startDay, currentDn);
+  const e = Math.max(tlDrag.startDay, currentDn);
+  // Highlight cells for this driver row
+  document.querySelectorAll(`.tl-cell[data-driver="${tlDrag.driverId}"]`).forEach(cell => {
+    const dn = parseInt(cell.dataset.day);
+    cell.classList.toggle('tl-selecting', dn >= s && dn <= e);
+  });
+}
+
+function tlDragEnd() {
+  if(!tlDrag.active) return;
+  tlDrag.active = false;
+  document.getElementById('tlSelectTooltip').style.display = 'none';
+  document.querySelectorAll('.tl-selecting').forEach(c => c.classList.remove('tl-selecting'));
+
+  const y=currentDate.getFullYear(), m=currentDate.getMonth();
+  const s=Math.min(tlDrag.startDay, tlDrag.endDay);
+  const e=Math.max(tlDrag.startDay, tlDrag.endDay);
+  const startStr = `${y}-${String(m+1).padStart(2,'0')}-${String(s).padStart(2,'0')}`;
+  const endStr   = `${y}-${String(m+1).padStart(2,'0')}-${String(e).padStart(2,'0')}`;
+
+  const dr = state.drivers.find(d => d.id === tlDrag.driverId);
+  if(!dr) return;
+
+  if(tlDrag.removing) {
+    // Șterge orice perioadă care se suprapune cu selecția
+    const before = dr.leaves.length;
+    dr.leaves = dr.leaves.filter(l => !(l.start <= endStr && l.end >= startStr));
+    const removed = before - dr.leaves.length;
+    if(removed > 0) { renderAll(); scheduleSave(); toast(`🗑 Concediu șters pentru ${dr.name}`); }
+    else toast('Nicio perioadă de șters în intervalul selectat', true);
+  } else {
+    // Verifică quota
+    const newDays = e - s + 1;
+    const maxDays = dr.maxDays || 0;
+    if(maxDays > 0) {
+      const used = usedDaysThisYear(dr);
+      if(used + newDays > maxDays) {
+        const over = used + newDays - maxDays;
+        const ok = confirm(`⚠️ Depășire zile concediu!\n\n${dr.name} are ${maxDays} zile disponibile în ${y}.\nFolosite: ${used} · Adăugat: ${newDays} · Depășire: ${over}\n\nEști sigur?`);
+        if(!ok) return;
+      }
+    }
+    dr.leaves.push({ start: startStr, end: endStr });
+    renderAll(); scheduleSave();
+    toast(`✓ ${dr.name}: ${newDays} zile adăugate`);
+  }
+  tlDrag = { active:false, driverId:null, startDay:null, endDay:null, removing:false };
+}
+
 function renderTimeline(){
   const y=currentDate.getFullYear(),m=currentDate.getMonth(),daysInMonth=new Date(y,m+1,0).getDate(),today=new Date();
   document.getElementById('monthLabel').textContent=`${MONTHS[m]} ${y}`;
   const tl=document.getElementById('timeline');
-  if(!state.drivers.length){tl.innerHTML='<div style="padding:40px;text-align:center;color:var(--text-dim);grid-column:1/-1">Adaugă persoane pentru a vedea timeline-ul</div>';return;}
-  const sortedDrivers=[...state.drivers].sort((a,b)=>a.name.localeCompare(b.name,'ro'));
+  const visDrivers = getVisibleDrivers();
+  if(!visDrivers.length){tl.innerHTML='<div style="padding:40px;text-align:center;color:var(--text-dim);grid-column:1/-1">Nicio persoană</div>';return;}
+  const sortedDrivers=[...visDrivers].sort((a,b)=>a.name.localeCompare(b.name,'ro'));
   const colWidthPx=32,gridCols=`repeat(${daysInMonth},${colWidthPx}px)`;
+
   let driverHtml='<div class="tl-driver-col"><div class="tl-driver-header">Persoană</div>';
-  sortedDrivers.forEach(dr=>{driverHtml+=`<div class="tl-driver-row" onclick="openLeaveModal('${dr.id}')">${escapeHtml(dr.name)}</div>`;});
+  sortedDrivers.forEach(dr=>{driverHtml+=`<div class="tl-driver-row" onclick="openLeaveModal('${dr.id}')" title="Click pentru detalii / Drag pe calendar pentru concediu">${escapeHtml(dr.name)}</div>`;});
   driverHtml+='<div class="tl-driver-row" style="background:var(--bg-elev-2);font-weight:700;font-size:11px;text-transform:uppercase;color:var(--text-dim);letter-spacing:0.5px;cursor:default">Total / zi</div></div>';
+
   let gridHtml='<div class="tl-grid-wrap">';
   gridHtml+=`<div class="tl-day-headers" style="grid-template-columns:${gridCols}">`;
   for(let dn=1;dn<=daysInMonth;dn++){const d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d),isTd=sameDay(d,today);const cls=['tl-day-header'];if(isSun)cls.push('sunday');if(holiday)cls.push('holiday');if(isTd)cls.push('today');gridHtml+=`<div class="${cls.join(' ')}"${holiday?` title="${escapeHtml(holiday)}"`:''} ><div class="dnum">${dn}</div><div class="dow">${DOW_MIN[(d.getDay()+6)%7]}</div></div>`;}
   gridHtml+='</div>';
+
   const dailyCounts=new Array(daysInMonth+1).fill(0);
   sortedDrivers.forEach(dr=>{
     gridHtml+=`<div class="tl-row" style="grid-template-columns:${gridCols}">`;
-    for(let dn=1;dn<=daysInMonth;dn++){const d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d),onLeave=!isSun&&dr.leaves.some(l=>dateInLeave(d,l));const cls=['tl-cell'];if(isSun)cls.push('sunday');if(holiday)cls.push('holiday');if(onLeave){cls.push('in-leave');dailyCounts[dn]++;}const ds=fmtDate(d),onClick=isSun?'':`onclick="openDayDetail('${ds}')"`;gridHtml+=`<div class="${cls.join(' ')}" ${onClick} title="${escapeHtml(dr.name+' - '+formatDateRO(ds)+(holiday?' • '+holiday:'')+(isSun?' • Duminică':''))}"></div>`;}
+    for(let dn=1;dn<=daysInMonth;dn++){
+      const d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d),onLeave=!isSun&&dr.leaves.some(l=>dateInLeave(d,l));
+      const cls=['tl-cell'];
+      if(isSun)cls.push('sunday');
+      if(holiday)cls.push('holiday');
+      if(onLeave){cls.push('in-leave');dailyCounts[dn]++;}
+      const ds=fmtDate(d);
+      const dragAttrs = isSun ? '' :
+        `onmousedown="tlDragStart('${dr.id}',${dn},false,${onLeave})" `+
+        `onmousemove="if(event.buttons===1)tlDragMove(${dn},event.pageX,event.pageY)" `+
+        `onmouseenter="if(event.buttons===1){tlDrag.active&&tlDragMove(${dn},event.pageX,event.pageY)}"`;
+      const tipText = isSun ? 'Duminică' : (onLeave ? 'Concediu — trage pentru a șterge' : 'Trage pentru a adăuga concediu');
+      gridHtml+=`<div class="${cls.join(' ')}" ${dragAttrs} title="${escapeHtml(dr.name)} · ${formatDateRO(ds)}${holiday?' · '+holiday:''} — ${tipText}" data-driver="${dr.id}" data-day="${dn}"></div>`;
+    }
     gridHtml+='</div>';
   });
+
   gridHtml+=`<div class="tl-totals" style="grid-template-columns:${gridCols}">`;
   for(let dn=1;dn<=daysInMonth;dn++){const c=dailyCounts[dn],d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d),lvl=isSun?0:getLevel(c);const cls=['tl-total',`lvl-${lvl}`];if(isSun)cls.push('sunday');if(holiday)cls.push('holiday');const ds=fmtDate(d),onClick=isSun?'':`onclick="openDayDetail('${ds}')"`;gridHtml+=`<div class="${cls.join(' ')}" ${onClick}>${isSun?'—':(c||'·')}</div>`;}
   gridHtml+='</div></div>';
   tl.innerHTML=driverHtml+gridHtml;
+
+  // Global mouse-up to finish drag anywhere
+  tl.onmouseup = () => tlDragEnd();
+
   let onLeaveToday=driversOnDate(today).length;
   document.getElementById('statToday').textContent=onLeaveToday;setStatLevel('statTodayBox',onLeaveToday);
   const peak=Math.max(...dailyCounts),manDays=dailyCounts.reduce((a,b)=>a+b,0);
@@ -1622,6 +1746,10 @@ function renderTimeline(){
 
 function changeMonth(delta){currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+delta,1);renderMain();}
 function goToday(){currentDate=new Date();renderMain();}
+
+// Global drag end — dacă mouseup e în afara timeline-ului
+document.addEventListener('mouseup', ()=>{ if(tlDrag.active) tlDragEnd(); });
+document.addEventListener('mousemove', e=>{ if(tlDrag.active && e.buttons!==1) tlDragEnd(); });
 function setView(v){
   view=v;
   document.querySelectorAll('.view-tab').forEach((t,i)=>t.classList.toggle('active',(i===0&&v==='calendar')||(i===1&&v==='timeline')));
