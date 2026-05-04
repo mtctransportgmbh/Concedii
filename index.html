@@ -636,7 +636,7 @@
       <span>Persoane</span>
       <span id="driverCount" style="text-transform:none; letter-spacing:0; color:var(--text-dim)">0</span>
     </div>
-    <button class="btn btn-secondary btn-small" onclick="openAddDriver()" style="width:100%; margin-bottom:6px">+ Persoană nouă</button>
+    <button class="btn btn-secondary btn-small" id="addDriverBtn" onclick="openAddDriver()" style="width:100%; margin-bottom:6px">+ Persoană nouă</button>
     <input type="text" id="searchDriver" placeholder="🔍 Caută persoană..." oninput="renderDrivers()" style="margin-bottom:8px">
     <div class="driver-list" id="driverList"></div>
   </aside>
@@ -725,9 +725,26 @@
 <div class="modal-bg" id="modalDriver">
   <div class="modal">
     <h3 id="modalDriverTitle">Adaugă persoană</h3>
-    <div class="modal-sub">Numele apare în lista din stânga și în timeline.</div>
+    <div class="modal-sub">Doar Admin poate adăuga sau modifica persoane.</div>
     <label>Nume persoană</label>
     <input type="text" id="driverNameInput" placeholder="ex: Ion Popescu">
+    <label>Zile concediu disponibile / an (0 = nelimitat)</label>
+    <input type="number" id="driverMaxDays" placeholder="ex: 20" min="0" value="0">
+    <label>Vizibil pentru</label>
+    <div id="driverVisibility" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px">
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);margin:0;cursor:pointer">
+        <input type="checkbox" id="visRaluca" value="raluca"> Raluca
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);margin:0;cursor:pointer">
+        <input type="checkbox" id="visMadalina" value="madalina"> Mădălina
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);margin:0;cursor:pointer">
+        <input type="checkbox" id="visCorina" value="corina"> Corina
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);margin:0;cursor:pointer">
+        <input type="checkbox" id="visTania" value="tania" disabled checked style="opacity:0.5"> Tania (mereu)
+      </label>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modalDriver')">Anulează</button>
       <button class="btn" onclick="saveDriver()">Salvează</button>
@@ -739,6 +756,14 @@
   <div class="modal">
     <h3 id="modalLeaveTitle">Concedii</h3>
     <div class="modal-sub" id="modalLeaveSub"></div>
+    <div id="leaveQuotaBar" style="display:none; margin-bottom:10px"></div>
+    <div id="leaveMaxDaysRow" style="display:none; margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px">
+        Zile disponibile/an:
+        <input type="number" id="leaveMaxDaysInput" min="0" style="width:70px;padding:4px 8px;font-size:13px" onchange="saveMaxDays()">
+        <span style="font-size:11px;color:var(--text-dim)">(0 = nelimitat)</span>
+      </label>
+    </div>
     <label>De la</label>
     <input type="date" id="leaveStart">
     <label>Până la (inclusiv)</label>
@@ -861,11 +886,15 @@ onAuthStateChanged(auth, (user) => {
 // ---- Enter app ----
 function enterApp(userKey) {
   const user = USERS[userKey];
-  window.activeUserKey = userKey; // expose for non-module script
+  window.activeUserKey = userKey;
   const avatarDiv = document.getElementById('userAvatarDiv');
   avatarDiv.textContent = user.initial;
   avatarDiv.style.background = user.color;
   document.getElementById('userName').textContent = user.name + (userKey === 'admin' ? ' 👑' : '');
+
+  // Buton "Persoană nouă" — doar admin
+  const addBtn = document.getElementById('addDriverBtn');
+  if (addBtn) addBtn.style.display = (userKey === 'admin') ? 'block' : 'none';
 
   document.getElementById('authScreen').style.display = 'none';
   document.getElementById('appRoot').style.display = 'grid';
@@ -1102,7 +1131,10 @@ function parseDate(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-
 function sameDay(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();}
 function isSunday(d){return d.getDay()===0;}
 function dateInLeave(date,leave){const ds=fmtDate(date);return ds>=leave.start&&ds<=leave.end;}
-function driversOnDate(date){return state.drivers.filter(dr=>dr.leaves.some(l=>dateInLeave(date,l)));}
+function driversOnDate(date){
+  const visible=typeof getVisibleDrivers==='function'?getVisibleDrivers():state.drivers;
+  return visible.filter(dr=>dr.leaves.some(l=>dateInLeave(date,l)));
+}
 function getLevel(count){const{warn,crit}=state.thresholds;if(count===0)return 0;if(count>=crit)return 4;if(count>=warn)return 3;if(count>=Math.ceil(warn/2)+1)return 2;return 1;}
 function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function normalizeForSearch(s){return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[ăâ]/g,'a').replace(/î/g,'i').replace(/[șş]/g,'s').replace(/[țţ]/g,'t');}
@@ -1160,43 +1192,89 @@ function getLocalBackupInfo(){
   return {ago, drivers:b.data.drivers?.length||0, savedAt:d};
 }
 
-function getDriverListForUser(userKey){if(userKey==="madalina")return DRIVERS_MADALINA;if(userKey==="raluca")return DRIVERS_RALUCA;if(userKey==="corina")return DRIVERS_CORINA;return DRIVERS_TANIA;}function loadDefaultDrivers(){const list=getDriverListForUser(window.activeUserKey||"tania");state.drivers=list.map(name=>({id:uid(),name,leaves:[]}));}
+function getDriverListForUser(userKey){if(userKey==="madalina")return DRIVERS_MADALINA;if(userKey==="raluca")return DRIVERS_RALUCA;if(userKey==="corina")return DRIVERS_CORINA;return DRIVERS_TANIA;}
+
+function visibleToForName(name){
+  const vis=['tania'];
+  if(DRIVERS_RALUCA.includes(name))   vis.push('raluca');
+  if(DRIVERS_MADALINA.includes(name)) vis.push('madalina');
+  if(DRIVERS_CORINA.includes(name))   vis.push('corina');
+  return vis;
+}
+
+function loadDefaultDrivers(){
+  const list=getDriverListForUser(window.activeUserKey||"tania");
+  state.drivers=list.map(name=>({id:uid(),name,leaves:[],maxDays:0,visibleTo:visibleToForName(name)}));
+}
 
 // ===== MODALS =====
 function openModal(id){document.getElementById(id).classList.add('show');}
 function closeModal(id){document.getElementById(id).classList.remove('show');}
 
+function isAdminOrTania(){ return window.activeUserKey==='admin'||window.activeUserKey==='tania'; }
+function isAdmin(){ return window.activeUserKey==='admin'; }
+
+// Zile concediu folosite în anul curent
+function usedDaysThisYear(dr){
+  const y=new Date().getFullYear();
+  return dr.leaves.reduce((sum,l)=>{
+    const s=parseDate(l.start),e=parseDate(l.end);
+    if(s.getFullYear()!==y&&e.getFullYear()!==y) return sum;
+    // numără zilele din acest an
+    const ys=new Date(y,0,1),ye=new Date(y,11,31);
+    const from=s<ys?ys:s, to=e>ye?ye:e;
+    return sum+Math.round((to-from)/86400000)+1;
+  },0);
+}
+
 function openAddDriver(){
+  if(!isAdmin()){toast('Doar Admin poate adăuga persoane',true);return;}
   editingDriverId=null;
   document.getElementById('modalDriverTitle').textContent='Adaugă persoană';
   document.getElementById('driverNameInput').value='';
+  document.getElementById('driverMaxDays').value='0';
+  ['visRaluca','visMadalina','visCorina'].forEach(id=>{ document.getElementById(id).checked=false; });
   openModal('modalDriver');
   setTimeout(()=>document.getElementById('driverNameInput').focus(),50);
 }
 
 function openEditDriver(id){
+  if(!isAdmin()){toast('Doar Admin poate edita persoane',true);return;}
   editingDriverId=id;
   const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
   document.getElementById('modalDriverTitle').textContent='Editează persoană';
   document.getElementById('driverNameInput').value=dr.name;
+  document.getElementById('driverMaxDays').value=dr.maxDays||0;
+  const vis=dr.visibleTo||[];
+  document.getElementById('visRaluca').checked=vis.includes('raluca');
+  document.getElementById('visMadalina').checked=vis.includes('madalina');
+  document.getElementById('visCorina').checked=vis.includes('corina');
   openModal('modalDriver');
   setTimeout(()=>document.getElementById('driverNameInput').focus(),50);
 }
 
 function saveDriver(){
+  if(!isAdmin()){toast('Doar Admin poate salva persoane',true);return;}
   const name=document.getElementById('driverNameInput').value.trim();
   if(!name){toast('Introdu un nume',true);return;}
+  const maxDays=parseInt(document.getElementById('driverMaxDays').value)||0;
+  const visibleTo=['tania']; // tania mereu
+  ['visRaluca','visMadalina','visCorina'].forEach(vid=>{
+    const el=document.getElementById(vid);
+    if(el&&el.checked) visibleTo.push(el.value);
+  });
   if(editingDriverId){
     const dr=state.drivers.find(d=>d.id===editingDriverId);
-    if(dr){dr.name=name;toast(`✓ "${name}" actualizat`);}
+    if(dr){dr.name=name;dr.maxDays=maxDays;dr.visibleTo=visibleTo;toast(`✓ "${name}" actualizat`);}
   } else {
-    state.drivers.push({id:uid(),name,leaves:[]});
+    state.drivers.push({id:uid(),name,leaves:[],maxDays,visibleTo});
     toast(`+ "${name}" adăugat(ă)`);
   }
   closeModal('modalDriver');renderAll();scheduleSave();
 }
 
 function deleteDriver(id){
+  if(!isAdmin()){toast('Doar Admin poate șterge persoane',true);return;}
   const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
   if(!confirm(`Ștergi "${dr.name}" și toate concediile sale?`))return;
   state.drivers=state.drivers.filter(d=>d.id!==id);
@@ -1207,11 +1285,50 @@ function openLeaveModal(id){
   leaveDriverId=id;
   const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
   document.getElementById('modalLeaveTitle').textContent=`Concedii — ${dr.name}`;
-  document.getElementById('modalLeaveSub').textContent=`${dr.leaves.length} perioadă(e) înregistrată(e)`;
   document.getElementById('leaveStart').value='';
   document.getElementById('leaveEnd').value='';
+
+  // Quota bar
+  const maxDays=dr.maxDays||0;
+  const used=usedDaysThisYear(dr);
+  const quotaBar=document.getElementById('leaveQuotaBar');
+  if(maxDays>0){
+    const pct=Math.min(100,Math.round(used/maxDays*100));
+    const color=used>maxDays?'var(--red)':used>=maxDays*0.8?'var(--orange)':'var(--green)';
+    quotaBar.style.display='block';
+    quotaBar.innerHTML=`
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span style="color:var(--text-dim)">Zile folosite ${new Date().getFullYear()}</span>
+        <span style="font-weight:700;color:${color}">${used} / ${maxDays} zile</span>
+      </div>
+      <div style="background:var(--bg-elev-2);border-radius:4px;height:8px;overflow:hidden">
+        <div style="width:${pct}%;background:${color};height:100%;border-radius:4px;transition:width 0.3s"></div>
+      </div>`;
+  } else {
+    quotaBar.style.display='block';
+    quotaBar.innerHTML=`<div style="font-size:12px;color:var(--text-dim)">Zile folosite ${new Date().getFullYear()}: <strong style="color:var(--text)">${used}</strong> <span style="color:var(--text-dim)">(nelimitat)</span></div>`;
+  }
+
+  // MaxDays editor — doar admin și tania
+  const maxRow=document.getElementById('leaveMaxDaysRow');
+  if(isAdminOrTania()){
+    maxRow.style.display='block';
+    document.getElementById('leaveMaxDaysInput').value=maxDays;
+  } else {
+    maxRow.style.display='none';
+  }
+
+  const total=dr.leaves.reduce((s,l)=>s+Math.round((parseDate(l.end)-parseDate(l.start))/86400000)+1,0);
+  document.getElementById('modalLeaveSub').textContent=`${dr.leaves.length} perioadă(e) · ${total} zile total`;
   renderLeaveList(dr);
   openModal('modalLeave');
+}
+
+function saveMaxDays(){
+  const dr=state.drivers.find(d=>d.id===leaveDriverId);if(!dr)return;
+  dr.maxDays=parseInt(document.getElementById('leaveMaxDaysInput').value)||0;
+  openLeaveModal(leaveDriverId); // rerender quota bar
+  scheduleSave();
 }
 
 function renderLeaveList(dr){
@@ -1233,19 +1350,26 @@ function addLeave(){
   if(!start||!end){toast('Selectează ambele date',true);return;}
   if(start>end){toast('Data început după data sfârșit',true);return;}
   const dr=state.drivers.find(d=>d.id===leaveDriverId);if(!dr)return;
+  const newDays=Math.round((parseDate(end)-parseDate(start))/86400000)+1;
+  const maxDays=dr.maxDays||0;
+  if(maxDays>0){
+    const used=usedDaysThisYear(dr);
+    if(used+newDays>maxDays){
+      const over=used+newDays-maxDays;
+      const ok=confirm(`⚠️ Depășire zile concediu!\n\n${dr.name} are ${maxDays} zile disponibile în ${new Date().getFullYear()}.\nFolosite: ${used} zile · Adăugat: ${newDays} zile\nDepășire: ${over} zile\n\nEști sigur că vrei să adaugi acest concediu?`);
+      if(!ok)return;
+    }
+  }
   dr.leaves.push({start,end});
-  renderLeaveList(dr);
-  document.getElementById('modalLeaveSub').textContent=`${dr.leaves.length} perioadă(e) înregistrată(e)`;
+  openLeaveModal(leaveDriverId); // rerender cu quota actualizată
   renderMain();scheduleSave();
-  const days=Math.round((parseDate(end)-parseDate(start))/86400000)+1;
-  toast(`✓ ${days} zile adăugate`);
+  toast(`✓ ${newDays} zile adăugate`);
 }
 
 function deleteLeave(driverId,start,end){
   const dr=state.drivers.find(d=>d.id===driverId);if(!dr)return;
   dr.leaves=dr.leaves.filter(l=>!(l.start===start&&l.end===end));
-  renderLeaveList(dr);
-  document.getElementById('modalLeaveSub').textContent=`${dr.leaves.length} perioadă(e) înregistrată(e)`;
+  openLeaveModal(driverId); // rerender cu quota actualizată
   renderMain();scheduleSave();toast('🗑 Perioadă ștearsă');
 }
 
@@ -1265,8 +1389,9 @@ function onComboInput(){comboSelectedId=null;filterCombo(document.getElementById
 
 function filterCombo(q){
   const norm=normalizeForSearch(q.trim()),list=document.getElementById('comboList');
-  if(!norm){comboFiltered=[...state.drivers].sort((a,b)=>a.name.localeCompare(b.name,'ro'));}
-  else{comboFiltered=state.drivers.filter(d=>normalizeForSearch(d.name).includes(norm)).sort((a,b)=>{const as=normalizeForSearch(a.name).startsWith(norm)?0:1,bs=normalizeForSearch(b.name).startsWith(norm)?0:1;if(as!==bs)return as-bs;return a.name.localeCompare(b.name,'ro');});}
+  const visible=getVisibleDrivers();
+  if(!norm){comboFiltered=[...visible].sort((a,b)=>a.name.localeCompare(b.name,'ro'));}
+  else{comboFiltered=visible.filter(d=>normalizeForSearch(d.name).includes(norm)).sort((a,b)=>{const as=normalizeForSearch(a.name).startsWith(norm)?0:1,bs=normalizeForSearch(b.name).startsWith(norm)?0:1;if(as!==bs)return as-bs;return a.name.localeCompare(b.name,'ro');});}
   comboHighlightIdx=0;renderComboList(q.trim());list.classList.add('show');
 }
 
@@ -1283,7 +1408,7 @@ function renderComboList(query){
       html+=`<div class="${cls}" onmousedown="event.preventDefault()" onclick="selectComboOption('${d.id}')">${dn}${ds}</div>`;
     });
   }
-  if(query){
+  if(query&&isAdmin()){
     const exact=state.drivers.some(d=>d.name.toLowerCase()===query.toLowerCase());
     if(!exact){const cls='combo-option combo-option-add'+(comboHighlightIdx===comboFiltered.length?' active':'');const eq=escapeHtml(query).replace(/'/g,"\\'");html+=`<div class="${cls}" onmousedown="event.preventDefault()" onclick="createDriverFromCombo('${eq}')">➕ Adaugă persoană nouă: "<strong>${escapeHtml(query)}</strong>"</div>`;}
   }
@@ -1306,7 +1431,7 @@ function createDriverFromCombo(name){
 
 function onComboKey(e){
   const list=document.getElementById('comboList'),isOpen=list.classList.contains('show'),query=e.target.value.trim();
-  const hasAdd=query&&!state.drivers.some(d=>d.name.toLowerCase()===query.toLowerCase());
+  const hasAdd=isAdmin()&&query&&!state.drivers.some(d=>d.name.toLowerCase()===query.toLowerCase());
   const total=comboFiltered.length+(hasAdd?1:0);
   if(e.key==='ArrowDown'){e.preventDefault();if(!isOpen){filterCombo(query);return;}comboHighlightIdx=Math.min(comboHighlightIdx+1,total-1);renderComboList(query);}
   else if(e.key==='ArrowUp'){e.preventDefault();comboHighlightIdx=Math.max(comboHighlightIdx-1,0);renderComboList(query);}
@@ -1323,29 +1448,66 @@ function saveQuickLeave(){
   const start=document.getElementById('quickStart').value,end=document.getElementById('quickEnd').value;
   if(!start||!end){toast('Selectează ambele date',true);return;}
   if(start>end){toast('Data început după data sfârșit',true);return;}
-  const dr=state.drivers.find(d=>d.id===comboSelectedId);dr.leaves.push({start,end});
+  const dr=state.drivers.find(d=>d.id===comboSelectedId);if(!dr)return;
+  const newDays=Math.round((parseDate(end)-parseDate(start))/86400000)+1;
+  const maxDays=dr.maxDays||0;
+  if(maxDays>0){
+    const used=usedDaysThisYear(dr);
+    if(used+newDays>maxDays){
+      const over=used+newDays-maxDays;
+      const ok=confirm(`⚠️ Depășire zile concediu!\n\n${dr.name} are ${maxDays} zile disponibile în ${new Date().getFullYear()}.\nFolosite: ${used} zile · Adăugat: ${newDays} zile\nDepășire: ${over} zile\n\nEști sigur că vrei să adaugi acest concediu?`);
+      if(!ok)return;
+    }
+  }
+  dr.leaves.push({start,end});
   closeModal('modalQuick');renderAll();scheduleSave();
-  const days=Math.round((parseDate(end)-parseDate(start))/86400000)+1;toast(`✓ ${dr.name}: ${days} zile`);
+  toast(`✓ ${dr.name}: ${newDays} zile`);
 }
 
 // ===== RENDER =====
+function getVisibleDrivers(){
+  const uk=window.activeUserKey||'tania';
+  if(uk==='tania'||uk==='admin') return state.drivers;
+  // pentru ceilalți — arată persoane care au visibleTo incluzând user-ul lor
+  // sau nu au visibleTo (persoane vechi fără câmp)
+  return state.drivers.filter(dr=>{
+    if(!dr.visibleTo||dr.visibleTo.length===0) return true; // compatibilitate înapoi
+    return dr.visibleTo.includes(uk)||dr.visibleTo.includes('tania');
+  });
+}
+
 function renderDrivers(){
+  const uk=window.activeUserKey||'tania';
+  const canAdmin=isAdmin();
   const q=normalizeForSearch((document.getElementById('searchDriver').value||'').trim());
-  const filtered=q?state.drivers.filter(d=>normalizeForSearch(d.name).includes(q)):[...state.drivers];
+  const visible=getVisibleDrivers();
+  const filtered=q?visible.filter(d=>normalizeForSearch(d.name).includes(q)):[...visible];
   filtered.sort((a,b)=>a.name.localeCompare(b.name,'ro'));
-  document.getElementById('driverCount').textContent=state.drivers.length;
-  document.getElementById('statTotal').textContent=state.drivers.length;
+  document.getElementById('driverCount').textContent=filtered.length;
+  document.getElementById('statTotal').textContent=filtered.length;
   const list=document.getElementById('driverList');
   if(!filtered.length){list.innerHTML='<div class="empty">Nicio persoană</div>';return;}
   list.innerHTML=filtered.map(dr=>{
-    const td=dr.leaves.reduce((s,l)=>s+Math.round((parseDate(l.end)-parseDate(l.start))/86400000)+1,0);
-    return `<div class="driver-item">
-      <span class="driver-name" onclick="openLeaveModal('${dr.id}')">${escapeHtml(dr.name)}</span>
-      ${td>0?`<span class="driver-days">${td}z</span>`:''}
+    const used=usedDaysThisYear(dr);
+    const maxDays=dr.maxDays||0;
+    let badge='';
+    if(maxDays>0){
+      const over=used>maxDays;
+      const warn=used>=maxDays*0.8&&!over;
+      const color=over?'var(--red)':warn?'var(--orange)':'var(--text-dim)';
+      badge=`<span class="driver-days" style="color:${color};background:${over?'rgba(239,68,68,0.15)':warn?'rgba(249,115,22,0.15)':'var(--bg)'}">${used}/${maxDays}z</span>`;
+    } else if(used>0){
+      badge=`<span class="driver-days">${used}z</span>`;
+    }
+    const editBtns=canAdmin?`
       <div class="driver-actions">
         <button class="icon-btn" onclick="openEditDriver('${dr.id}')" title="Editează">✏️</button>
         <button class="icon-btn" onclick="deleteDriver('${dr.id}')" title="Șterge">🗑</button>
-      </div>
+      </div>`:'';
+    return `<div class="driver-item">
+      <span class="driver-name" onclick="openLeaveModal('${dr.id}')">${escapeHtml(dr.name)}</span>
+      ${badge}
+      ${editBtns}
     </div>`;
   }).join('');
 }
