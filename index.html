@@ -436,39 +436,39 @@
     background: var(--bg-elev);
     border-radius: 8px;
     border: 1px solid var(--border);
-    padding: 12px;
+    padding: 8px;
   }
   .cal-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
+    gap: 3px;
   }
   .cal-header {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-dim);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     text-align: center;
-    padding: 8px 0;
+    padding: 5px 0;
     font-weight: 600;
   }
   .cal-header.sun-header { color: var(--red); }
   .cal-day {
     aspect-ratio: 1;
     background: var(--bg-elev-2);
-    border-radius: 5px;
-    padding: 6px;
+    border-radius: 4px;
+    padding: 4px 5px;
     cursor: pointer;
     position: relative;
     display: flex;
     flex-direction: column;
     border: 2px solid transparent;
-    min-height: 70px;
+    min-height: 46px;
   }
   .cal-day:hover { border-color: var(--accent); }
   .cal-day.other-month { opacity: 0.3; }
   .cal-day.today { box-shadow: inset 0 0 0 1px var(--accent-2); }
-  .cal-day-num { font-size: 13px; font-weight: 600; }
+  .cal-day-num { font-size: 11px; font-weight: 600; }
   
   .cal-day.sunday {
     background: repeating-linear-gradient(45deg,rgba(239,68,68,0.06),rgba(239,68,68,0.06) 6px,rgba(239,68,68,0.12) 6px,rgba(239,68,68,0.12) 12px);
@@ -476,14 +476,14 @@
     opacity: 0.55;
   }
   .cal-day.sunday:hover { border-color: transparent; }
-  .cal-day.sunday .cal-day-num { font-size: 10px; color: var(--red); opacity: 0.6; font-weight: 500; }
-  .cal-day.sunday .sunday-mark { margin: auto 0; text-align: center; font-size: 10px; color: var(--red); opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .cal-day.sunday .cal-day-num { font-size: 9px; color: var(--red); opacity: 0.6; font-weight: 500; }
+  .cal-day.sunday .sunday-mark { margin: auto 0; text-align: center; font-size: 8px; color: var(--red); opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
   
   .cal-day.holiday:not(.sunday) { background: linear-gradient(135deg,rgba(168,85,247,0.12),rgba(168,85,247,0.22)); border: 1px dashed rgba(168,85,247,0.45); }
-  .cal-day.holiday .holiday-name { font-size: 9px; color: var(--holiday); line-height: 1.15; margin-top: 2px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .cal-day.holiday .holiday-name { font-size: 8px; color: var(--holiday); line-height: 1.1; margin-top: 1px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .cal-day.sunday.holiday { opacity: 0.85; background: linear-gradient(135deg,rgba(168,85,247,0.1),rgba(168,85,247,0.18)),repeating-linear-gradient(45deg,rgba(239,68,68,0.06),rgba(239,68,68,0.06) 6px,rgba(239,68,68,0.12) 6px,rgba(239,68,68,0.12) 12px); }
   
-  .cal-day-count { margin-top: auto; font-size: 11px; font-weight: 700; padding: 1px 5px; border-radius: 3px; align-self: flex-end; }
+  .cal-day-count { margin-top: auto; font-size: 10px; font-weight: 700; padding: 1px 4px; border-radius: 3px; align-self: flex-end; }
   .cal-day.lvl-0 { background: var(--bg-elev-2); }
   .cal-day.lvl-1 { background: linear-gradient(135deg,rgba(16,185,129,0.25),rgba(16,185,129,0.4)); color: #fff; }
   .cal-day.lvl-2 { background: linear-gradient(135deg,rgba(16,185,129,0.5),rgba(16,185,129,0.7)); color: #fff; }
@@ -1490,24 +1490,39 @@ function renderDrivers(){
   list.innerHTML=filtered.map(dr=>{
     const used=usedDaysThisYear(dr);
     const maxDays=dr.maxDays||0;
-    let badge='';
+    const over=maxDays>0&&used>maxDays;
+    const warn=maxDays>0&&used>=maxDays*0.8&&!over;
+    const color=over?'var(--red)':warn?'var(--orange)':'var(--green)';
+    const pct=maxDays>0?Math.min(100,Math.round(used/maxDays*100)):0;
+
+    let quotaHtml='';
     if(maxDays>0){
-      const over=used>maxDays;
-      const warn=used>=maxDays*0.8&&!over;
-      const color=over?'var(--red)':warn?'var(--orange)':'var(--text-dim)';
-      badge=`<span class="driver-days" style="color:${color};background:${over?'rgba(239,68,68,0.15)':warn?'rgba(249,115,22,0.15)':'var(--bg)'}">${used}/${maxDays}z</span>`;
-    } else if(used>0){
-      badge=`<span class="driver-days">${used}z</span>`;
+      quotaHtml=`
+        <div style="margin-top:5px">
+          <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;color:var(--text-dim)">
+            <span style="color:${color};font-weight:600">${used} / ${maxDays} zile</span>
+            <span>${pct}%</span>
+          </div>
+          <div style="background:var(--bg);border-radius:3px;height:4px;overflow:hidden">
+            <div style="width:${pct}%;background:${color};height:100%;border-radius:3px;transition:width 0.3s"></div>
+          </div>
+        </div>`;
+    } else {
+      quotaHtml=used>0?`<div style="margin-top:4px;font-size:10px;color:var(--text-dim)">${used} zile folosite</div>`:'';
     }
+
     const editBtns=canAdmin?`
       <div class="driver-actions">
         <button class="icon-btn" onclick="openEditDriver('${dr.id}')" title="Editează">✏️</button>
         <button class="icon-btn" onclick="deleteDriver('${dr.id}')" title="Șterge">🗑</button>
       </div>`:'';
-    return `<div class="driver-item">
-      <span class="driver-name" onclick="openLeaveModal('${dr.id}')">${escapeHtml(dr.name)}</span>
-      ${badge}
-      ${editBtns}
+    return `<div class="driver-item" style="flex-direction:column;align-items:stretch;gap:0;padding:8px 10px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span class="driver-name" onclick="openLeaveModal('${dr.id}')">${escapeHtml(dr.name)}</span>
+        ${editBtns}
+      </div>
+      ${quotaHtml}
+    </div>`;
     </div>`;
   }).join('');
 }
