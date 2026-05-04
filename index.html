@@ -553,7 +553,6 @@
   .day-drivers { margin-top: 12px; }
   .day-driver { padding: 6px 10px; background: var(--bg-elev-2); border-radius: 4px; margin-bottom: 4px; font-size: 13px; display: flex; justify-content: space-between; }
   .empty { text-align: center; color: var(--text-dim); padding: 20px; font-size: 13px; }
-  .threshold-row { display: grid; grid-template-columns: 1fr 80px; gap: 8px; align-items: end; }
   .file-actions { display: flex; gap: 6px; }
   .file-actions .btn { margin: 0; }
   
@@ -631,25 +630,6 @@
     <div class="save-status" id="saveStatus">
       <div class="save-dot"></div>
       <span id="saveStatusText">Salvat automat</span>
-    </div>
-    
-    <div class="section-title">Backup manual</div>
-    <div class="file-actions">
-      <button class="btn btn-secondary btn-small" onclick="exportData()" style="flex:1">💾 Descarcă</button>
-      <button class="btn btn-secondary btn-small" onclick="document.getElementById('importFile').click()" style="flex:1">📂 Restaurează</button>
-    </div>
-    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
-    
-    <div class="section-title">Praguri alertă</div>
-    <div class="threshold-row">
-      <div>
-        <label>Atenție (≥)</label>
-        <input type="number" id="thWarn" value="3" min="1" onchange="updateThresholds()">
-      </div>
-      <div>
-        <label>Critic (≥)</label>
-        <input type="number" id="thCrit" value="5" min="1" onchange="updateThresholds()">
-      </div>
     </div>
     
     <div class="section-title" style="display:flex; justify-content:space-between; align-items:center">
@@ -978,17 +958,27 @@ async function initApp(userKey) {
     }
   } catch (e) {
     console.error('Load error:', e);
-    setSaveStatus('error', 'Eroare la încărcare!');
-    window.activeUserKey = userKey;
-    loadDefaultDrivers();
+    // Încearcă să încarce din backup-ul local
+    const localBackup = loadLocalBackup();
+    if (localBackup && localBackup.data && localBackup.data.drivers) {
+      state = localBackup.data;
+      if (!state.thresholds) state.thresholds = { warn: 3, crit: 5 };
+      const info = getLocalBackupInfo();
+      setSaveStatus('error', `Firestore offline · backup local din ${info?info.ago:'?'}`);
+      toast(`⚠️ Date din backup local (${info?info.ago:'?'})`, true);
+    } else {
+      setSaveStatus('error', 'Eroare la încărcare!');
+      loadDefaultDrivers();
+    }
   }
 
-  document.getElementById('thWarn').value = state.thresholds.warn;
-  document.getElementById('thCrit').value = state.thresholds.crit;
+  // Praguri fixe: 3 atenție, 5 critic
+  state.thresholds = { warn: 3, crit: 5 };
   updateThresholdLegend();
   renderAll();
   lastSavedAt = new Date();
-  setSaveStatus('ok', 'Date încărcate');
+  saveLocalBackup();
+  setSaveStatus('ok', 'Date încărcate · backup local ✓');
 
   document.querySelectorAll('.modal-bg').forEach(m => {
     m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); });
@@ -1039,7 +1029,8 @@ window.scheduleSave = async function() {
       lastSavedAt = new Date();
       const t = lastSavedAt;
       const time = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
-      setSaveStatus('ok', `Salvat la ${time}`);
+      saveLocalBackup();
+      setSaveStatus('ok', `Salvat la ${time} · backup local ✓`);
     } catch (e) {
       console.error('Save error:', e);
       setSaveStatus('error', 'Eroare la salvare!');
@@ -1099,7 +1090,6 @@ const DRIVERS_CORINA = [
 ];
 const DRIVERS_TANIA = [...new Set([...DRIVERS_RALUCA, ...DRIVERS_MADALINA, ...DRIVERS_CORINA])].sort((a,b)=>a.localeCompare(b,'ro'));
 
-// activeUserKey este setat de modulul Firebase înainte de initApp()
 let state={drivers:[],thresholds:{warn:3,crit:5}};
 let view='calendar',currentDate=new Date(),editingDriverId=null,leaveDriverId=null;
 let comboSelectedId=null,comboHighlightIdx=0,comboFiltered=[];
@@ -1136,26 +1126,38 @@ function formatDateRO(ds){
   return `${parseInt(d)} ${['Ian','Feb','Mar','Apr','Mai','Iun','Iul','Aug','Sep','Oct','Nov','Dec'][parseInt(m)-1]} ${y}`;
 }
 
-function exportData(){
-  const data=JSON.stringify(state,null,2),blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
-  a.href=url;a.download=`concedii-${fmtDate(new Date())}.json`;a.click();URL.revokeObjectURL(url);toast('💾 Backup descărcat');
+// ===== LOCAL STORAGE AUTO-BACKUP =====
+// Salvează o copie locală după fiecare sync cu Firestore
+// Cheie per user: mtc_backup_raluca, mtc_backup_tania, etc.
+function saveLocalBackup(){
+  try{
+    const uk=window.activeUserKey||'unknown';
+    const backup={
+      data: JSON.parse(JSON.stringify(state)),
+      savedAt: new Date().toISOString(),
+      userKey: uk
+    };
+    localStorage.setItem('mtc_backup_'+uk, JSON.stringify(backup));
+  }catch(e){ console.warn('Local backup failed:', e); }
 }
 
-function importData(e){
-  const file=e.target.files[0];if(!file)return;
-  if(!confirm('Restaurarea va înlocui toate datele actuale. Continui?')){e.target.value='';return;}
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    try{
-      const loaded=JSON.parse(ev.target.result);
-      if(!loaded.drivers)throw new Error('Format invalid');
-      state=loaded;if(!state.thresholds)state.thresholds={warn:3,crit:5};
-      document.getElementById('thWarn').value=state.thresholds.warn;
-      document.getElementById('thCrit').value=state.thresholds.crit;
-      renderAll();scheduleSave();toast(`📂 ${state.drivers.length} persoane încărcate`);
-    }catch(err){toast('Eroare la încărcare: '+err.message,true);}
-  };
-  reader.readAsText(file);e.target.value='';
+function loadLocalBackup(){
+  try{
+    const uk=window.activeUserKey||'unknown';
+    const raw=localStorage.getItem('mtc_backup_'+uk);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){ return null; }
+}
+
+function getLocalBackupInfo(){
+  const uk=window.activeUserKey||'unknown';
+  const b=loadLocalBackup();
+  if(!b) return null;
+  const d=new Date(b.savedAt);
+  const diff=Math.round((Date.now()-d)/60000);
+  let ago=diff<1?'acum câteva secunde':diff<60?`acum ${diff} min`:diff<1440?`acum ${Math.round(diff/60)}h`:`acum ${Math.round(diff/1440)}z`;
+  return {ago, drivers:b.data.drivers?.length||0, savedAt:d};
 }
 
 function getDriverListForUser(userKey){if(userKey==="madalina")return DRIVERS_MADALINA;if(userKey==="raluca")return DRIVERS_RALUCA;if(userKey==="corina")return DRIVERS_CORINA;return DRIVERS_TANIA;}function loadDefaultDrivers(){const list=getDriverListForUser(window.activeUserKey||"tania");state.drivers=list.map(name=>({id:uid(),name,leaves:[]}));}
@@ -1451,16 +1453,9 @@ function setView(v){
   document.getElementById('timelineView').style.display=v==='timeline'?'block':'none';
   renderMain();
 }
-function updateThresholds(){
-  const w=parseInt(document.getElementById('thWarn').value)||3,c=parseInt(document.getElementById('thCrit').value)||5;
-  state.thresholds.warn=w;state.thresholds.crit=Math.max(c,w+1);
-  document.getElementById('thCrit').value=state.thresholds.crit;
-  updateThresholdLegend();renderMain();scheduleSave();
-}
 function updateThresholdLegend(){
-  const w=state.thresholds.warn,c=state.thresholds.crit;
-  document.getElementById('legWarn').textContent=w;document.getElementById('legWarn1').textContent=w-1;
-  document.getElementById('legCrit').textContent=c;document.getElementById('legCrit1').textContent=c-1;
+  document.getElementById('legWarn').textContent=3;document.getElementById('legWarn1').textContent=2;
+  document.getElementById('legCrit').textContent=5;document.getElementById('legCrit1').textContent=4;
 }
 function renderMain(){if(view==='calendar')renderCalendar();else renderTimeline();}
 function renderAll(includeDrivers=true){if(includeDrivers)renderDrivers();renderMain();}
