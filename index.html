@@ -581,7 +581,7 @@
     <div class="auth-sub">Tablou de bord concedii</div>
 
     <div class="auth-label">Selectează utilizatorul</div>
-    <div class="user-btns" style="grid-template-columns: 1fr 1fr 1fr">
+    <div class="user-btns" style="grid-template-columns: 1fr 1fr">
       <button class="user-btn" onclick="loginAsUser('raluca')">
         <div class="user-btn-avatar" style="background: linear-gradient(135deg, #ec4899, #a855f7)">R</div>
         <span class="user-btn-name">Raluca</span>
@@ -593,6 +593,10 @@
       <button class="user-btn" onclick="loginAsUser('madalina')">
         <div class="user-btn-avatar" style="background: linear-gradient(135deg, #10b981, #84cc16)">M</div>
         <span class="user-btn-name">Mădălina</span>
+      </button>
+      <button class="user-btn" onclick="loginAsUser('corina')">
+        <div class="user-btn-avatar" style="background: linear-gradient(135deg, #f97316, #eab308)">C</div>
+        <span class="user-btn-name">Corina</span>
       </button>
     </div>
 
@@ -809,12 +813,10 @@ const ADMIN_EMAIL    = "paulandreimacarie@yahoo.com";
 // ============================================================
 
 // ============================================================
-// 👤 UTILIZATORI SIMPLI (Raluca & Tania) — fiecare are un doc
-//    separat în Firestore la concedii/raluca și concedii/tania
-//    Datele sunt COMUNE — toate 3 văd același calendar.
-//    Dacă vrei calendare separate, schimbă doctId-urile.
+// 👤 UTILIZATORI: Raluca, Madalina, Tania, Admin
+//    Fiecare are doc propriu în Firestore.
+//    Tania și Admin văd combinat toate persoanele.
 // ============================================================
-const SHARED_DOC_ID = "shared"; // toți văd același calendar
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -825,6 +827,7 @@ const USERS = {
   raluca:   { name: "Raluca",   color: "linear-gradient(135deg,#ec4899,#a855f7)", initial: "R" },
   tania:    { name: "Tania",    color: "linear-gradient(135deg,#3b82f6,#06b6d4)", initial: "T" },
   madalina: { name: "Mădălina", color: "linear-gradient(135deg,#10b981,#84cc16)", initial: "M" },
+  corina:   { name: "Corina",   color: "linear-gradient(135deg,#f97316,#eab308)", initial: "C" },
   admin:    { name: "Admin",    color: "linear-gradient(135deg,#f59e0b,#ef4444)", initial: "A" }
 };
 
@@ -878,7 +881,7 @@ onAuthStateChanged(auth, (user) => {
 // ---- Enter app ----
 function enterApp(userKey) {
   const user = USERS[userKey];
-  // Update sidebar avatar
+  window.activeUserKey = userKey; // expose for non-module script
   const avatarDiv = document.getElementById('userAvatarDiv');
   avatarDiv.textContent = user.initial;
   avatarDiv.style.background = user.color;
@@ -886,7 +889,7 @@ function enterApp(userKey) {
 
   document.getElementById('authScreen').style.display = 'none';
   document.getElementById('appRoot').style.display = 'grid';
-  initApp();
+  initApp(userKey);
 }
 
 function showAuthScreen() {
@@ -902,29 +905,81 @@ window.doLogout = async function() {
     await fbSignOut(auth);
   }
   activeUserKey = null;
+  window.activeUserKey = null;
+  state = { drivers: [], thresholds: { warn: 3, crit: 5 } };
   showAuthScreen();
 };
 
 // ===== FIRESTORE SAVE / LOAD =====
+// Fiecare user are doc propriu: concedii/raluca, concedii/madalina
+// Tania și Admin citesc din TOATE docurile și salvează în cel propriu
 let saveTimer = null;
 let lastSavedAt = null;
 let isSaving = false;
 
-async function initApp() {
+function docIdForUser(userKey) {
+  // admin folosește același doc ca tania (vede tot)
+  if (userKey === 'admin') return 'tania';
+  return userKey; // 'raluca' | 'madalina' | 'tania'
+}
+
+async function initApp(userKey) {
   setSaveStatus('saving', 'Se încarcă...');
-  const docRef = doc(db, 'concedii', SHARED_DOC_ID);
+
   try {
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      state = snap.data();
-      if (!state.thresholds) state.thresholds = { warn: 3, crit: 5 };
+    if (userKey === 'tania' || userKey === 'admin') {
+      // Tania & Admin: combină docurile raluca + madalina + corina (+ tania propriu)
+      const [snapR, snapM, snapC, snapT] = await Promise.all([
+        getDoc(doc(db, 'concedii', 'raluca')),
+        getDoc(doc(db, 'concedii', 'madalina')),
+        getDoc(doc(db, 'concedii', 'corina')),
+        getDoc(doc(db, 'concedii', 'tania')),
+      ]);
+
+      const driversR = snapR.exists() ? (snapR.data().drivers || []) : [];
+      const driversM = snapM.exists() ? (snapM.data().drivers || []) : [];
+      const driversC = snapC.exists() ? (snapC.data().drivers || []) : [];
+      const driversT = snapT.exists() ? (snapT.data().drivers || []) : [];
+      const thresholds = snapT.exists() ? (snapT.data().thresholds || { warn: 3, crit: 5 }) : { warn: 3, crit: 5 };
+
+      const allByName = {};
+      [...driversM, ...driversC, ...driversR, ...driversT].forEach(d => { allByName[d.name] = d; });
+      state = { drivers: Object.values(allByName), thresholds };
+
+      if (!snapR.exists()) {
+        const drR = DRIVERS_RALUCA.map(name => ({ id: uid2(), name, leaves: [] }));
+        await setDoc(doc(db, 'concedii', 'raluca'), { drivers: drR, thresholds });
+      }
+      if (!snapM.exists()) {
+        const drM = DRIVERS_MADALINA.map(name => ({ id: uid2(), name, leaves: [] }));
+        await setDoc(doc(db, 'concedii', 'madalina'), { drivers: drM, thresholds });
+      }
+      if (!snapC.exists()) {
+        const drC = DRIVERS_CORINA.map(name => ({ id: uid2(), name, leaves: [] }));
+        await setDoc(doc(db, 'concedii', 'corina'), { drivers: drC, thresholds });
+      }
+      if (!snapT.exists()) {
+        await setDoc(doc(db, 'concedii', 'tania'), { drivers: Object.values(allByName), thresholds });
+      }
+
     } else {
-      loadDefaultDrivers();
-      await setDoc(docRef, JSON.parse(JSON.stringify(state)));
+      // Raluca sau Madalina: citesc doar din doc-ul lor
+      const docRef = doc(db, 'concedii', userKey);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        state = snap.data();
+        if (!state.thresholds) state.thresholds = { warn: 3, crit: 5 };
+      } else {
+        // Prima oară — inițializează cu lista lor
+        window.activeUserKey = userKey;
+        loadDefaultDrivers();
+        await setDoc(docRef, JSON.parse(JSON.stringify(state)));
+      }
     }
   } catch (e) {
     console.error('Load error:', e);
     setSaveStatus('error', 'Eroare la încărcare!');
+    window.activeUserKey = userKey;
     loadDefaultDrivers();
   }
 
@@ -943,14 +998,44 @@ async function initApp() {
   });
 }
 
-window.scheduleSave = function() {
+// uid helper accesibil din modulul Firebase
+function uid2(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+window.scheduleSave = async function() {
   if (saveTimer) clearTimeout(saveTimer);
   setSaveStatus('saving', 'Se salvează...');
   saveTimer = setTimeout(async () => {
     try {
       isSaving = true;
-      const docRef = doc(db, 'concedii', SHARED_DOC_ID);
-      await setDoc(docRef, JSON.parse(JSON.stringify(state)));
+      const uk = window.activeUserKey || 'tania';
+
+      if (uk === 'tania' || uk === 'admin') {
+        // Tania/Admin: salvează fiecare persoană în doc-ul ei corect
+        const driversByDoc = { raluca: [], madalina: [], corina: [], tania: [] };
+        const ralucaNames   = new Set(DRIVERS_RALUCA.map(n => n.toLowerCase()));
+        const madalinaNames = new Set(DRIVERS_MADALINA.map(n => n.toLowerCase()));
+        const corinaNames   = new Set(DRIVERS_CORINA.map(n => n.toLowerCase()));
+
+        state.drivers.forEach(dr => {
+          const nl = dr.name.toLowerCase();
+          if (madalinaNames.has(nl))    driversByDoc.madalina.push(dr);
+          else if (ralucaNames.has(nl)) driversByDoc.raluca.push(dr);
+          else if (corinaNames.has(nl)) driversByDoc.corina.push(dr);
+          else                          driversByDoc.tania.push(dr);
+        });
+
+        await Promise.all([
+          setDoc(doc(db, 'concedii', 'raluca'),   { drivers: driversByDoc.raluca,   thresholds: state.thresholds }),
+          setDoc(doc(db, 'concedii', 'madalina'), { drivers: driversByDoc.madalina, thresholds: state.thresholds }),
+          setDoc(doc(db, 'concedii', 'corina'),   { drivers: driversByDoc.corina,   thresholds: state.thresholds }),
+          setDoc(doc(db, 'concedii', 'tania'),    { drivers: state.drivers,          thresholds: state.thresholds }),
+        ]);
+      } else {
+        // Raluca sau Madalina: salvează doar în doc-ul lor
+        const docRef = doc(db, 'concedii', uk);
+        await setDoc(docRef, JSON.parse(JSON.stringify(state)));
+      }
+
       lastSavedAt = new Date();
       const t = lastSavedAt;
       const time = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
@@ -988,9 +1073,33 @@ function computeBavarianHolidays(year){
 let HOLIDAYS_CACHE={};
 function getHoliday(date){const y=date.getFullYear();if(!HOLIDAYS_CACHE[y])HOLIDAYS_CACHE[y]=computeBavarianHolidays(y);return HOLIDAYS_CACHE[y][fmtDateStr(date)]||null;}
 
-// ===== STATE =====
-const DEFAULT_DRIVERS=["Pop Marcel","Stan Ionel","Ciobotaru Adrian","Farkas Rudolf","Maricosu Adelin","Zestrea Mihail","Tuca Valentin","Ciobotaru Iulian","Moise Alexandru","Bisoc Ionut","Birlaba Mihaela","Stinga Valeriu","Ciobotaru Larisa","Bitiusca Gabriel","Simon Ferent","Iacob Mihai","Mereacre Mihail","Serban Florin","Buciu Petre","Dutescu Daniel","Feraru Razvan","Mihai Adrian","Dobanda Dumitru","Crainic Adrian","Rudareanu Vladut","Maies Antonio","Macarie Paul","Musteata Ioan","Sparios Eduard","Raghinaru Marian","Burlacu Andrei","Stanciu Dumitru","Plesca Costel","Cazan Ionut","Alin Florut","Ghebu Andreas","Morosanu Lucian","Stanciu Anastasia","Toth Cristina","Toiu Georgiana","Tufeanu Claudia"];
+// ===== DRIVER LISTS PER USER =====
+const DRIVERS_MADALINA = [
+  "Aremia Aurel","Asmarandei Andrei","Bruma Alexandru","Gruia Raul",
+  "Movila Andrei","Pana Alexandru","Paul Petre","Rus Denisa",
+  "Stranici Cristian","Tufisi Rares","Vancea Cosmin"
+];
+const DRIVERS_RALUCA = [
+  "Badea Madalin","Bainoczi Razvan","Bejenaru Ioan","Birliba Mihaela",
+  "Bisoc Ionut","Bitiusca Gabriel","Buciu Petre","Burlacu Andrei",
+  "Cazan Ionut","Ciobotaru Adrian","Ciobotaru Iulian","Ciobotaru Larisa",
+  "Crainic Adrian","Deleu Daniel","Dobinda Dumitru","Dutescu Daniel",
+  "Farkas Rudolf","Feraru Razvan","Ferent Simon","Ghebu Andreas",
+  "Iacob Mihai","Macarie Paul","Maies Antonio","Margau Rafael",
+  "Maricosu Adelin","Mereacre Mihail","Mihai Adrian","Moise Alexandru",
+  "Morosanu Lucian","Musteata Ion","Plesca Mihaita","Pop Marcel",
+  "Raghinaru Marian","Rudareanu Vladut","Serban Florin","Sparios Eduard",
+  "Stan Ionel","Stanciu Dumitru","Stinga Valeriu","Tuca Valentin",
+  "Zestrea Mihail"
+];
+const DRIVERS_CORINA = [
+  "Sulaj Adriano","Ciuciuc Ionut","Bitto Robert","Nae Andrei",
+  "Barlovan Florin","Codreanu Daniel","Mario Martens",
+  "Gheorghe Ivan","Sarneki Sebastian"
+];
+const DRIVERS_TANIA = [...new Set([...DRIVERS_RALUCA, ...DRIVERS_MADALINA, ...DRIVERS_CORINA])].sort((a,b)=>a.localeCompare(b,'ro'));
 
+// activeUserKey este setat de modulul Firebase înainte de initApp()
 let state={drivers:[],thresholds:{warn:3,crit:5}};
 let view='calendar',currentDate=new Date(),editingDriverId=null,leaveDriverId=null;
 let comboSelectedId=null,comboHighlightIdx=0,comboFiltered=[];
@@ -1049,7 +1158,7 @@ function importData(e){
   reader.readAsText(file);e.target.value='';
 }
 
-function loadDefaultDrivers(){state.drivers=DEFAULT_DRIVERS.map(name=>({id:uid(),name,leaves:[]}));}
+function getDriverListForUser(userKey){if(userKey==="madalina")return DRIVERS_MADALINA;if(userKey==="raluca")return DRIVERS_RALUCA;if(userKey==="corina")return DRIVERS_CORINA;return DRIVERS_TANIA;}function loadDefaultDrivers(){const list=getDriverListForUser(window.activeUserKey||"tania");state.drivers=list.map(name=>({id:uid(),name,leaves:[]}));}
 
 // ===== MODALS =====
 function openModal(id){document.getElementById(id).classList.add('show');}
