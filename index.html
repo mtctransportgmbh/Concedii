@@ -1049,30 +1049,45 @@ window.scheduleSave = async function() {
       const uk = window.activeUserKey || 'tania';
 
       if (uk === 'tania' || uk === 'admin') {
-        // Tania/Admin: salvează fiecare persoană în doc-ul ei corect
+        // Tania/Admin: distribuie fiecare persoană în docurile corecte
+        // după câmpul visibleTo (setat la adăugare/editare de admin)
         const driversByDoc = { raluca: [], madalina: [], corina: [], tania: [] };
-        const ralucaNames   = new Set(DRIVERS_RALUCA.map(n => n.toLowerCase()));
-        const madalinaNames = new Set(DRIVERS_MADALINA.map(n => n.toLowerCase()));
-        const corinaNames   = new Set(DRIVERS_CORINA.map(n => n.toLowerCase()));
 
         state.drivers.forEach(dr => {
-          const nl = dr.name.toLowerCase();
-          if (madalinaNames.has(nl))    driversByDoc.madalina.push(dr);
-          else if (ralucaNames.has(nl)) driversByDoc.raluca.push(dr);
-          else if (corinaNames.has(nl)) driversByDoc.corina.push(dr);
-          else                          driversByDoc.tania.push(dr);
+          const vis = dr.visibleTo || [];
+          // Adaugă în fiecare doc pentru care are vizibilitate
+          if (vis.includes('raluca'))   driversByDoc.raluca.push(dr);
+          if (vis.includes('madalina')) driversByDoc.madalina.push(dr);
+          if (vis.includes('corina'))   driversByDoc.corina.push(dr);
+          // Tania vede tot mereu
+          driversByDoc.tania.push(dr);
         });
 
         await Promise.all([
           setDoc(doc(db, 'concedii', 'raluca'),   { drivers: driversByDoc.raluca,   thresholds: state.thresholds }),
           setDoc(doc(db, 'concedii', 'madalina'), { drivers: driversByDoc.madalina, thresholds: state.thresholds }),
           setDoc(doc(db, 'concedii', 'corina'),   { drivers: driversByDoc.corina,   thresholds: state.thresholds }),
-          setDoc(doc(db, 'concedii', 'tania'),    { drivers: state.drivers,          thresholds: state.thresholds }),
+          setDoc(doc(db, 'concedii', 'tania'),    { drivers: driversByDoc.tania,    thresholds: state.thresholds }),
         ]);
       } else {
-        // Raluca sau Madalina: salvează doar în doc-ul lor
+        // Raluca, Madalina, Corina: salvează doar în doc-ul lor
+        // (concediile adăugate de ei se reflectă în docul lor)
         const docRef = doc(db, 'concedii', uk);
         await setDoc(docRef, JSON.parse(JSON.stringify(state)));
+        // Sincronizează și în docul tania ca să vadă tot
+        // (citim docul tania, updatăm persoanele care sunt în comun)
+        try {
+          const tSnap = await getDoc(doc(db, 'concedii', 'tania'));
+          if (tSnap.exists()) {
+            const tData = tSnap.data();
+            const myIds = new Set(state.drivers.map(d => d.id));
+            // Înlocuiește în docul tania persoanele din docul curent
+            const merged = (tData.drivers || []).map(td =>
+              myIds.has(td.id) ? state.drivers.find(d => d.id === td.id) : td
+            );
+            await setDoc(doc(db, 'concedii', 'tania'), { drivers: merged, thresholds: state.thresholds });
+          }
+        } catch(syncErr) { console.warn('Sync tania failed:', syncErr); }
       }
 
       lastSavedAt = new Date();
@@ -1219,7 +1234,8 @@ function visibleToForName(name){
   if(DRIVERS_RALUCA.includes(name))   vis.push('raluca');
   if(DRIVERS_MADALINA.includes(name)) vis.push('madalina');
   if(DRIVERS_CORINA.includes(name))   vis.push('corina');
-  return vis;
+  // O persoană poate fi în mai multe liste
+  return [...new Set(vis)];
 }
 
 function loadDefaultDrivers(){
@@ -1488,11 +1504,16 @@ function saveQuickLeave(){
 function getVisibleDrivers(){
   const uk=window.activeUserKey||'tania';
   if(uk==='tania'||uk==='admin') return state.drivers;
-  // pentru ceilalți — arată persoane care au visibleTo incluzând user-ul lor
-  // sau nu au visibleTo (persoane vechi fără câmp)
   return state.drivers.filter(dr=>{
-    if(!dr.visibleTo||dr.visibleTo.length===0) return true; // compatibilitate înapoi
-    return dr.visibleTo.includes(uk)||dr.visibleTo.includes('tania');
+    // Dacă are câmpul visibleTo setat, îl folosim
+    if(dr.visibleTo && dr.visibleTo.length>0){
+      return dr.visibleTo.includes(uk);
+    }
+    // Fallback: persoane vechi fără câmp — folosim listele hardcodate
+    if(uk==='raluca')   return DRIVERS_RALUCA.includes(dr.name);
+    if(uk==='madalina') return DRIVERS_MADALINA.includes(dr.name);
+    if(uk==='corina')   return DRIVERS_CORINA.includes(dr.name);
+    return false;
   });
 }
 
