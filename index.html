@@ -1,0 +1,2163 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>MTC Transport — Gestiune Concedii</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f59e0b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MTC Concedii">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  :root {
+    --bg: #0f1419;
+    --bg-elev: #1a2028;
+    --bg-elev-2: #232b36;
+    --border: #2d3744;
+    --text: #e6edf3;
+    --text-dim: #8b98a8;
+    --accent: #f59e0b;
+    --accent-2: #3b82f6;
+    --green: #10b981;
+    --yellow: #eab308;
+    --orange: #f97316;
+    --red: #ef4444;
+    --holiday: #a855f7;
+    --holiday-bg: rgba(168,85,247,0.15);
+  }
+  
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* ===== AUTH SCREEN ===== */
+  .auth-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .auth-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 32px 28px;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+  }
+  .auth-logo { font-size: 32px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.5px; }
+  .auth-sub { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 32px; }
+
+  .auth-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+
+  .user-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .user-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 16px;
+    background: var(--bg-elev-2);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--text);
+  }
+  .user-btn:hover { border-color: var(--accent); background: rgba(245,158,11,0.08); transform: translateY(-2px); }
+  .user-btn-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .user-btn-name { font-size: 15px; font-weight: 600; }
+
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    color: var(--text-dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .auth-divider::before, .auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .admin-toggle {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: color 0.15s;
+    margin-bottom: 16px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .admin-toggle:hover { color: var(--text); }
+
+  .admin-form { display: none; text-align: left; }
+  .admin-form.show { display: block; }
+  .admin-form label { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; margin-top: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .admin-form input { width: 100%; }
+
+  .auth-login-btn {
+    width: 100%;
+    margin-top: 14px;
+    padding: 12px;
+    background: var(--accent-2);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .auth-login-btn:hover { opacity: 0.88; }
+
+  .auth-err { margin-top: 12px; color: var(--red); font-size: 12px; padding: 8px 12px; background: rgba(239,68,68,0.1); border-radius: 6px; border: 1px solid rgba(239,68,68,0.2); }
+
+  /* ===== APP ===== */
+  .app {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: 100vh;
+  }
+  
+  .sidebar {
+    background: var(--bg-elev);
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    overflow-y: auto;
+    max-height: 100vh;
+  }
+  
+  .logo {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    letter-spacing: -0.3px;
+  }
+  .logo-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--bg-elev-2);
+    border-radius: 6px;
+    margin-bottom: 12px;
+    font-size: 12px;
+  }
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .user-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); }
+  .logout-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px;
+    line-height: 1;
+  }
+  .logout-btn:hover { color: var(--red); }
+  
+  .save-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--green);
+    margin-bottom: 16px;
+    padding: 6px 10px;
+    background: rgba(16,185,129,0.1);
+    border-radius: 4px;
+    border: 1px solid rgba(16,185,129,0.2);
+  }
+  .save-status.saving { color: var(--accent); background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.2); }
+  .save-status.error { color: var(--red); background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.2); }
+  .save-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin: 20px 0 10px;
+  }
+  
+  .btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    width: 100%;
+    margin-bottom: 8px;
+    transition: opacity 0.15s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn-secondary {
+    background: var(--bg-elev-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-small { padding: 5px 10px; font-size: 12px; width: auto; margin: 0; }
+  .btn-big {
+    padding: 14px;
+    font-size: 14px;
+    background: var(--accent-2);
+    color: #fff;
+  }
+  .btn-big:hover { opacity: 0.9; }
+  
+  input, select {
+    width: 100%;
+    background: var(--bg-elev-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    border-radius: 5px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+    margin-top: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .driver-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .driver-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: var(--bg-elev-2);
+    border-radius: 5px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .driver-item:hover { border-color: var(--border); }
+  .driver-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .driver-days {
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+  }
+  .driver-actions {
+    display: none;
+    gap: 4px;
+    margin-left: 6px;
+  }
+  .driver-item:hover .driver-actions { display: flex; }
+  .icon-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 2px 4px;
+    font-size: 13px;
+  }
+  .icon-btn:hover { color: var(--text); }
+  
+  .main {
+    padding: 20px 24px;
+    overflow-y: auto;
+    max-height: 100vh;
+  }
+  
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .nav button {
+    background: var(--bg-elev);
+    color: var(--text);
+    border: 1px solid var(--border);
+    width: 32px;
+    height: 32px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .nav button:hover { background: var(--bg-elev-2); }
+  .nav h2 {
+    font-size: 20px;
+    font-weight: 600;
+    min-width: 200px;
+    text-align: center;
+    text-transform: capitalize;
+  }
+  
+  .view-tabs {
+    display: flex;
+    background: var(--bg-elev);
+    border-radius: 6px;
+    padding: 3px;
+    border: 1px solid var(--border);
+  }
+  .view-tab {
+    padding: 6px 14px;
+    background: transparent;
+    color: var(--text-dim);
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 4px;
+  }
+  .view-tab.active {
+    background: var(--accent);
+    color: #000;
+  }
+  
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat {
+    background: var(--bg-elev);
+    padding: 12px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+  }
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+  .stat.warn { border-left-color: var(--yellow); }
+  .stat.crit { border-left-color: var(--red); }
+  
+  .legend {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+  
+  .calendar {
+    background: var(--bg-elev);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    padding: 8px;
+  }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+  }
+  .cal-header {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: center;
+    padding: 5px 0;
+    font-weight: 600;
+  }
+  .cal-header.sun-header { color: var(--red); }
+  .cal-day {
+    aspect-ratio: 1;
+    background: var(--bg-elev-2);
+    border-radius: 3px;
+    padding: 3px 4px;
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border: 2px solid transparent;
+    min-height: 36px;
+  }
+  .cal-day:hover { border-color: var(--accent); }
+  .cal-day.other-month { opacity: 0.3; }
+  .cal-day.today { box-shadow: inset 0 0 0 1px var(--accent-2); }
+  .cal-day-num { font-size: 10px; font-weight: 600; }
+  
+  .cal-day.sunday {
+    background: repeating-linear-gradient(45deg,rgba(239,68,68,0.06),rgba(239,68,68,0.06) 6px,rgba(239,68,68,0.12) 6px,rgba(239,68,68,0.12) 12px);
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+  .cal-day.sunday:hover { border-color: transparent; }
+  .cal-day.sunday .cal-day-num { font-size: 9px; color: var(--red); opacity: 0.6; font-weight: 500; }
+  .cal-day.sunday .sunday-mark { margin: auto 0; text-align: center; font-size: 8px; color: var(--red); opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  
+  .cal-day.holiday:not(.sunday) { background: linear-gradient(135deg,rgba(168,85,247,0.12),rgba(168,85,247,0.22)); border: 1px dashed rgba(168,85,247,0.45); }
+  .cal-day.holiday .holiday-name { font-size: 8px; color: var(--holiday); line-height: 1.1; margin-top: 1px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .cal-day.sunday.holiday { opacity: 0.85; background: linear-gradient(135deg,rgba(168,85,247,0.1),rgba(168,85,247,0.18)),repeating-linear-gradient(45deg,rgba(239,68,68,0.06),rgba(239,68,68,0.06) 6px,rgba(239,68,68,0.12) 6px,rgba(239,68,68,0.12) 12px); }
+  
+  .cal-day-count { margin-top: auto; font-size: 10px; font-weight: 700; padding: 1px 4px; border-radius: 3px; align-self: flex-end; }
+  .cal-day.lvl-0 { background: var(--bg-elev-2); }
+  /* Celule colorate după nivel */
+  .cal-day.lvl-1 { background: linear-gradient(135deg,rgba(16,185,129,0.25),rgba(16,185,129,0.4)); }
+  .cal-day.lvl-2 { background: linear-gradient(135deg,rgba(16,185,129,0.5),rgba(16,185,129,0.7)); }
+  .cal-day.lvl-3 { background: linear-gradient(135deg,rgba(234,179,8,0.55),rgba(249,115,22,0.65)); }
+  .cal-day.lvl-4 { background: linear-gradient(135deg,rgba(239,68,68,0.65),rgba(239,68,68,0.85)); }
+
+  /* Punct număr colț */
+  .cal-day-count {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    font-weight: 800;
+    color: #fff;
+    background: rgba(0,0,0,0.25);
+    line-height: 1;
+  }
+  .cal-day.lvl-0 .cal-day-count { display: none; }
+
+  .cal-names {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-top: 4px;
+    flex: 1;
+    overflow: hidden;
+    align-items: flex-start;
+  }
+  .cal-name {
+    font-size: 7px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.95);
+    background: rgba(255,255,255,0.18);
+    border-radius: 20px;
+    padding: 1px 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+    max-width: 100%;
+    display: inline-block;
+  }
+  .cal-day.lvl-0 .cal-name {
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.06);
+  }
+  .cal-name-more {
+    color: rgba(255,255,255,0.8) !important;
+    background: rgba(255,255,255,0.1) !important;
+    font-style: italic;
+  }
+  
+  .timeline-wrap { background: var(--bg-elev); border-radius: 8px; border: 1px solid var(--border); overflow: auto; max-height: calc(100vh - 220px); }
+  .timeline { display: grid; grid-template-columns: 180px 1fr; min-width: 100%; }
+  .tl-driver-col { position: sticky; left: 0; background: var(--bg-elev); z-index: 2; border-right: 2px solid var(--border); }
+  .tl-driver-header { padding: 8px 12px; font-size: 11px; text-transform: uppercase; color: var(--text-dim); border-bottom: 1px solid var(--border); font-weight: 600; letter-spacing: 0.5px; position: sticky; top: 0; background: var(--bg-elev); z-index: 3; }
+  .tl-driver-row { padding: 0 12px; height: 30px; display: flex; align-items: center; border-bottom: 1px solid var(--border); font-size: 12px; cursor: pointer; }
+  .tl-driver-row:hover { background: var(--bg-elev-2); }
+  .tl-grid-wrap { overflow: visible; }
+  .tl-day-headers { display: grid; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg-elev); z-index: 3; }
+  .tl-day-header { padding: 4px 0; font-size: 10px; text-align: center; border-right: 1px solid var(--border); color: var(--text-dim); }
+  .tl-day-header.sunday { background: repeating-linear-gradient(45deg,rgba(239,68,68,0.08),rgba(239,68,68,0.08) 4px,rgba(239,68,68,0.16) 4px,rgba(239,68,68,0.16) 8px); }
+  .tl-day-header.sunday .dnum,.tl-day-header.sunday .dow { color: var(--red); }
+  .tl-day-header.holiday { background: rgba(168,85,247,0.18); }
+  .tl-day-header.holiday .dnum,.tl-day-header.holiday .dow { color: var(--holiday); font-weight: 700; }
+  .tl-day-header .dow { font-size: 9px; color: var(--text-dim); }
+  .tl-day-header .dnum { font-size: 11px; font-weight: 600; color: var(--text); }
+  .tl-day-header.today .dnum { color: var(--accent); }
+  .tl-row { display: grid; height: 30px; border-bottom: 1px solid var(--border); position: relative; }
+  .tl-row.tl-row-active { background: rgba(245,158,11,0.06); }
+  .tl-driver-row.tl-row-active {
+    background: rgba(245,158,11,0.12) !important;
+    color: var(--accent);
+    font-weight: 700;
+    border-left: 3px solid var(--accent);
+    padding-left: 9px;
+  }
+  .tl-cell { border-right: 1px solid var(--border); cursor: pointer; }
+  .tl-cell.sunday { background: repeating-linear-gradient(45deg,rgba(239,68,68,0.05),rgba(239,68,68,0.05) 4px,rgba(239,68,68,0.1) 4px,rgba(239,68,68,0.1) 8px); cursor: not-allowed; }
+  .tl-cell.holiday:not(.sunday) { background: rgba(168,85,247,0.12); }
+  .tl-cell:not(.sunday):hover { background: rgba(245,158,11,0.15); }
+  .tl-cell.in-leave { background: var(--green); }
+  .tl-cell.in-leave:hover { background: #0ea271; }
+  .tl-cell.tl-selecting { background: rgba(245,158,11,0.45) !important; }
+  .tl-cell.in-leave.tl-selecting { background: rgba(239,68,68,0.55) !important; }
+  
+  /* Tooltip de selectie */
+  #tlSelectTooltip {
+    position: fixed;
+    background: var(--bg-elev);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 500;
+    display: none;
+    white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+  .tl-totals { display: grid; border-top: 2px solid var(--border); background: var(--bg-elev-2); position: sticky; bottom: 0; }
+  .tl-total { text-align: center; padding: 6px 0; font-size: 11px; font-weight: 700; border-right: 1px solid var(--border); cursor: pointer; }
+  .tl-total.lvl-0 { color: var(--text-dim); }
+  .tl-total.lvl-1 { color: var(--green); }
+  .tl-total.lvl-2 { color: var(--green); background: rgba(16,185,129,0.15); }
+  .tl-total.lvl-3 { color: var(--orange); background: rgba(249,115,22,0.2); }
+  .tl-total.lvl-4 { color: var(--red); background: rgba(239,68,68,0.25); }
+  .tl-total.sunday { background: repeating-linear-gradient(45deg,rgba(239,68,68,0.05),rgba(239,68,68,0.05) 4px,rgba(239,68,68,0.1) 4px,rgba(239,68,68,0.1) 8px); color: var(--text-dim); }
+  .tl-total.holiday:not(.sunday) { background: rgba(168,85,247,0.12); }
+  
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
+  .modal-bg.show { display: flex; }
+  .modal { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px; padding: 24px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+  .modal h3 { font-size: 16px; margin-bottom: 4px; }
+  .modal-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 16px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+  .modal-actions .btn { width: auto; margin: 0; }
+  
+  .holiday-banner { background: var(--holiday-bg); border: 1px solid rgba(168,85,247,0.3); color: var(--holiday); padding: 8px 12px; border-radius: 5px; font-size: 12px; margin-bottom: 12px; font-weight: 600; }
+  
+  .combo { position: relative; }
+  .combo-input { width: 100%; background: var(--bg-elev-2); color: var(--text); border: 1px solid var(--border); padding: 10px 12px; border-radius: 5px; font-size: 14px; font-family: inherit; }
+  .combo-input:focus { outline: none; border-color: var(--accent); }
+  .combo-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: 5px; max-height: 240px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+  .combo-list.show { display: block; }
+  .combo-option { padding: 8px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--border); }
+  .combo-option:last-child { border-bottom: none; }
+  .combo-option:hover,.combo-option.active { background: rgba(245,158,11,0.15); color: var(--accent); }
+  .combo-option .match { font-weight: 700; color: var(--accent); }
+  .combo-option-add { background: rgba(59,130,246,0.1); color: var(--accent-2); font-weight: 600; }
+  .combo-option-add:hover,.combo-option-add.active { background: rgba(59,130,246,0.2); color: var(--accent-2); }
+  .combo-empty { padding: 12px; color: var(--text-dim); font-size: 13px; text-align: center; }
+  
+  .leave-list { margin-top: 12px; max-height: 200px; overflow-y: auto; }
+  .leave-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: var(--bg-elev-2); border-radius: 5px; margin-bottom: 4px; font-size: 13px; }
+  .day-drivers { margin-top: 12px; }
+  .day-driver { padding: 6px 10px; background: var(--bg-elev-2); border-radius: 4px; margin-bottom: 4px; font-size: 13px; display: flex; justify-content: space-between; }
+  .empty { text-align: center; color: var(--text-dim); padding: 20px; font-size: 13px; }
+  .file-actions { display: flex; gap: 6px; }
+  .file-actions .btn { margin: 0; }
+  
+  .toast { position: fixed; bottom: 20px; right: 20px; background: var(--green); color: #000; padding: 10px 16px; border-radius: 6px; font-weight: 600; font-size: 13px; transform: translateY(100px); transition: transform 0.3s; z-index: 200; }
+  .toast.show { transform: translateY(0); }
+  .toast.error { background: var(--red); color: #fff; }
+  
+  .quick-action { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .quick-action .btn { width: auto; margin: 0; }
+  
+  /* ===== PIN SCREEN ===== */
+  .pin-screen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 300;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0;
+  }
+  .pin-screen.show { display: flex; }
+  .pin-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px 28px;
+    width: 100%;
+    max-width: 340px;
+    text-align: center;
+  }
+  .pin-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .pin-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 24px; }
+  .pin-avatar {
+    width: 64px; height: 64px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; font-weight: 800; color: #fff;
+    margin: 0 auto 16px;
+  }
+  .pin-dots {
+    display: flex; gap: 12px; justify-content: center; margin-bottom: 24px;
+  }
+  .pin-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid var(--border);
+    background: transparent;
+    transition: all 0.15s;
+  }
+  .pin-dot.filled { background: var(--accent); border-color: var(--accent); }
+  .pin-dot.error { background: var(--red); border-color: var(--red); }
+  .pin-numpad {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    margin-bottom: 16px;
+  }
+  .pin-key {
+    background: var(--bg-elev-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 0; font-size: 20px; font-weight: 600;
+    cursor: pointer; transition: all 0.1s; color: var(--text);
+  }
+  .pin-key:hover { background: var(--border); }
+  .pin-key:active { transform: scale(0.94); }
+  .pin-key.del { font-size: 16px; color: var(--text-dim); }
+  .pin-err { color: var(--red); font-size: 12px; margin-top: 8px; min-height: 18px; }
+  .pin-forgot { background:none; border:none; color:var(--text-dim); font-size:12px; cursor:pointer; text-decoration:underline; margin-top:8px; }
+
+  @media (min-width: 769px) {
+    .cal-day { min-height: 110px; padding: 3px 4px; }
+    .cal-day-num { font-size: 10px; }
+    .cal-day-count { font-size: 9px; padding: 1px 3px; }
+    .cal-day.sunday .cal-day-num { font-size: 8px; }
+    .cal-day.sunday .sunday-mark { font-size: 7px; }
+    .cal-day.holiday .holiday-name { font-size: 7px; }
+    .cal-name { font-size: 7px; }
+    .cal-grid { gap: 2px; }
+    .calendar { padding: 6px; }
+  }
+
+  @media (max-width: 768px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { max-height: none; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .main { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div style="margin-bottom:24px">
+      <div style="font-size:42px;font-weight:900;letter-spacing:-2px;color:var(--accent);line-height:1">MTC Transport</div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:4px;color:var(--text-dim);text-transform:uppercase;margin-top:4px">GESTIUNE CONCEDII</div>
+    </div>
+
+    <div class="auth-label">Selectează utilizatorul</div>
+    <div class="user-btns" style="grid-template-columns: 1fr 1fr">
+      <button class="user-btn" onclick="loginAsUser('raluca')">
+        <div class="user-btn-avatar" style="background: linear-gradient(135deg, #ec4899, #a855f7)">R</div>
+        <span class="user-btn-name">Raluca</span>
+      </button>
+      <button class="user-btn" onclick="loginAsUser('tania')">
+        <div class="user-btn-avatar" style="background: linear-gradient(135deg, #3b82f6, #06b6d4)">T</div>
+        <span class="user-btn-name">Tania</span>
+      </button>
+      <button class="user-btn" onclick="loginAsUser('madalina')">
+        <div class="user-btn-avatar" style="background: linear-gradient(135deg, #10b981, #84cc16)">M</div>
+        <span class="user-btn-name">Mădălina</span>
+      </button>
+      <button class="user-btn" onclick="loginAsUser('corina')">
+        <div class="user-btn-avatar" style="background: linear-gradient(135deg, #f97316, #eab308)">C</div>
+        <span class="user-btn-name">Corina</span>
+      </button>
+    </div>
+
+    <div class="auth-divider">sau</div>
+
+    <button class="admin-toggle" onclick="toggleAdminForm()">🔐 Login Admin</button>
+
+    <div class="admin-form" id="adminForm">
+      <label>Email</label>
+      <input type="email" id="adminEmail" value="paulandreimacarie@yahoo.com" readonly style="opacity:0.6; cursor:not-allowed">
+      <label>Parolă</label>
+      <input type="password" id="adminPass" placeholder="Introdu parola..." onkeydown="if(event.key==='Enter')loginAdmin()">
+      <button class="auth-login-btn" onclick="loginAdmin()">Intră ca Admin</button>
+    </div>
+
+    <div class="auth-err" id="authErr" style="display:none"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="app" id="appRoot" style="display:none">
+  <aside class="sidebar">
+    <div style="margin-bottom:8px">
+      <div style="font-size:22px;font-weight:900;letter-spacing:-1px;color:var(--accent);line-height:1">MTC Transport</div>
+      <div style="font-size:8px;font-weight:700;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;margin-top:2px">GESTIUNE CONCEDII</div>
+    </div>
+    
+    <div class="user-info" id="userInfo">
+      <div id="userAvatarDiv" style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;background:linear-gradient(135deg,#ec4899,#a855f7)"></div>
+      <span class="user-name" id="userName"></span>
+      <button class="logout-btn" onclick="doLogout()" title="Deconectare">⎋</button>
+    </div>
+    
+    <div class="save-status" id="saveStatus">
+      <div class="save-dot"></div>
+      <span id="saveStatusText">Salvat automat</span>
+    </div>
+    
+    <div class="section-title" style="display:flex; justify-content:space-between; align-items:center">
+      <span>Persoane</span>
+      <span id="driverCount" style="text-transform:none; letter-spacing:0; color:var(--text-dim)">0</span>
+    </div>
+    <button class="btn btn-secondary btn-small" id="addDriverBtn" onclick="openAddDriver()" style="width:100%; margin-bottom:6px">+ Persoană nouă</button>
+    <button class="btn btn-secondary btn-small" id="pinMgrBtn" onclick="openPinAdmin()" style="width:100%; margin-bottom:6px; display:none">🔐 Coduri PIN</button>
+    <input type="text" id="searchDriver" placeholder="🔍 Caută persoană..." oninput="renderDrivers()" style="margin-bottom:8px">
+    <div class="driver-list" id="driverList"></div>
+  </aside>
+  
+  <main class="main">
+    <div class="header">
+      <div class="nav">
+        <button onclick="changeMonth(-1)">‹</button>
+        <h2 id="monthLabel"></h2>
+        <button onclick="changeMonth(1)">›</button>
+        <button class="btn-small btn btn-secondary" onclick="goToday()" style="width:auto; margin-left:8px">Azi</button>
+      </div>
+      <div class="view-tabs">
+        <button class="view-tab active" onclick="setView('calendar')">📅 Calendar</button>
+        <button class="view-tab" onclick="setView('timeline')">📊 Timeline</button>
+      </div>
+    </div>
+    
+    <div class="quick-action">
+      <button class="btn btn-big" onclick="openQuickLeave()" style="flex:1; max-width:300px">
+        ➕ Adaugă concediu rapid
+      </button>
+    </div>
+    
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">Total persoane</div>
+        <div class="stat-value" id="statTotal">0</div>
+      </div>
+      <div class="stat" id="statTodayBox">
+        <div class="stat-label">În concediu azi</div>
+        <div class="stat-value" id="statToday">0</div>
+      </div>
+      <div class="stat" id="statPeakBox">
+        <div class="stat-label">Vârf în lună</div>
+        <div class="stat-value" id="statPeak">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Zile-om luna</div>
+        <div class="stat-value" id="statManDays">0</div>
+      </div>
+    </div>
+    
+    <div id="holidayBanner" class="holiday-banner" style="display:none"></div>
+    
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--bg-elev-2);border:1px solid var(--border)"></div>0 persoane</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(16,185,129,0.5)"></div>1–<span id="legWarn1">2</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(249,115,22,0.7)"></div><span id="legWarn">3</span>–<span id="legCrit1">4</span> (atenție)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(239,68,68,0.8)"></div>≥<span id="legCrit">5</span> (critic)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:repeating-linear-gradient(45deg,rgba(239,68,68,0.1),rgba(239,68,68,0.1) 3px,rgba(239,68,68,0.25) 3px,rgba(239,68,68,0.25) 6px)"></div>Duminică</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(168,85,247,0.4);border:1px dashed rgba(168,85,247,0.7)"></div>Sărbătoare</div>
+    </div>
+    
+    <div id="calendarView" class="calendar">
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+    
+    <div id="timelineView" class="timeline-wrap" style="display:none">
+      <div class="timeline" id="timeline"></div>
+    </div>
+  </main>
+</div>
+
+<!-- MODALS -->
+<div class="modal-bg" id="modalQuick">
+  <div class="modal">
+    <h3>Adaugă concediu</h3>
+    <div class="modal-sub">Caută persoana după nume, apoi selectează perioada.</div>
+    <label>Persoană</label>
+    <div class="combo">
+      <input type="text" class="combo-input" id="comboInput" placeholder="Începe să scrii numele..." autocomplete="off" oninput="onComboInput()" onfocus="onComboFocus()" onkeydown="onComboKey(event)">
+      <div class="combo-list" id="comboList"></div>
+    </div>
+    <label>De la</label>
+    <input type="date" id="quickStart">
+    <label>Până la (inclusiv)</label>
+    <input type="date" id="quickEnd">
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalQuick')">Anulează</button>
+      <button class="btn" onclick="saveQuickLeave()">✓ Salvează concediu</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalDriver">
+  <div class="modal">
+    <h3 id="modalDriverTitle">Adaugă persoană</h3>
+    <div class="modal-sub">Doar Admin poate adăuga sau modifica persoane.</div>
+    <label>Nume persoană</label>
+    <input type="text" id="driverNameInput" placeholder="ex: Ion Popescu">
+    <label>Zile concediu disponibile / an (0 = nelimitat)</label>
+    <input type="number" id="driverMaxDays" placeholder="ex: 20" min="0" value="0">
+    <label>Vizibil pentru</label>
+    <div id="driverVisibility" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px">
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);margin:0;cursor:pointer">
+        <input type="checkbox" id="visRaluca" value="raluca"> Raluca
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);margin:0;cursor:pointer">
+        <input type="checkbox" id="visMadalina" value="madalina"> Mădălina
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);margin:0;cursor:pointer">
+        <input type="checkbox" id="visCorina" value="corina"> Corina
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);margin:0;cursor:pointer">
+        <input type="checkbox" id="visTania" value="tania" disabled checked style="opacity:0.5"> Tania (mereu)
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalDriver')">Anulează</button>
+      <button class="btn" onclick="saveDriver()">Salvează</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalLeave">
+  <div class="modal">
+    <h3 id="modalLeaveTitle">Concedii</h3>
+    <div class="modal-sub" id="modalLeaveSub"></div>
+    <div id="leaveQuotaBar" style="display:none; margin-bottom:10px"></div>
+    <div id="leaveMaxDaysRow" style="display:none; margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px">
+        Zile disponibile/an:
+        <input type="number" id="leaveMaxDaysInput" min="0" style="width:70px;padding:4px 8px;font-size:13px" onchange="saveMaxDays()">
+        <span style="font-size:11px;color:var(--text-dim)">(0 = nelimitat)</span>
+      </label>
+    </div>
+    <label>De la</label>
+    <input type="date" id="leaveStart">
+    <label>Până la (inclusiv)</label>
+    <input type="date" id="leaveEnd">
+    <div class="leave-list" id="leaveList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalLeave')">Închide</button>
+      <button class="btn" onclick="addLeave()">+ Adaugă perioadă</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalDay">
+  <div class="modal">
+    <h3 id="modalDayTitle">Ziua</h3>
+    <div class="modal-sub" id="modalDaySub"></div>
+    <div class="day-drivers" id="dayDriversList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalDay')">Închide</button>
+    </div>
+  </div>
+</div>
+
+<!-- PIN SCREEN -->
+<div class="pin-screen" id="pinScreen">
+  <div class="pin-card">
+    <div class="pin-avatar" id="pinAvatar"></div>
+    <div class="pin-title" id="pinTitle">Bine ai venit!</div>
+    <div class="pin-sub" id="pinSub">Creează un cod PIN din 6 cifre</div>
+    <div class="pin-dots" id="pinDots">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+      <div class="pin-dot" id="pd4"></div>
+      <div class="pin-dot" id="pd5"></div>
+    </div>
+    <div class="pin-numpad">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key" style="visibility:hidden"></button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key del" onclick="pinBackspace()">⌫</button>
+    </div>
+    <div class="pin-err" id="pinErr"></div>
+    <button class="pin-forgot" id="pinForgot" style="display:none" onclick="pinForgotFlow()">Am uitat codul PIN</button>
+  </div>
+</div>
+
+<!-- ADMIN PIN MANAGER MODAL -->
+<div class="modal-bg" id="modalPinAdmin">
+  <div class="modal">
+    <h3>🔐 Coduri PIN utilizatori</h3>
+    <div class="modal-sub">Vizualizează sau resetează PIN-urile utilizatorilor.</div>
+    <div id="pinAdminList" style="margin-top:12px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalPinAdmin')">Închide</button>
+    </div>
+  </div>
+</div>
+
+<div id="tlSelectTooltip"></div>
+<div class="toast" id="toast"></div>
+
+<!-- Firebase SDKs (compat - script normal, nu modul) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBb0IFuofRG4vRlcnd9eMBuA8MyK_z0PRc",
+  authDomain: "calendar-f2589.firebaseapp.com",
+  projectId: "calendar-f2589",
+  storageBucket: "calendar-f2589.firebasestorage.app",
+  messagingSenderId: "124144206277",
+  appId: "1:124144206277:web:dc813e88dd100a0443cbac"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+const ADMIN_EMAIL = "paulandreimacarie@yahoo.com";
+
+const USERS = {
+  raluca:   { name:"Raluca",   color:"linear-gradient(135deg,#ec4899,#a855f7)", initial:"R" },
+  tania:    { name:"Tania",    color:"linear-gradient(135deg,#3b82f6,#06b6d4)", initial:"T" },
+  madalina: { name:"Mădălina", color:"linear-gradient(135deg,#10b981,#84cc16)", initial:"M" },
+  corina:   { name:"Corina",   color:"linear-gradient(135deg,#f97316,#eab308)", initial:"C" },
+  admin:    { name:"Admin",    color:"linear-gradient(135deg,#f59e0b,#ef4444)", initial:"A" }
+};
+
+function showErr(msg){ const el=document.getElementById('authErr'); el.textContent=msg; el.style.display='block'; }
+function hideErr(){ document.getElementById('authErr').style.display='none'; }
+
+window.toggleAdminForm = function(){ document.getElementById('adminForm').classList.toggle('show'); };
+
+window.loginAdmin = async function(){
+  hideErr();
+  const pass=document.getElementById('adminPass').value.trim();
+  if(!pass){ showErr('Introdu parola'); return; }
+  try{
+    await auth.signInWithEmailAndPassword(ADMIN_EMAIL, pass);
+  }catch(e){
+    if(e.code==='auth/wrong-password'||e.code==='auth/invalid-credential') showErr('Parolă greșită');
+    else if(e.code==='auth/too-many-requests') showErr('Prea multe încercări.');
+    else showErr('Eroare: '+e.message);
+  }
+};
+
+auth.onAuthStateChanged(user => {
+  if(user && user.email===ADMIN_EMAIL){
+    window.activeUserKey='admin';
+    enterApp('admin');
+  } else if(!user && window.activeUserKey==='admin'){
+    window.activeUserKey=null;
+    document.getElementById('authScreen').style.display='flex';
+    document.getElementById('appRoot').style.display='none';
+  }
+});
+
+window.doLogout = async function(){
+  unsubAll();
+  clearSession(window.activeUserKey);
+  if(window.activeUserKey==='admin') await auth.signOut();
+  window.activeUserKey=null;
+  state={drivers:[],thresholds:{warn:3,crit:5}};
+  document.getElementById('appRoot').style.display='none';
+  document.getElementById('authScreen').style.display='flex';
+};
+
+// ===== FIRESTORE =====
+let unsubListeners=[], saveTimer=null, lastSavedAt=null, isSaving=false;
+function unsubAll(){ unsubListeners.forEach(u=>{try{u();}catch(e){}}); unsubListeners=[]; }
+
+function setSaveStatus(status,text){
+  const el=document.getElementById('saveStatus'),txt=document.getElementById('saveStatusText');
+  el.classList.remove('saving','error');
+  if(status==='saving')el.classList.add('saving');
+  if(status==='error')el.classList.add('error');
+  txt.textContent=text;
+}
+function initApp(userKey){
+  setSaveStatus('saving','Se încarcă...');
+  unsubAll();
+
+  if(userKey==='tania'||userKey==='admin'){
+    const docKeys=['raluca','madalina','corina','tania'];
+    const cache={};
+    let loaded=0;
+
+    const rebuild=(live)=>{
+      const byName={};
+      ['madalina','corina','raluca','tania'].forEach(dk=>{
+        if(cache[dk])(cache[dk].drivers||[]).forEach(d=>{byName[d.name]=d;});
+      });
+      state={drivers:Object.values(byName),thresholds:{warn:3,crit:5}};
+      if(live){renderAll();saveLocalBackup();setSaveStatus('ok','Sincronizat ✓');}
+    };
+
+    docKeys.forEach(dk=>{
+      const unsub=db.collection('concedii').doc(dk).onSnapshot(snap=>{
+        cache[dk]=snap.exists?snap.data():{drivers:[],thresholds:{warn:3,crit:5}};
+        if(loaded<docKeys.length){
+          loaded++;
+          if(loaded===docKeys.length){rebuild(false);finishInit();}
+        } else { rebuild(true); }
+      },err=>console.error('snap err',dk,err));
+      unsubListeners.push(unsub);
+    });
+
+  } else {
+    let first=true;
+    const unsub=db.collection('concedii').doc(userKey).onSnapshot(snap=>{
+      if(snap.exists){
+        state=snap.data();
+        if(!state.thresholds)state.thresholds={warn:3,crit:5};
+        state.thresholds={warn:3,crit:5};
+      } else {
+        loadDefaultDrivers();
+        db.collection('concedii').doc(userKey).set(JSON.parse(JSON.stringify(state)));
+      }
+      if(first){first=false;finishInit();}
+      else{renderAll();saveLocalBackup();setSaveStatus('ok','Sincronizat ✓');}
+    },err=>{
+      console.error('snap err',userKey,err);
+      const bk=loadLocalBackup();
+      if(bk && bk.data && bk.data.drivers)state=bk.data; else loadDefaultDrivers();
+      finishInit();
+    });
+    unsubListeners.push(unsub);
+  }
+}
+
+function finishInit(){
+  state.thresholds={warn:3,crit:5};
+  updateThresholdLegend();
+  renderAll();
+  lastSavedAt=new Date();
+  saveLocalBackup();
+  setSaveStatus('ok','Date încărcate ✓');
+  document.querySelectorAll('.modal-bg').forEach(m=>{
+    m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');});
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape')document.querySelectorAll('.modal-bg.show').forEach(m=>m.classList.remove('show'));
+  });
+}
+
+function scheduleSave(){
+  if(saveTimer)clearTimeout(saveTimer);
+  setSaveStatus('saving','Se salvează...');
+  saveTimer=setTimeout(async()=>{
+    try{
+      isSaving=true;
+      const uk=window.activeUserKey||'tania';
+      if(uk==='tania'||uk==='admin'){
+        const byDoc={raluca:[],madalina:[],corina:[],tania:[]};
+        state.drivers.forEach(dr=>{
+          const vis=dr.visibleTo||[];
+          if(vis.includes('raluca'))   byDoc.raluca.push(dr);
+          if(vis.includes('madalina')) byDoc.madalina.push(dr);
+          if(vis.includes('corina'))   byDoc.corina.push(dr);
+          byDoc.tania.push(dr);
+        });
+        await Promise.all([
+          db.collection('concedii').doc('raluca').set({drivers:byDoc.raluca,thresholds:state.thresholds}),
+          db.collection('concedii').doc('madalina').set({drivers:byDoc.madalina,thresholds:state.thresholds}),
+          db.collection('concedii').doc('corina').set({drivers:byDoc.corina,thresholds:state.thresholds}),
+          db.collection('concedii').doc('tania').set({drivers:byDoc.tania,thresholds:state.thresholds}),
+        ]);
+      } else {
+        await db.collection('concedii').doc(uk).set(JSON.parse(JSON.stringify(state)));
+        // Sync în tania
+        try{
+          const tSnap=await db.collection('concedii').doc('tania').get();
+          if(tSnap.exists){
+            const tData=tSnap.data();
+            const myIds=new Set(state.drivers.map(d=>d.id));
+            const merged=(tData.drivers||[]).map(td=>myIds.has(td.id)?state.drivers.find(d=>d.id===td.id):td);
+            await db.collection('concedii').doc('tania').set({drivers:merged,thresholds:state.thresholds});
+          }
+        }catch(e){console.warn('sync tania',e);}
+      }
+      lastSavedAt=new Date();
+      const t=lastSavedAt;
+      const time=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+      saveLocalBackup();
+      setSaveStatus('ok',`Salvat la ${time} ✓`);
+    }catch(e){
+      console.error('save err',e);
+      setSaveStatus('error','Eroare la salvare!');
+    }finally{ isSaving=false; }
+  },600);
+}
+
+function enterApp(userKey){
+  const user=USERS[userKey];
+  window.activeUserKey=userKey;
+  const av=document.getElementById('userAvatarDiv');
+  av.textContent=user.initial; av.style.background=user.color;
+  document.getElementById('userName').textContent=user.name+(userKey==='admin'?' 👑':'');
+  const addBtn=document.getElementById('addDriverBtn');
+  if(addBtn)addBtn.style.display=(userKey==='admin')?'block':'none';
+  const pinBtn=document.getElementById('pinMgrBtn');
+  if(pinBtn)pinBtn.style.display=(userKey==='admin')?'block':'none';
+  document.getElementById('authScreen').style.display='none';
+  document.getElementById('appRoot').style.display='grid';
+  initApp(userKey);
+}
+
+// ===== HOLIDAYS (Bavaria) =====
+function getEaster(year) {
+  const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),month=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;
+  return new Date(year,month-1,day);
+}
+function addDays(date,n){const d=new Date(date);d.setDate(d.getDate()+n);return d;}
+function fmtDateStr(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
+function computeBavarianHolidays(year){
+  const easter=getEaster(year),h={};
+  h[`${year}-01-01`]='Anul Nou (Neujahr)';h[`${year}-01-06`]='Boboteaza (Heilige Drei Könige)';
+  h[`${year}-05-01`]='Ziua Muncii (Tag der Arbeit)';h[`${year}-08-15`]='Adormirea Maicii Domnului (Mariä Himmelfahrt)';
+  h[`${year}-10-03`]='Ziua Unității Germane (Tag der Deutschen Einheit)';h[`${year}-11-01`]='Ziua Tuturor Sfinților (Allerheiligen)';
+  h[`${year}-12-25`]='Crăciunul (1. Weihnachtstag)';h[`${year}-12-26`]='A doua zi de Crăciun (2. Weihnachtstag)';
+  h[fmtDateStr(addDays(easter,-2))]='Vinerea Mare (Karfreitag)';h[fmtDateStr(addDays(easter,1))]='A doua zi de Paște (Ostermontag)';
+  h[fmtDateStr(addDays(easter,39))]='Înălțarea Domnului (Christi Himmelfahrt)';h[fmtDateStr(addDays(easter,50))]='A doua zi de Rusalii (Pfingstmontag)';
+  h[fmtDateStr(addDays(easter,60))]='Joia Verde / Corpus Christi (Fronleichnam)';
+  return h;
+}
+let HOLIDAYS_CACHE={};
+function getHoliday(date){const y=date.getFullYear();if(!HOLIDAYS_CACHE[y])HOLIDAYS_CACHE[y]=computeBavarianHolidays(y);return HOLIDAYS_CACHE[y][fmtDateStr(date)]||null;}
+
+// ===== DRIVER LISTS PER USER =====
+const DRIVERS_MADALINA = [
+  "Aremia Aurel","Asmarandei Andrei","Bruma Alexandru","Gruia Raul",
+  "Movila Andrei","Pana Alexandru","Paul Petre","Rus Denisa",
+  "Stranici Cristian","Tufisi Rares","Vancea Cosmin"
+];
+const DRIVERS_RALUCA = [
+  "Badea Madalin","Bainoczi Razvan","Bejenaru Ioan","Birliba Mihaela",
+  "Bisoc Ionut","Bitiusca Gabriel","Buciu Petre","Burlacu Andrei",
+  "Cazan Ionut","Ciobotaru Adrian","Ciobotaru Iulian","Ciobotaru Larisa",
+  "Crainic Adrian","Deleu Daniel","Dobinda Dumitru","Dutescu Daniel",
+  "Farkas Rudolf","Feraru Razvan","Ferent Simon","Ghebu Andreas",
+  "Iacob Mihai","Macarie Paul","Maies Antonio","Margau Rafael",
+  "Maricosu Adelin","Mereacre Mihail","Mihai Adrian","Moise Alexandru",
+  "Morosanu Lucian","Musteata Ion","Plesca Mihaita","Pop Marcel",
+  "Raghinaru Marian","Rudareanu Vladut","Serban Florin","Sparios Eduard",
+  "Stan Ionel","Stanciu Dumitru","Stinga Valeriu","Tuca Valentin",
+  "Zestrea Mihail"
+];
+const DRIVERS_CORINA = [
+  "Sulaj Adriano","Ciuciuc Ionut","Bitto Robert","Nae Andrei",
+  "Barlovan Florin","Codreanu Daniel","Mario Martens",
+  "Gheorghe Ivan","Sarneki Sebastian"
+];
+const DRIVERS_TANIA = [...new Set([...DRIVERS_RALUCA, ...DRIVERS_MADALINA, ...DRIVERS_CORINA])].sort((a,b)=>a.localeCompare(b,'ro'));
+
+let state={drivers:[],thresholds:{warn:3,crit:5}};
+let view='calendar',currentDate=new Date(),editingDriverId=null,leaveDriverId=null;
+let comboSelectedId=null,comboHighlightIdx=0,comboFiltered=[];
+const MONTHS=['Ianuarie','Februarie','Martie','Aprilie','Mai','Iunie','Iulie','August','Septembrie','Octombrie','Noiembrie','Decembrie'];
+const DOW_MIN=['L','M','M','J','V','S','D'];
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function fmtDate(d){if(typeof d==='string')return d;return fmtDateStr(d);}
+function parseDate(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
+function sameDay(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();}
+function isSunday(d){return d.getDay()===0;}
+function dateInLeave(date,leave){const ds=fmtDate(date);return ds>=leave.start&&ds<=leave.end;}
+function driversOnDate(date){
+  const visible=typeof getVisibleDrivers==='function'?getVisibleDrivers():state.drivers;
+  return visible.filter(dr=>dr.leaves.some(l=>dateInLeave(date,l)));
+}
+function getLevel(count){const{warn,crit}=state.thresholds;if(count===0)return 0;if(count>=crit)return 4;if(count>=warn)return 3;if(count>=Math.ceil(warn/2)+1)return 2;return 1;}
+function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function normalizeForSearch(s){return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[ăâ]/g,'a').replace(/î/g,'i').replace(/[șş]/g,'s').replace(/[țţ]/g,'t');}
+
+
+function toast(msg,isError){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.toggle('error',!!isError);t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+function formatDateRO(ds){
+  const[y,m,d]=ds.split('-');
+  return `${parseInt(d)} ${['Ian','Feb','Mar','Apr','Mai','Iun','Iul','Aug','Sep','Oct','Nov','Dec'][parseInt(m)-1]} ${y}`;
+}
+
+// ===== LOCAL STORAGE AUTO-BACKUP =====
+// Salvează o copie locală după fiecare sync cu Firestore
+// Cheie per user: mtc_backup_raluca, mtc_backup_tania, etc.
+function saveLocalBackup(){
+  try{
+    const uk=window.activeUserKey||'unknown';
+    const backup={
+      data: JSON.parse(JSON.stringify(state)),
+      savedAt: new Date().toISOString(),
+      userKey: uk
+    };
+    localStorage.setItem('mtc_backup_'+uk, JSON.stringify(backup));
+  }catch(e){ console.warn('Local backup failed:', e); }
+}
+
+function loadLocalBackup(){
+  try{
+    const uk=window.activeUserKey||'unknown';
+    const raw=localStorage.getItem('mtc_backup_'+uk);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){ return null; }
+}
+
+function getLocalBackupInfo(){
+  const uk=window.activeUserKey||'unknown';
+  const b=loadLocalBackup();
+  if(!b) return null;
+  const d=new Date(b.savedAt);
+  const diff=Math.round((Date.now()-d)/60000);
+  let ago=diff<1?'acum câteva secunde':diff<60?`acum ${diff} min`:diff<1440?`acum ${Math.round(diff/60)}h`:`acum ${Math.round(diff/1440)}z`;
+  return {ago, drivers:(b.data.drivers?b.data.drivers.length:0), savedAt:d};
+}
+
+function getDriverListForUser(userKey){if(userKey==="madalina")return DRIVERS_MADALINA;if(userKey==="raluca")return DRIVERS_RALUCA;if(userKey==="corina")return DRIVERS_CORINA;return DRIVERS_TANIA;}
+
+function visibleToForName(name){
+  const vis=['tania'];
+  if(DRIVERS_RALUCA.includes(name))   vis.push('raluca');
+  if(DRIVERS_MADALINA.includes(name)) vis.push('madalina');
+  if(DRIVERS_CORINA.includes(name))   vis.push('corina');
+  // O persoană poate fi în mai multe liste
+  return [...new Set(vis)];
+}
+
+function loadDefaultDrivers(){
+  const list=getDriverListForUser(window.activeUserKey||"tania");
+  state.drivers=list.map(name=>({id:uid(),name,leaves:[],maxDays:0,visibleTo:visibleToForName(name)}));
+}
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+
+function isAdminOrTania(){ return window.activeUserKey==='admin'||window.activeUserKey==='tania'; }
+function isAdmin(){ return window.activeUserKey==='admin'; }
+
+// Numără zilele lucrătoare (Lun–Sâm, fără sărbători) dintr-un interval
+function countWorkdays(from, to){
+  let count=0;
+  const d=new Date(from);
+  while(d<=to){
+    const dow=d.getDay(); // 0=Dum, 6=Sâm
+    if(dow!==0 && !getHoliday(d)) count++;
+    d.setDate(d.getDate()+1);
+  }
+  return count;
+}
+
+// Zile lucrătoare de concediu folosite în anul curent
+function usedDaysThisYear(dr){
+  const y=new Date().getFullYear();
+  return dr.leaves.reduce((sum,l)=>{
+    const s=parseDate(l.start),e=parseDate(l.end);
+    if(e.getFullYear()<y||s.getFullYear()>y) return sum;
+    const ys=new Date(y,0,1),ye=new Date(y,11,31);
+    const from=s<ys?ys:s, to=e>ye?ye:e;
+    return sum+countWorkdays(from,to);
+  },0);
+}
+
+function openAddDriver(){
+  if(!isAdmin()){toast('Doar Admin poate adăuga persoane',true);return;}
+  editingDriverId=null;
+  document.getElementById('modalDriverTitle').textContent='Adaugă persoană';
+  document.getElementById('driverNameInput').value='';
+  document.getElementById('driverMaxDays').value='0';
+  ['visRaluca','visMadalina','visCorina'].forEach(id=>{ document.getElementById(id).checked=false; });
+  openModal('modalDriver');
+  setTimeout(()=>document.getElementById('driverNameInput').focus(),50);
+}
+
+function openEditDriver(id){
+  if(!isAdmin()){toast('Doar Admin poate edita persoane',true);return;}
+  editingDriverId=id;
+  const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
+  document.getElementById('modalDriverTitle').textContent='Editează persoană';
+  document.getElementById('driverNameInput').value=dr.name;
+  document.getElementById('driverMaxDays').value=dr.maxDays||0;
+  const vis=dr.visibleTo||[];
+  document.getElementById('visRaluca').checked=vis.includes('raluca');
+  document.getElementById('visMadalina').checked=vis.includes('madalina');
+  document.getElementById('visCorina').checked=vis.includes('corina');
+  openModal('modalDriver');
+  setTimeout(()=>document.getElementById('driverNameInput').focus(),50);
+}
+
+function saveDriver(){
+  if(!isAdmin()){toast('Doar Admin poate salva persoane',true);return;}
+  const name=document.getElementById('driverNameInput').value.trim();
+  if(!name){toast('Introdu un nume',true);return;}
+  const maxDays=parseInt(document.getElementById('driverMaxDays').value)||0;
+  const visibleTo=['tania']; // tania mereu
+  ['visRaluca','visMadalina','visCorina'].forEach(vid=>{
+    const el=document.getElementById(vid);
+    if(el&&el.checked) visibleTo.push(el.value);
+  });
+  if(editingDriverId){
+    const dr=state.drivers.find(d=>d.id===editingDriverId);
+    if(dr){dr.name=name;dr.maxDays=maxDays;dr.visibleTo=visibleTo;toast(`✓ "${name}" actualizat`);}
+  } else {
+    state.drivers.push({id:uid(),name,leaves:[],maxDays,visibleTo});
+    toast(`+ "${name}" adăugat(ă)`);
+  }
+  closeModal('modalDriver');renderAll();scheduleSave();
+}
+
+function deleteDriver(id){
+  if(!isAdmin()){toast('Doar Admin poate șterge persoane',true);return;}
+  const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
+  if(!confirm(`Ștergi "${dr.name}" și toate concediile sale?`))return;
+  state.drivers=state.drivers.filter(d=>d.id!==id);
+  renderAll();scheduleSave();toast(`🗑 "${dr.name}" șters`);
+}
+
+function openLeaveModal(id){
+  leaveDriverId=id;
+  const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
+  document.getElementById('modalLeaveTitle').textContent=`Concedii — ${dr.name}`;
+  document.getElementById('leaveStart').value='';
+  document.getElementById('leaveEnd').value='';
+
+  // Quota bar
+  const maxDays=dr.maxDays||0;
+  const used=usedDaysThisYear(dr);
+  const quotaBar=document.getElementById('leaveQuotaBar');
+  if(maxDays>0){
+    const pct=Math.min(100,Math.round(used/maxDays*100));
+    const color=used>maxDays?'var(--red)':used>=maxDays*0.8?'var(--orange)':'var(--green)';
+    quotaBar.style.display='block';
+    quotaBar.innerHTML=`
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span style="color:var(--text-dim)">Zile folosite ${new Date().getFullYear()}</span>
+        <span style="font-weight:700;color:${color}">${used} / ${maxDays} zile</span>
+      </div>
+      <div style="background:var(--bg-elev-2);border-radius:4px;height:8px;overflow:hidden">
+        <div style="width:${pct}%;background:${color};height:100%;border-radius:4px;transition:width 0.3s"></div>
+      </div>`;
+  } else {
+    quotaBar.style.display='block';
+    quotaBar.innerHTML=`<div style="font-size:12px;color:var(--text-dim)">Zile folosite ${new Date().getFullYear()}: <strong style="color:var(--text)">${used}</strong> <span style="color:var(--text-dim)">(nelimitat)</span></div>`;
+  }
+
+  // MaxDays editor — doar admin și tania
+  const maxRow=document.getElementById('leaveMaxDaysRow');
+  if(isAdminOrTania()){
+    maxRow.style.display='block';
+    document.getElementById('leaveMaxDaysInput').value=maxDays;
+  } else {
+    maxRow.style.display='none';
+  }
+
+  const total=dr.leaves.reduce((s,l)=>s+Math.round((parseDate(l.end)-parseDate(l.start))/86400000)+1,0);
+  document.getElementById('modalLeaveSub').textContent=`${dr.leaves.length} perioadă(e) · ${total} zile total`;
+  renderLeaveList(dr);
+  openModal('modalLeave');
+}
+
+function saveMaxDays(){
+  const dr=state.drivers.find(d=>d.id===leaveDriverId);if(!dr)return;
+  dr.maxDays=parseInt(document.getElementById('leaveMaxDaysInput').value)||0;
+  openLeaveModal(leaveDriverId); // rerender quota bar
+  scheduleSave();
+}
+
+function renderLeaveList(dr){
+  const list=document.getElementById('leaveList');
+  if(!dr.leaves.length){list.innerHTML='<div class="empty">Nicio perioadă de concediu</div>';return;}
+  const sorted=[...dr.leaves].sort((a,b)=>a.start.localeCompare(b.start));
+  list.innerHTML=sorted.map((l,i)=>{
+    const days=Math.round((parseDate(l.end)-parseDate(l.start))/86400000)+1;
+    return `<div class="leave-row">
+      <span>${formatDateRO(l.start)} → ${formatDateRO(l.end)} <span style="color:var(--text-dim);font-size:11px">(${days}z)</span></span>
+      <button class="icon-btn" onclick="deleteLeave('${dr.id}','${l.start}','${l.end}')" title="Șterge">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+function addLeave(){
+  if(!leaveDriverId)return;
+  const start=document.getElementById('leaveStart').value,end=document.getElementById('leaveEnd').value;
+  if(!start||!end){toast('Selectează ambele date',true);return;}
+  if(start>end){toast('Data început după data sfârșit',true);return;}
+  const dr=state.drivers.find(d=>d.id===leaveDriverId);if(!dr)return;
+  const newDays=Math.round((parseDate(end)-parseDate(start))/86400000)+1;
+  const maxDays=dr.maxDays||0;
+  if(maxDays>0){
+    const used=usedDaysThisYear(dr);
+    if(used+newDays>maxDays){
+      const over=used+newDays-maxDays;
+      const ok=confirm(`⚠️ Depășire zile concediu!\n\n${dr.name} are ${maxDays} zile disponibile în ${new Date().getFullYear()}.\nFolosite: ${used} zile · Adăugat: ${newDays} zile\nDepășire: ${over} zile\n\nEști sigur că vrei să adaugi acest concediu?`);
+      if(!ok)return;
+    }
+  }
+  dr.leaves.push({start,end});
+  openLeaveModal(leaveDriverId); // rerender cu quota actualizată
+  renderMain();scheduleSave();
+  toast(`✓ ${newDays} zile adăugate`);
+}
+
+function deleteLeave(driverId,start,end){
+  const dr=state.drivers.find(d=>d.id===driverId);if(!dr)return;
+  dr.leaves=dr.leaves.filter(l=>!(l.start===start&&l.end===end));
+  openLeaveModal(driverId); // rerender cu quota actualizată
+  renderMain();scheduleSave();toast('🗑 Perioadă ștearsă');
+}
+
+// ===== COMBO =====
+function openQuickLeave(){
+  comboSelectedId=null;
+  document.getElementById('comboInput').value='';
+  document.getElementById('quickStart').value='';
+  document.getElementById('quickEnd').value='';
+  document.getElementById('comboList').classList.remove('show');
+  openModal('modalQuick');
+  setTimeout(()=>document.getElementById('comboInput').focus(),50);
+}
+
+function onComboFocus(){comboSelectedId=null;filterCombo(document.getElementById('comboInput').value);}
+function onComboInput(){comboSelectedId=null;filterCombo(document.getElementById('comboInput').value);}
+
+function filterCombo(q){
+  const norm=normalizeForSearch(q.trim()),list=document.getElementById('comboList');
+  const visible=getVisibleDrivers();
+  if(!norm){comboFiltered=[...visible].sort((a,b)=>a.name.localeCompare(b.name,'ro'));}
+  else{comboFiltered=visible.filter(d=>normalizeForSearch(d.name).includes(norm)).sort((a,b)=>{const as=normalizeForSearch(a.name).startsWith(norm)?0:1,bs=normalizeForSearch(b.name).startsWith(norm)?0:1;if(as!==bs)return as-bs;return a.name.localeCompare(b.name,'ro');});}
+  comboHighlightIdx=0;renderComboList(q.trim());list.classList.add('show');
+}
+
+function renderComboList(query){
+  const list=document.getElementById('comboList');let html='';
+  if(!comboFiltered.length&&!query){html='<div class="combo-empty">Nicio persoană încă</div>';}
+  else{
+    comboFiltered.slice(0,50).forEach((d,i)=>{
+      let dn=escapeHtml(d.name);
+      if(query){const ln=d.name.toLowerCase(),lq=query.toLowerCase(),idx=ln.indexOf(lq);if(idx!==-1)dn=escapeHtml(d.name.slice(0,idx))+'<span class="match">'+escapeHtml(d.name.slice(idx,idx+query.length))+'</span>'+escapeHtml(d.name.slice(idx+query.length));}
+      const cls='combo-option'+(i===comboHighlightIdx?' active':'');
+      const td=d.leaves.reduce((s,l)=>s+Math.round((parseDate(l.end)-parseDate(l.start))/86400000)+1,0);
+      const ds=td>0?`<span style="float:right;color:var(--text-dim);font-size:11px">${td}z</span>`:'';
+      html+=`<div class="${cls}" onmousedown="event.preventDefault()" onclick="selectComboOption('${d.id}')">${dn}${ds}</div>`;
+    });
+  }
+  if(query&&isAdmin()){
+    const exact=state.drivers.some(d=>d.name.toLowerCase()===query.toLowerCase());
+    if(!exact){const cls='combo-option combo-option-add'+(comboHighlightIdx===comboFiltered.length?' active':'');const eq=escapeHtml(query).replace(/'/g,"\\'");html+=`<div class="${cls}" onmousedown="event.preventDefault()" onclick="createDriverFromCombo('${eq}')">➕ Adaugă persoană nouă: "<strong>${escapeHtml(query)}</strong>"</div>`;}
+  }
+  list.innerHTML=html;
+}
+
+function selectComboOption(id){
+  const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
+  comboSelectedId=id;document.getElementById('comboInput').value=dr.name;
+  document.getElementById('comboList').classList.remove('show');document.getElementById('quickStart').focus();
+}
+
+function createDriverFromCombo(name){
+  name=name.trim();if(!name)return;
+  const nd={id:uid(),name,leaves:[]};state.drivers.push(nd);
+  comboSelectedId=nd.id;document.getElementById('comboInput').value=name;
+  document.getElementById('comboList').classList.remove('show');
+  renderDrivers();scheduleSave();toast(`+ "${name}" adăugat(ă)`);document.getElementById('quickStart').focus();
+}
+
+function onComboKey(e){
+  const list=document.getElementById('comboList'),isOpen=list.classList.contains('show'),query=e.target.value.trim();
+  const hasAdd=isAdmin()&&query&&!state.drivers.some(d=>d.name.toLowerCase()===query.toLowerCase());
+  const total=comboFiltered.length+(hasAdd?1:0);
+  if(e.key==='ArrowDown'){e.preventDefault();if(!isOpen){filterCombo(query);return;}comboHighlightIdx=Math.min(comboHighlightIdx+1,total-1);renderComboList(query);}
+  else if(e.key==='ArrowUp'){e.preventDefault();comboHighlightIdx=Math.max(comboHighlightIdx-1,0);renderComboList(query);}
+  else if(e.key==='Enter'){e.preventDefault();if(!isOpen)return;if(comboHighlightIdx<comboFiltered.length)selectComboOption(comboFiltered[comboHighlightIdx].id);else if(hasAdd)createDriverFromCombo(query);}
+  else if(e.key==='Escape')list.classList.remove('show');
+}
+
+document.addEventListener('click',e=>{if(!e.target.closest('.combo')){const l=document.getElementById('comboList');if(l)l.classList.remove('show');}});
+
+function saveQuickLeave(){
+  const input=document.getElementById('comboInput').value.trim();
+  if(!input){toast('Selectează o persoană',true);return;}
+  if(!comboSelectedId){const found=state.drivers.find(d=>d.name.toLowerCase()===input.toLowerCase());if(found)comboSelectedId=found.id;else{toast('Persoană negăsită. Folosește dropdown-ul.',true);return;}}
+  const start=document.getElementById('quickStart').value,end=document.getElementById('quickEnd').value;
+  if(!start||!end){toast('Selectează ambele date',true);return;}
+  if(start>end){toast('Data început după data sfârșit',true);return;}
+  const dr=state.drivers.find(d=>d.id===comboSelectedId);if(!dr)return;
+  const newDays=Math.round((parseDate(end)-parseDate(start))/86400000)+1;
+  const maxDays=dr.maxDays||0;
+  if(maxDays>0){
+    const used=usedDaysThisYear(dr);
+    if(used+newDays>maxDays){
+      const over=used+newDays-maxDays;
+      const ok=confirm(`⚠️ Depășire zile concediu!\n\n${dr.name} are ${maxDays} zile disponibile în ${new Date().getFullYear()}.\nFolosite: ${used} zile · Adăugat: ${newDays} zile\nDepășire: ${over} zile\n\nEști sigur că vrei să adaugi acest concediu?`);
+      if(!ok)return;
+    }
+  }
+  dr.leaves.push({start,end});
+  closeModal('modalQuick');renderAll();scheduleSave();
+  toast(`✓ ${dr.name}: ${newDays} zile`);
+}
+
+// ===== RENDER =====
+function getVisibleDrivers(){
+  const uk=window.activeUserKey||'tania';
+  if(uk==='tania'||uk==='admin') return state.drivers;
+  return state.drivers.filter(dr=>{
+    // Dacă are câmpul visibleTo setat, îl folosim
+    if(dr.visibleTo && dr.visibleTo.length>0){
+      return dr.visibleTo.includes(uk);
+    }
+    // Fallback: persoane vechi fără câmp — folosim listele hardcodate
+    if(uk==='raluca')   return DRIVERS_RALUCA.includes(dr.name);
+    if(uk==='madalina') return DRIVERS_MADALINA.includes(dr.name);
+    if(uk==='corina')   return DRIVERS_CORINA.includes(dr.name);
+    return false;
+  });
+}
+
+function renderDrivers(){
+  const uk=window.activeUserKey||'tania';
+  const canAdmin=isAdmin();
+  const q=normalizeForSearch((document.getElementById('searchDriver').value||'').trim());
+  const visible=getVisibleDrivers();
+  const filtered=q?visible.filter(d=>normalizeForSearch(d.name).includes(q)):[...visible];
+  filtered.sort((a,b)=>a.name.localeCompare(b.name,'ro'));
+  document.getElementById('driverCount').textContent=filtered.length;
+  document.getElementById('statTotal').textContent=filtered.length;
+  const list=document.getElementById('driverList');
+  if(!filtered.length){list.innerHTML='<div class="empty">Nicio persoană</div>';return;}
+  list.innerHTML=filtered.map(dr=>{
+    const used=usedDaysThisYear(dr);
+    const maxDays=dr.maxDays||0;
+    const over=maxDays>0&&used>maxDays;
+    const warn=maxDays>0&&used>=maxDays*0.8&&!over;
+    const color=over?'var(--red)':warn?'var(--orange)':'var(--green)';
+    const pct=maxDays>0?Math.min(100,Math.round(used/maxDays*100)):0;
+
+    let quotaHtml='';
+    if(maxDays>0){
+      quotaHtml=`
+        <div style="margin-top:5px">
+          <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;color:var(--text-dim)">
+            <span style="color:${color};font-weight:600">${used} / ${maxDays} zile</span>
+            <span>${pct}%</span>
+          </div>
+          <div style="background:var(--bg);border-radius:3px;height:4px;overflow:hidden">
+            <div style="width:${pct}%;background:${color};height:100%;border-radius:3px;transition:width 0.3s"></div>
+          </div>
+        </div>`;
+    } else {
+      quotaHtml=used>0?`<div style="margin-top:4px;font-size:10px;color:var(--text-dim)">${used} zile folosite</div>`:'';
+    }
+
+    const editBtns=canAdmin?`
+      <div class="driver-actions">
+        <button class="icon-btn" onclick="openEditDriver('${dr.id}')" title="Editează">✏️</button>
+        <button class="icon-btn" onclick="deleteDriver('${dr.id}')" title="Șterge">🗑</button>
+      </div>`:'';
+    return `<div class="driver-item" style="flex-direction:column;align-items:stretch;gap:0;padding:8px 10px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span class="driver-name" onclick="openLeaveModal('${dr.id}')">${escapeHtml(dr.name)}</span>
+        ${editBtns}
+      </div>
+      ${quotaHtml}
+    </div>`;
+  }).join('');
+}
+
+function setStatLevel(id,count){const el=document.getElementById(id);el.classList.remove('warn','crit');const{warn,crit}=state.thresholds;if(count>=crit)el.classList.add('crit');else if(count>=warn)el.classList.add('warn');}
+
+function renderHolidayBanner(){
+  const today=new Date(),banner=document.getElementById('holidayBanner');
+  const y=currentDate.getFullYear(),m=currentDate.getMonth();
+  const holidays=[];
+  for(let d=1;d<=new Date(y,m+1,0).getDate();d++){const dt=new Date(y,m,d);const h=getHoliday(dt);if(h&&!isSunday(dt))holidays.push({date:dt,name:h});}
+  if(!holidays.length){banner.style.display='none';return;}
+  banner.style.display='block';
+  banner.textContent='🎉 Sărbători în '+MONTHS[m]+': '+holidays.map(h=>`${h.date.getDate()} ${h.name.split('(')[0].trim()}`).join(' · ');
+}
+
+function renderCalendar(){
+  const y=currentDate.getFullYear(),m=currentDate.getMonth();
+  document.getElementById('monthLabel').textContent=`${MONTHS[m]} ${y}`;
+  const today=new Date(),firstDay=new Date(y,m,1),lastDay=new Date(y,m+1,0);
+  const startDow=(firstDay.getDay()+6)%7;
+  const DOW_SHORT=['Lun','Mar','Mie','Joi','Vin','Sâm','Dum'];
+  let html=DOW_SHORT.map((d,i)=>`<div class="cal-header${i===6?' sun-header':''}">${d}</div>`).join('');
+  const cells=[];
+  for(let i=0;i<startDow;i++){const d=new Date(y,m,1-startDow+i);cells.push({d,otherMonth:true});}
+  for(let d=1;d<=lastDay.getDate();d++)cells.push({d:new Date(y,m,d),otherMonth:false});
+  while(cells.length%7!==0){const last=cells[cells.length-1].d;cells.push({d:new Date(last.getFullYear(),last.getMonth(),last.getDate()+1),otherMonth:true});}
+  html+=cells.map(({d,otherMonth})=>renderCalDay(d,otherMonth,today)).join('');
+  document.getElementById('calGrid').innerHTML=html;
+  renderHolidayBanner();
+  let onLeaveToday=driversOnDate(today).length;
+  document.getElementById('statToday').textContent=onLeaveToday;setStatLevel('statTodayBox',onLeaveToday);
+  const daysInMonth=lastDay.getDate();
+  const counts=[];for(let d=1;d<=daysInMonth;d++){const dt=new Date(y,m,d);counts.push(isSunday(dt)?0:driversOnDate(dt).length);}
+  const peak=Math.max(...counts,0),manDays=counts.reduce((a,b)=>a+b,0);
+  document.getElementById('statPeak').textContent=peak;document.getElementById('statManDays').textContent=manDays;
+  setStatLevel('statPeakBox',peak);
+}
+
+function renderCalDay(d,otherMonth,today){
+  const dnum=d.getDate(),isSun=isSunday(d),holiday=getHoliday(d),isToday=sameDay(d,today);
+  const drivers=(otherMonth||isSun)?[]:driversOnDate(d);
+  const classes=['cal-day'];
+  if(isSun)classes.push('sunday');else classes.push(`lvl-${getLevel(drivers.length)}`);
+  if(holiday)classes.push('holiday');if(otherMonth)classes.push('other-month');if(isToday)classes.push('today');
+  const ds=fmtDate(d),clickHandler=isSun?'':`onclick="openDayDetail('${ds}')"`;
+
+  // Construiește lista de nume (prenume doar, max 10 + rest)
+  let namesHtml='';
+  if(!isSun && !otherMonth && drivers.length>0){
+    const MAX_SHOW=10;
+    const shown=drivers.slice(0,MAX_SHOW);
+    const rest=drivers.length-MAX_SHOW;
+    namesHtml=`<div class="cal-names">` +
+      shown.map(dr=>{
+        const firstName=dr.name.split(' ')[0];
+        return `<div class="cal-name">${escapeHtml(firstName)}</div>`;
+      }).join('') +
+      (rest>0?`<div class="cal-name cal-name-more">+${rest}</div>`:'') +
+    `</div>`;
+  }
+
+  let inner;
+  if(isSun){
+    inner=`<div class="cal-day-num">${dnum}</div>`+
+      (holiday?`<div class="holiday-name">${escapeHtml(holiday.split('(')[0].trim())}</div>`:'')+
+      `<div class="sunday-mark">${holiday?'':'Liber'}</div>`;
+  } else if(holiday){
+    inner=`<div class="cal-day-num">${dnum}</div>`+
+      (drivers.length>0?`<div class="cal-day-count">${drivers.length}</div>`:'')+
+      `<div class="holiday-name">${escapeHtml(holiday.split('(')[0].trim())}</div>`+
+      namesHtml;
+  } else {
+    inner=`<div class="cal-day-num">${dnum}</div>`+
+      (drivers.length>0?`<div class="cal-day-count">${drivers.length}</div>`:'')+
+      namesHtml;
+  }
+
+  const titleAttr=drivers.length>0
+    ? `title="${escapeHtml(drivers.map(dr=>dr.name).join(', ')+(holiday?' • '+holiday:''))}"`
+    : (holiday?`title="${escapeHtml(holiday)}"`:'' );
+  return `<div class="${classes.join(' ')}" ${clickHandler} ${titleAttr}>${inner}</div>`;
+}
+
+function openDayDetail(dateStr){
+  const d=parseDate(dateStr);if(isSunday(d))return;
+  const drivers=driversOnDate(d),holiday=getHoliday(d);
+  document.getElementById('modalDayTitle').textContent=formatDateRO(dateStr);
+  const dowName=['Duminică','Luni','Marți','Miercuri','Joi','Vineri','Sâmbătă'][d.getDay()];
+  let sub=`${dowName} • ${drivers.length} persoane în concediu`;if(holiday)sub+=` • 🎉 ${holiday}`;
+  document.getElementById('modalDaySub').textContent=sub;
+  const list=document.getElementById('dayDriversList');
+  if(!drivers.length){list.innerHTML='<div class="empty">Nicio persoană în concediu</div>';}
+  else{list.innerHTML=drivers.map(dr=>{const leave=dr.leaves.find(l=>dateInLeave(d,l));return`<div class="day-driver"><span>${escapeHtml(dr.name)}</span><span style="color:var(--text-dim);font-size:11px">${formatDateRO(leave.start)} → ${formatDateRO(leave.end)}</span></div>`;}).join('');}
+  openModal('modalDay');
+}
+
+// ===== TIMELINE DRAG SELECT STATE =====
+let tlDrag = { active:false, driverId:null, startDay:null, endDay:null, removing:false };
+
+function tlDragStart(driverId, dn, isSun, onLeave) {
+  if(isSun) return;
+  tlDrag.active = true;
+  tlDrag.driverId = driverId;
+  tlDrag.startDay = dn;
+  tlDrag.endDay = dn;
+  tlDrag.removing = onLeave;
+  // Highlight rând activ
+  document.querySelectorAll('.tl-row, .tl-driver-row').forEach(el => el.classList.remove('tl-row-active'));
+  document.querySelectorAll(`.tl-row[data-driver-row="${driverId}"], .tl-driver-row[data-driver-row="${driverId}"]`).forEach(el => el.classList.add('tl-row-active'));
+  tlDragUpdate(dn);
+}
+
+function tlDragMove(dn, pageX, pageY) {
+  if(!tlDrag.active) return;
+  tlDrag.endDay = dn;
+  tlDragUpdate(dn);
+  const tip = document.getElementById('tlSelectTooltip');
+  if(tip) {
+    const s=Math.min(tlDrag.startDay,tlDrag.endDay), e=Math.max(tlDrag.startDay,tlDrag.endDay);
+    const days = e - s + 1;
+    const y=currentDate.getFullYear(), m=currentDate.getMonth();
+    tip.textContent = tlDrag.removing
+      ? `🗑 Șterge ${days} zile (${s}–${e})`
+      : `✓ Adaugă ${days} zile concediu (${s}–${e})`;
+    tip.style.display = 'block';
+    tip.style.left = (pageX + 14) + 'px';
+    tip.style.top  = (pageY - 32) + 'px';
+  }
+}
+
+function tlDragUpdate(currentDn) {
+  const s = Math.min(tlDrag.startDay, currentDn);
+  const e = Math.max(tlDrag.startDay, currentDn);
+  // Highlight cells for this driver row
+  document.querySelectorAll(`.tl-cell[data-driver="${tlDrag.driverId}"]`).forEach(cell => {
+    const dn = parseInt(cell.dataset.day);
+    cell.classList.toggle('tl-selecting', dn >= s && dn <= e);
+  });
+}
+
+function tlDragEnd() {
+  if(!tlDrag.active) return;
+  tlDrag.active = false;
+  document.getElementById('tlSelectTooltip').style.display = 'none';
+  document.querySelectorAll('.tl-selecting').forEach(c => c.classList.remove('tl-selecting'));
+  document.querySelectorAll('.tl-row-active').forEach(el => el.classList.remove('tl-row-active'));
+
+  const y=currentDate.getFullYear(), m=currentDate.getMonth();
+  const s=Math.min(tlDrag.startDay, tlDrag.endDay);
+  const e=Math.max(tlDrag.startDay, tlDrag.endDay);
+  const startStr = `${y}-${String(m+1).padStart(2,'0')}-${String(s).padStart(2,'0')}`;
+  const endStr   = `${y}-${String(m+1).padStart(2,'0')}-${String(e).padStart(2,'0')}`;
+
+  const dr = state.drivers.find(d => d.id === tlDrag.driverId);
+  if(!dr) return;
+
+  if(tlDrag.removing) {
+    // Șterge orice perioadă care se suprapune cu selecția
+    const before = dr.leaves.length;
+    dr.leaves = dr.leaves.filter(l => !(l.start <= endStr && l.end >= startStr));
+    const removed = before - dr.leaves.length;
+    if(removed > 0) { renderAll(); scheduleSave(); toast(`🗑 Concediu șters pentru ${dr.name}`); }
+    else toast('Nicio perioadă de șters în intervalul selectat', true);
+  } else {
+    // Verifică quota
+    const newDays = e - s + 1;
+    const maxDays = dr.maxDays || 0;
+    if(maxDays > 0) {
+      const used = usedDaysThisYear(dr);
+      if(used + newDays > maxDays) {
+        const over = used + newDays - maxDays;
+        const ok = confirm(`⚠️ Depășire zile concediu!\n\n${dr.name} are ${maxDays} zile disponibile în ${y}.\nFolosite: ${used} · Adăugat: ${newDays} · Depășire: ${over}\n\nEști sigur?`);
+        if(!ok) return;
+      }
+    }
+    dr.leaves.push({ start: startStr, end: endStr });
+    renderAll(); scheduleSave();
+    toast(`✓ ${dr.name}: ${newDays} zile adăugate`);
+  }
+  tlDrag = { active:false, driverId:null, startDay:null, endDay:null, removing:false };
+}
+
+function renderTimeline(){
+  const y=currentDate.getFullYear(),m=currentDate.getMonth(),daysInMonth=new Date(y,m+1,0).getDate(),today=new Date();
+  document.getElementById('monthLabel').textContent=`${MONTHS[m]} ${y}`;
+  const tl=document.getElementById('timeline');
+  const visDrivers = getVisibleDrivers();
+  if(!visDrivers.length){tl.innerHTML='<div style="padding:40px;text-align:center;color:var(--text-dim);grid-column:1/-1">Nicio persoană</div>';return;}
+  const sortedDrivers=[...visDrivers].sort((a,b)=>a.name.localeCompare(b.name,'ro'));
+  const colWidthPx=32,gridCols=`repeat(${daysInMonth},${colWidthPx}px)`;
+
+  let driverHtml='<div class="tl-driver-col"><div class="tl-driver-header">Persoană</div>';
+  sortedDrivers.forEach(dr=>{driverHtml+=`<div class="tl-driver-row" data-driver-row="${dr.id}" onclick="openLeaveModal('${dr.id}')" title="Click pentru detalii / Drag pe calendar pentru concediu">${escapeHtml(dr.name)}</div>`;});
+  driverHtml+='<div class="tl-driver-row" style="background:var(--bg-elev-2);font-weight:700;font-size:11px;text-transform:uppercase;color:var(--text-dim);letter-spacing:0.5px;cursor:default">Total / zi</div></div>';
+
+  let gridHtml='<div class="tl-grid-wrap">';
+  gridHtml+=`<div class="tl-day-headers" style="grid-template-columns:${gridCols}">`;
+  for(let dn=1;dn<=daysInMonth;dn++){const d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d),isTd=sameDay(d,today);const cls=['tl-day-header'];if(isSun)cls.push('sunday');if(holiday)cls.push('holiday');if(isTd)cls.push('today');gridHtml+=`<div class="${cls.join(' ')}"${holiday?` title="${escapeHtml(holiday)}"`:''} ><div class="dnum">${dn}</div><div class="dow">${DOW_MIN[(d.getDay()+6)%7]}</div></div>`;}
+  gridHtml+='</div>';
+
+  const dailyCounts=new Array(daysInMonth+1).fill(0);
+  sortedDrivers.forEach(dr=>{
+    gridHtml+=`<div class="tl-row" data-driver-row="${dr.id}" style="grid-template-columns:${gridCols}">`;
+    for(let dn=1;dn<=daysInMonth;dn++){
+      const d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d),onLeave=!isSun&&dr.leaves.some(l=>dateInLeave(d,l));
+      const cls=['tl-cell'];
+      if(isSun)cls.push('sunday');
+      if(holiday)cls.push('holiday');
+      if(onLeave){cls.push('in-leave');dailyCounts[dn]++;}
+      const ds=fmtDate(d);
+      const dragAttrs = isSun ? '' :
+        `onmousedown="tlDragStart('${dr.id}',${dn},false,${onLeave})" `+
+        `onmousemove="if(event.buttons===1)tlDragMove(${dn},event.pageX,event.pageY)" `+
+        `onmouseenter="if(event.buttons===1){tlDrag.active&&tlDragMove(${dn},event.pageX,event.pageY)}"`;
+      const tipText = isSun ? 'Duminică' : (onLeave ? 'Concediu — trage pentru a șterge' : 'Trage pentru a adăuga concediu');
+      gridHtml+=`<div class="${cls.join(' ')}" ${dragAttrs} title="${escapeHtml(dr.name)} · ${formatDateRO(ds)}${holiday?' · '+holiday:''} — ${tipText}" data-driver="${dr.id}" data-day="${dn}"></div>`;
+    }
+    gridHtml+='</div>';
+  });
+
+  gridHtml+=`<div class="tl-totals" style="grid-template-columns:${gridCols}">`;
+  for(let dn=1;dn<=daysInMonth;dn++){const c=dailyCounts[dn],d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d),lvl=isSun?0:getLevel(c);const cls=['tl-total',`lvl-${lvl}`];if(isSun)cls.push('sunday');if(holiday)cls.push('holiday');const ds=fmtDate(d),onClick=isSun?'':`onclick="openDayDetail('${ds}')"`;gridHtml+=`<div class="${cls.join(' ')}" ${onClick}>${isSun?'—':(c||'·')}</div>`;}
+  gridHtml+='</div></div>';
+  tl.innerHTML=driverHtml+gridHtml;
+
+  // Global mouse-up to finish drag anywhere
+  tl.onmouseup = () => tlDragEnd();
+
+  let onLeaveToday=driversOnDate(today).length;
+  document.getElementById('statToday').textContent=onLeaveToday;setStatLevel('statTodayBox',onLeaveToday);
+  const peak=Math.max(...dailyCounts),manDays=dailyCounts.reduce((a,b)=>a+b,0);
+  document.getElementById('statPeak').textContent=peak;document.getElementById('statManDays').textContent=manDays;
+  setStatLevel('statPeakBox',peak);renderHolidayBanner();
+}
+
+function changeMonth(delta){currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+delta,1);renderMain();}
+function goToday(){currentDate=new Date();renderMain();}
+
+// Global drag end — dacă mouseup e în afara timeline-ului
+document.addEventListener('mouseup', ()=>{ if(tlDrag.active) tlDragEnd(); });
+document.addEventListener('mousemove', e=>{ if(tlDrag.active && e.buttons!==1) tlDragEnd(); });
+function setView(v){
+  view=v;
+  document.querySelectorAll('.view-tab').forEach((t,i)=>t.classList.toggle('active',(i===0&&v==='calendar')||(i===1&&v==='timeline')));
+  document.getElementById('calendarView').style.display=v==='calendar'?'block':'none';
+  document.getElementById('timelineView').style.display=v==='timeline'?'block':'none';
+  renderMain();
+}
+function updateThresholdLegend(){
+  document.getElementById('legWarn').textContent=3;document.getElementById('legWarn1').textContent=2;
+  document.getElementById('legCrit').textContent=5;document.getElementById('legCrit1').textContent=4;
+}
+function renderMain(){if(view==='calendar')renderCalendar();else renderTimeline();}
+// ===== PIN SYSTEM =====
+// PINuri stocate în localStorage: mtc_pin_raluca, mtc_pin_tania, etc.
+// Sesiune activă: mtc_session_raluca (timestamp) — valabil 30 zile
+// Hash simplu pentru PIN (nu transmitem PIN-ul plain text în Firestore)
+
+const PIN_SESSION_MINS = 10; // sesiune 10 minute
+const USERS_WITH_PIN = ['raluca','tania','madalina','corina'];
+const USER_COLORS = {
+  raluca: 'linear-gradient(135deg,#ec4899,#a855f7)',
+  tania:  'linear-gradient(135deg,#3b82f6,#06b6d4)',
+  madalina:'linear-gradient(135deg,#10b981,#84cc16)',
+  corina: 'linear-gradient(135deg,#f97316,#eab308)',
+  admin:  'linear-gradient(135deg,#f59e0b,#ef4444)'
+};
+const USER_INITIALS = {raluca:'R',tania:'T',madalina:'M',corina:'C',admin:'A'};
+
+// La fiecare încărcare a paginii, ștergem sesiunile — PIN obligatoriu
+USERS_WITH_PIN.forEach(uk => clearSession(uk));
+
+// Auto-logout după 10 minute de inactivitate
+let autoLogoutTimer = null;
+function resetAutoLogout(){
+  if(autoLogoutTimer) clearTimeout(autoLogoutTimer);
+  autoLogoutTimer = setTimeout(()=>{
+    const uk = window.activeUserKey;
+    if(uk && uk !== 'admin'){
+      clearSession(uk);
+      window.activeUserKey = null;
+      state = { drivers: [], thresholds: { warn: 3, crit: 5 } };
+      document.getElementById('appRoot').style.display = 'none';
+      document.getElementById('authScreen').style.display = 'flex';
+      // Arată PIN la revenire
+      setTimeout(()=>showPinScreen(uk), 100);
+    }
+  }, PIN_SESSION_MINS * 60 * 1000);
+}
+// Resetează timer la orice interacțiune
+['click','keydown','touchstart','mousemove'].forEach(ev =>
+  document.addEventListener(ev, ()=>{ if(window.activeUserKey && window.activeUserKey!=='admin') resetAutoLogout(); }, {passive:true})
+);
+  userKey: null,
+  mode: 'enter',      // 'create' | 'confirm' | 'enter'
+  entered: '',
+  firstPin: '',
+  attempts: 0
+};
+
+function hashPin(pin){ 
+  // hash simplu deterministc (nu cryptografic, dar suficient pentru uz intern)
+  let h=5381;
+  for(let i=0;i<pin.length;i++) h=((h<<5)+h)+pin.charCodeAt(i);
+  return (h>>>0).toString(36);
+}
+
+function getPinHash(userKey){ return localStorage.getItem('mtc_pin_'+userKey); }
+function setPinHash(userKey, pin){ localStorage.setItem('mtc_pin_'+userKey, hashPin(pin)); }
+function clearPin(userKey){ localStorage.removeItem('mtc_pin_'+userKey); }
+
+function getSession(userKey){
+  const ts = localStorage.getItem('mtc_session_'+userKey);
+  if(!ts) return false;
+  const ageMin = (Date.now() - parseInt(ts)) / (1000*60);
+  return ageMin < PIN_SESSION_MINS;
+}
+function setSession(userKey){ localStorage.setItem('mtc_session_'+userKey, Date.now().toString()); }
+function clearSession(userKey){ localStorage.removeItem('mtc_session_'+userKey); }
+
+// Apelat când user-ul face click pe butonul său
+window.loginAsUser = function(userKey) {
+  // Admin nu are PIN
+  if(userKey === 'admin') return;
+
+  // Dacă Firebase nu s-a încărcat încă, așteaptă
+  if(typeof window.enterApp !== 'function'){
+    setTimeout(()=>window.loginAsUser(userKey), 100);
+    return;
+  }
+
+  // Sesiune validă → intră direct
+  if(getSession(userKey)){
+    window.activeUserKey = userKey;
+    resetAutoLogout();
+    window.enterApp(userKey);
+    return;
+  }
+
+  // Arată ecranul PIN
+  showPinScreen(userKey);
+};
+
+function showPinScreen(userKey){
+  pinState.userKey = userKey;
+  pinState.entered = '';
+  pinState.attempts = 0;
+
+  const hasPIN = !!getPinHash(userKey);
+  pinState.mode = hasPIN ? 'enter' : 'create';
+
+  const av = document.getElementById('pinAvatar');
+  av.style.background = USER_COLORS[userKey];
+  av.textContent = USER_INITIALS[userKey];
+
+  const names = {raluca:'Raluca',tania:'Tania',madalina:'Mădălina',corina:'Corina'};
+  document.getElementById('pinTitle').textContent = names[userKey] || userKey;
+
+  if(pinState.mode === 'create'){
+    document.getElementById('pinSub').textContent = 'Creează codul tău PIN din 6 cifre';
+    document.getElementById('pinForgot').style.display = 'none';
+  } else {
+    document.getElementById('pinSub').textContent = 'Introdu codul PIN';
+    document.getElementById('pinForgot').style.display = 'block';
+  }
+
+  document.getElementById('pinErr').textContent = '';
+  updatePinDots();
+  document.getElementById('pinScreen').classList.add('show');
+}
+
+function updatePinDots(){
+  for(let i=0;i<6;i++){
+    const dot = document.getElementById('pd'+i);
+    dot.classList.remove('filled','error');
+    if(i < pinState.entered.length) dot.classList.add('filled');
+  }
+}
+
+function pinDotsError(){
+  for(let i=0;i<6;i++) document.getElementById('pd'+i).classList.add('error');
+  setTimeout(()=>{
+    pinState.entered='';
+    for(let i=0;i<6;i++){
+      const d=document.getElementById('pd'+i);
+      d.classList.remove('error','filled');
+    }
+  }, 600);
+}
+
+window.pinKey = function(digit){
+  if(pinState.entered.length >= 6) return;
+  pinState.entered += digit;
+  updatePinDots();
+  if(pinState.entered.length === 6) setTimeout(pinSubmit, 80);
+};
+
+window.pinBackspace = function(){
+  pinState.entered = pinState.entered.slice(0,-1);
+  updatePinDots();
+};
+
+function pinSubmit(){
+  const pin = pinState.entered;
+
+  if(pinState.mode === 'create'){
+    pinState.firstPin = pin;
+    pinState.entered = '';
+    pinState.mode = 'confirm';
+    document.getElementById('pinSub').textContent = 'Confirmă codul PIN';
+    document.getElementById('pinErr').textContent = '';
+    updatePinDots();
+
+  } else if(pinState.mode === 'confirm'){
+    if(pin === pinState.firstPin){
+      setPinHash(pinState.userKey, pin);
+      setSession(pinState.userKey);
+      document.getElementById('pinScreen').classList.remove('show');
+      window.enterApp(pinState.userKey);
+      toast('✓ Cod PIN setat cu succes!');
+    } else {
+      pinDotsError();
+      pinState.mode = 'create';
+      pinState.firstPin = '';
+      pinState.entered = '';
+      document.getElementById('pinSub').textContent = 'Codurile nu coincid. Încearcă din nou.';
+      document.getElementById('pinErr').textContent = 'PIN-urile nu se potrivesc';
+      setTimeout(()=>{
+        document.getElementById('pinSub').textContent = 'Creează codul tău PIN din 6 cifre';
+        document.getElementById('pinErr').textContent = '';
+        updatePinDots();
+      }, 1200);
+    }
+
+  } else { // 'enter'
+    if(hashPin(pin) === getPinHash(pinState.userKey)){
+      pinState.attempts = 0;
+      setSession(pinState.userKey);
+      resetAutoLogout();
+      document.getElementById('pinScreen').classList.remove('show');
+      window.enterApp(pinState.userKey);
+    } else {
+      pinState.attempts++;
+      pinDotsError();
+      pinState.entered = '';
+      const rem = 5 - pinState.attempts;
+      document.getElementById('pinErr').textContent = rem > 0
+        ? `PIN greșit. Mai ai ${rem} încercări.`
+        : 'Prea multe încercări greșite.';
+    }
+  }
+}
+
+window.pinForgotFlow = function(){
+  const name = {raluca:'Raluca',tania:'Tania',madalina:'Mădălina',corina:'Corina'}[pinState.userKey];
+  alert(`Contactează Admin pentru a-ți reseta PIN-ul.\n\nAdmin poate reseta PIN-ul din secțiunea "Coduri PIN" din aplicație.`);
+};
+
+// Admin PIN management
+window.openPinAdmin = function(){
+  const list = document.getElementById('pinAdminList');
+  const names = {raluca:'Raluca',tania:'Tania',madalina:'Mădălina',corina:'Corina'};
+  list.innerHTML = USERS_WITH_PIN.map(uk => {
+    const hasPin = !!getPinHash(uk);
+    const hasSess = getSession(uk);
+    const color = USER_COLORS[uk];
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg-elev-2);border-radius:6px;margin-bottom:6px">
+      <div style="width:32px;height:32px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0">${USER_INITIALS[uk]}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:13px">${names[uk]}</div>
+        <div style="font-size:11px;color:var(--text-dim)">
+          PIN: ${hasPin?'✅ Setat':'⚠️ Nesetat'} &nbsp;·&nbsp;
+          Sesiune: ${hasSess?'🟢 Activă':'⚪ Inactivă'}
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-small" onclick="adminResetPin('${uk}')" style="font-size:11px">Reset PIN</button>
+    </div>`;
+  }).join('');
+  openModal('modalPinAdmin');
+};
+
+window.adminResetPin = function(userKey){
+  const names = {raluca:'Raluca',tania:'Tania',madalina:'Mădălina',corina:'Corina'};
+  if(!confirm(`Resetezi PIN-ul pentru ${names[userKey]}?\n\nLa următoarea conectare, ei vor fi nevoiți să creeze un PIN nou.`)) return;
+  clearPin(userKey);
+  clearSession(userKey);
+  toast(`✓ PIN resetat pentru ${names[userKey]}`);
+  openPinAdmin(); // refresh lista
+};
+
+// Keyboard support pentru PIN
+document.addEventListener('keydown', e => {
+  if(!document.getElementById('pinScreen').classList.contains('show')) return;
+  if(e.key>='0'&&e.key<='9') pinKey(e.key);
+  else if(e.key==='Backspace') pinBackspace();
+});
+
+function renderAll(includeDrivers=true){if(includeDrivers)renderDrivers();renderMain();}
+</script>
+</body>
+</html>
