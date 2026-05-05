@@ -814,6 +814,8 @@
     </div>
     <button class="btn btn-secondary btn-small" id="addDriverBtn" onclick="openAddDriver()" style="width:100%; margin-bottom:6px">+ Persoană nouă</button>
     <button class="btn btn-secondary btn-small" id="pinMgrBtn" onclick="openPinAdmin()" style="width:100%; margin-bottom:6px; display:none">🔐 Coduri PIN</button>
+    <button class="btn btn-secondary btn-small" id="backupBtn" onclick="exportBackup()" style="width:100%; margin-bottom:6px; display:none">💾 Descarcă backup</button>
+    <button class="btn btn-secondary btn-small" id="fixCarryBtn" onclick="fixCarryOver()" style="width:100%; margin-bottom:6px; display:none; border-color:var(--red); color:var(--red)">🔧 Resetează zile reportate</button>
     <input type="text" id="searchDriver" placeholder="🔍 Caută persoană..." oninput="renderDrivers()" style="margin-bottom:8px">
     <div class="driver-list" id="driverList"></div>
   </aside>
@@ -1412,8 +1414,10 @@ function enterApp(userKey){
   if(filterBar) filterBar.style.display = isTaniaAdm?"flex":"none";
   document.getElementById("authScreen").style.display = "none";
   document.getElementById("appRoot").style.display    = "grid";
-  // Show unpaid legend only for tania/admin
-  const legendUnpaid = document.getElementById("legendUnpaid");
+  const backupBtn = document.getElementById("backupBtn");
+  if(backupBtn) backupBtn.style.display = isAdm ? "block" : "none";
+  const fixBtn = document.getElementById("fixCarryBtn");
+  if(fixBtn) fixBtn.style.display = isAdm ? "block" : "none";
   if(legendUnpaid) legendUnpaid.style.display = isTaniaAdm ? "flex" : "none";
   initApp(userKey);
 }
@@ -1981,6 +1985,28 @@ function setGroup(g){
 // ============================================================
 // CALENDAR
 // ============================================================
+function fixCarryOver(){
+  if(!isAdmin()){toast("Doar Admin",true);return;}
+  if(!confirm("Resetează zilele reportate (carryOverDays) la 0 pentru TOATE persoanele?\n\nFolosește asta dacă s-au adunat greșit din cauza resetului accidental."))return;
+  let count=0;
+  state.drivers.forEach(dr=>{ if((dr.carryOverDays||0)>0){dr.carryOverDays=0;count++;} });
+  scheduleSave();
+  renderAll();
+  toast("✓ "+count+" persoane resetate la 0 zile reportate");
+}
+
+function exportBackup(){
+  const data = JSON.stringify(state, null, 2);
+  const blob = new Blob([data], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "mtc-backup-"+fmtDate(new Date())+".json";
+  a.click();
+  URL.revokeObjectURL(url);
+  toast("💾 Backup descărcat");
+}
+
 function renderHolidayBanner(){
   const today=new Date(),banner=document.getElementById("holidayBanner");
   const y=currentDate.getFullYear(),m=currentDate.getMonth();
@@ -2221,13 +2247,7 @@ function renderTimeline(){
 // NAV & VIEW
 // ============================================================
 function changeMonth(delta){
-  const prevYear = currentDate.getFullYear();
   currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+delta,1);
-  const newYear = currentDate.getFullYear();
-  // Dacă s-a schimbat anul și suntem Admin/Tania, oferim resetarea
-  if(newYear !== prevYear && isAdminOrTania()){
-    handleYearChange(prevYear, newYear);
-  }
   renderMain();
 }
 
