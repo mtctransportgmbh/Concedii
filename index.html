@@ -551,6 +551,23 @@
     background: rgba(255,255,255,0.1) !important;
     font-style: italic;
   }
+  /* Krank names — blue tint pill */
+  .cal-name.krank {
+    background: rgba(59,130,246,0.25) !important;
+    color: rgba(147,197,253,0.95) !important;
+  }
+  /* Unpaid names — orange tint */
+  .cal-name.unpaid {
+    background: rgba(249,115,22,0.25) !important;
+    color: rgba(253,186,116,0.95) !important;
+  }
+  /* Timeline krank cell */
+  .tl-cell.in-krank { background: rgba(59,130,246,0.55); }
+  .tl-cell.in-krank:hover { background: rgba(59,130,246,0.7); }
+  .tl-cell.in-krank .tl-k { display:flex; align-items:center; justify-content:center; height:100%; font-size:10px; font-weight:900; color:rgba(255,255,255,0.9); }
+  /* Timeline unpaid cell */
+  .tl-cell.in-unpaid { background: rgba(249,115,22,0.5); }
+  .tl-cell.in-unpaid:hover { background: rgba(249,115,22,0.65); }
   
   .timeline-wrap { background: var(--bg-elev); border-radius: 8px; border: 1px solid var(--border); overflow: auto; max-height: calc(100vh - 220px); }
   .timeline { display: grid; grid-template-columns: 180px 1fr; min-width: 100%; }
@@ -861,6 +878,8 @@
       <div class="legend-item"><div class="legend-dot" style="background:rgba(239,68,68,0.8)"></div>≥<span id="legCrit">5</span> (critic)</div>
       <div class="legend-item"><div class="legend-dot" style="background:repeating-linear-gradient(45deg,rgba(239,68,68,0.1),rgba(239,68,68,0.1) 3px,rgba(239,68,68,0.25) 3px,rgba(239,68,68,0.25) 6px)"></div>Duminică</div>
       <div class="legend-item"><div class="legend-dot" style="background:rgba(168,85,247,0.4);border:1px dashed rgba(168,85,247,0.7)"></div>Sărbătoare</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(59,130,246,0.55)"></div>Krank 🤒</div>
+      <div id="legendUnpaid" class="legend-item" style="display:none"><div class="legend-dot" style="background:rgba(249,115,22,0.5)"></div>Fără plată ⛔</div>
     </div>
     
     <div id="calendarView" class="calendar">
@@ -1398,6 +1417,9 @@ function enterApp(userKey){
   if(filterBar) filterBar.style.display = isTaniaAdm?"flex":"none";
   document.getElementById("authScreen").style.display = "none";
   document.getElementById("appRoot").style.display    = "grid";
+  // Show unpaid legend only for tania/admin
+  const legendUnpaid = document.getElementById("legendUnpaid");
+  if(legendUnpaid) legendUnpaid.style.display = isTaniaAdm ? "flex" : "none";
   initApp(userKey);
 }
 
@@ -1532,6 +1554,13 @@ function getVisibleDrivers(){
 
 function driversOnDate(date){
   return getVisibleDrivers().filter(dr=>(dr.leaves||[]).some(l=>dateInLeave(date,l)));
+}
+function krankOnDate(date){
+  return getVisibleDrivers().filter(dr=>(dr.krankLeaves||[]).some(l=>dateInLeave(date,l)));
+}
+function unpaidOnDate(date){
+  if(!isAdminOrTania()) return [];
+  return getVisibleDrivers().filter(dr=>(dr.unpaidLeaves||[]).some(l=>dateInLeave(date,l)));
 }
 
 function visibleToForName(name){
@@ -1748,11 +1777,54 @@ function addLeave(){
     }
   }
 
+  if(leaveType==="krank"||leaveType==="unpaid"){
+    // Verifică dacă există perioade de concediu care se suprapun
+    const overlapping = (dr.leaves||[]).filter(l=>l.start<=end&&l.end>=start);
+    if(overlapping.length>0){
+      const overlapDays = overlapping.reduce((sum,l)=>{
+        // Calculează suprapunerea exactă
+        const from=l.start>start?l.start:start;
+        const to=l.end<end?l.end:end;
+        return sum+countWorkdays(parseDate(from),parseDate(to));
+      },0);
+      const typeLabel=leaveType==="krank"?"krank":"fără plată";
+      const action=leaveType==="krank"?"restaurate la disponibile":"restaurate la disponibile";
+      const ok=confirm(
+        "⚠️ Suprapunere cu concediu existent!\n\n"+
+        dr.name+" are "+overlapping.length+" perioadă(e) de concediu în acest interval.\n"+
+        overlapDays+" zile lucrătoare vor fi convertite din concediu în "+typeLabel+".\n"+
+        "Zilele de concediu suprapuse vor fi "+action+".\n\n"+
+        "Continui conversia?"
+      );
+      if(!ok)return;
+      // Conversia: elimină perioadele suprapuse din leaves
+      // și adaugă intervalele rămase (înainte/după suprapunere)
+      overlapping.forEach(l=>{
+        dr.leaves=(dr.leaves||[]).filter(x=>!(x.start===l.start&&x.end===l.end));
+        // Dacă perioada de concediu e mai mare decât krank/unpaid, păstrăm ce nu se suprapune
+        if(l.start<start){
+          // Parte înainte
+          const dayBefore=new Date(parseDate(start));dayBefore.setDate(dayBefore.getDate()-1);
+          const beforeEnd=fmtDate(dayBefore);
+          if(l.start<=beforeEnd) dr.leaves.push({start:l.start,end:beforeEnd});
+        }
+        if(l.end>end){
+          // Parte după
+          const dayAfter=new Date(parseDate(end));dayAfter.setDate(dayAfter.getDate()+1);
+          const afterStart=fmtDate(dayAfter);
+          if(afterStart<=l.end) dr.leaves.push({start:afterStart,end:l.end});
+        }
+      });
+      toast("✓ "+overlapDays+"z concediu → "+typeLabel+". Zile restaurate automat.");
+    }
+  }
+
   if(!dr[leaveType]) dr[leaveType]=[];
   dr[leaveType].push({start,end});
   openLeaveModal(leaveDriverId,leaveType);
   renderMain();scheduleSave();
-  toast("✓ "+newDays+" zile lucrătoare adăugate");
+  toast("✓ "+newDays+" zile lucrătoare adăugate ("+
+    (leaveType==="krank"?"krank":leaveType==="unpaid"?"fără plată":"concediu")+")");
 }
 
 function deleteLeave(driverId,start,end,leaveType){
@@ -1879,7 +1951,9 @@ function renderDrivers(){
     } else {
       quotaHtml=used>0?`<div style="margin-top:3px;font-size:10px;color:var(--text-dim)">${used} zile folosite</div>`:"";
     }
-    // Krank & unpaid — only for admin/tania
+    const krankBtn=`<button class="icon-btn" onclick="openLeaveModal('${dr.id}','krank')" title="Krank" style="font-size:11px">🤒</button>`;
+    const unpaidBtn=isTaniaAdm?`<button class="icon-btn" onclick="openLeaveModal('${dr.id}','unpaid')" title="Fără plată" style="font-size:11px">⛔</button>`:"";
+    // Extra info krank/unpaid visible only to tania/admin
     let extraHtml="";
     if(isTaniaAdm){
       const k=usedDaysThisYear(dr,"krank");
@@ -1887,10 +1961,7 @@ function renderDrivers(){
       if(k>0||u>0){
         extraHtml=`<div style="margin-top:3px;font-size:10px;color:var(--text-dim);">${k>0?"🤒 "+k+"z krank":""}${k>0&&u>0?" · ":""}${u>0?"⛔ "+u+"z f.plată":""}</div>`;
       }
-    }
-    const editBtns=canAdmin?`<div class="driver-actions"><button class="icon-btn" onclick="openEditDriver('${dr.id}')" title="Editează">✏️</button><button class="icon-btn" onclick="deleteDriver('${dr.id}')" title="Șterge">🗑</button></div>`:"";
-    const krankBtn=isTaniaAdm?`<button class="icon-btn" onclick="openLeaveModal('${dr.id}','krank')" title="Krank" style="font-size:11px">🤒</button>`:"";
-    const unpaidBtn=isTaniaAdm?`<button class="icon-btn" onclick="openLeaveModal('${dr.id}','unpaid')" title="Fără plată" style="font-size:11px">⛔</button>`:"";
+    }    const editBtns=canAdmin?`<div class="driver-actions"><button class="icon-btn" onclick="openEditDriver('${dr.id}')" title="Editează">✏️</button><button class="icon-btn" onclick="deleteDriver('${dr.id}')" title="Șterge">🗑</button></div>`:"";
     return `<div class="driver-item" style="flex-direction:column;align-items:stretch;gap:0;padding:8px 10px">
       <div style="display:flex;align-items:center;justify-content:space-between">
         <span class="driver-name" onclick="openLeaveModal('${dr.id}','leaves')">${escapeHtml(dr.name)}</span>
@@ -1956,10 +2027,30 @@ function renderCalDay(d,otherMonth,today){
   if(holiday)classes.push("holiday");if(otherMonth)classes.push("other-month");if(isToday)classes.push("today");
   const ds=fmtDate(d),clickHandler=isSun?"":`onclick="openDayDetail('${ds}')"`;
   let namesHtml="";
-  if(!isSun&&!otherMonth&&drivers.length>0){
+  if(!isSun&&!otherMonth){
     const MAX_SHOW=10;
-    const shown=drivers.slice(0,MAX_SHOW),rest=drivers.length-MAX_SHOW;
-    namesHtml=`<div class="cal-names">`+shown.map(dr=>`<div class="cal-name">${escapeHtml(dr.name.split(" ")[0])}</div>`).join("")+(rest>0?`<div class="cal-name cal-name-more">+${rest}</div>`:"")+`</div>`;
+    // Concediu normal
+    const leaveDrivers=drivers;
+    // Krank
+    const kDrivers=krankOnDate(d);
+    // Unpaid (doar tania/admin)
+    const uDrivers=unpaidOnDate(d);
+    const allShown=[];
+    leaveDrivers.slice(0,MAX_SHOW).forEach(dr=>allShown.push({dr,type:"leave"}));
+    // Adaugă krank dacă mai e loc
+    const remaining=MAX_SHOW-allShown.length;
+    kDrivers.slice(0,remaining).forEach(dr=>{ if(!allShown.find(x=>x.dr.id===dr.id)) allShown.push({dr,type:"krank"}); });
+    // Adaugă unpaid
+    const remaining2=MAX_SHOW-allShown.length;
+    uDrivers.slice(0,remaining2).forEach(dr=>{ if(!allShown.find(x=>x.dr.id===dr.id)) allShown.push({dr,type:"unpaid"}); });
+    const totalAll=leaveDrivers.length+kDrivers.length+uDrivers.length;
+    const rest=totalAll-allShown.length;
+    if(allShown.length>0){
+      namesHtml=`<div class="cal-names">`+
+        allShown.map(({dr,type})=>`<div class="cal-name${type==="krank"?" krank":type==="unpaid"?" unpaid":""}">${escapeHtml(dr.name.split(" ")[0])}${type==="krank"?" 🤒":type==="unpaid"?" ⛔":""}</div>`).join("")+
+        (rest>0?`<div class="cal-name cal-name-more">+${rest}</div>`:"")+
+      `</div>`;
+    }
   }
   let inner;
   if(isSun)inner=`<div class="cal-day-num">${dnum}</div>`+(holiday?`<div class="holiday-name">${escapeHtml(holiday.split("(")[0].trim())}</div>`:"")+`<div class="sunday-mark">${holiday?"":"Liber"}</div>`;
@@ -2069,14 +2160,25 @@ function renderTimeline(){
   sortedDrivers.forEach(dr=>{
     gridHtml+=`<div class="tl-row" data-driver-row="${dr.id}" style="grid-template-columns:${gridCols}">`;
     for(let dn=1;dn<=daysInMonth;dn++){
-      const d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d),onLeave=!isSun&&(dr.leaves||[]).some(l=>dateInLeave(d,l));
-      const cls=["tl-cell"];if(isSun)cls.push("sunday");if(holiday)cls.push("holiday");if(onLeave){cls.push("in-leave");dailyCounts[dn]++;}
+      const d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d);
+      const onLeave=!isSun&&(dr.leaves||[]).some(l=>dateInLeave(d,l));
+      const onKrank=!isSun&&(dr.krankLeaves||[]).some(l=>dateInLeave(d,l));
+      const onUnpaid=!isSun&&isAdminOrTania()&&(dr.unpaidLeaves||[]).some(l=>dateInLeave(d,l));
+      const cls=["tl-cell"];
+      if(isSun)cls.push("sunday");
+      if(holiday)cls.push("holiday");
+      if(onKrank) cls.push("in-krank");
+      else if(onUnpaid) cls.push("in-unpaid");
+      else if(onLeave){ cls.push("in-leave"); dailyCounts[dn]++; }
       const ds=fmtDate(d);
+      const isOccupied=onLeave||onKrank||onUnpaid;
       const dragAttrs=isSun?"":
-        `onmousedown="tlDragStart('${dr.id}',${dn},false,${onLeave})" `+
+        `onmousedown="tlDragStart('${dr.id}',${dn},false,${isOccupied})" `+
         `onmousemove="if(event.buttons===1&&tlDrag.active)tlDragMove(${dn},event.pageX,event.pageY)" `;
-      const tipText=isSun?"Duminică":(onLeave?"Drag pentru a șterge":"Drag pentru a adăuga");
-      gridHtml+=`<div class="${cls.join(" ")}" ${dragAttrs} title="${escapeHtml(dr.name+" · "+formatDateRO(ds)+(holiday?" · "+holiday:"")+" — "+tipText)}" data-driver="${dr.id}" data-day="${dn}"></div>`;
+      const tipLabel=onKrank?"Krank":onUnpaid?"Fără plată":onLeave?"Concediu":"";
+      const tipText=isSun?"Duminică":(isOccupied?"Drag pentru a șterge ("+tipLabel+")":"Drag pentru a adăuga concediu");
+      const cellContent=onKrank?`<div class="tl-k">K</div>`:"";
+      gridHtml+=`<div class="${cls.join(" ")}" ${dragAttrs} title="${escapeHtml(dr.name+" · "+formatDateRO(ds)+(holiday?" · "+holiday:"")+" — "+tipText)}" data-driver="${dr.id}" data-day="${dn}">${cellContent}</div>`;
     }
     gridHtml+="</div>";
   });
