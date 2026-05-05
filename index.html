@@ -595,7 +595,7 @@
     border-left: 3px solid var(--accent);
     padding-left: 9px;
   }
-  .tl-cell { border-right: 1px solid var(--border); cursor: pointer; position:relative; }
+  .tl-cell { border-right: 1px solid var(--border); cursor: pointer; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; color:#fff; }
   .tl-cell.sunday { background: repeating-linear-gradient(45deg,rgba(239,68,68,0.05),rgba(239,68,68,0.05) 4px,rgba(239,68,68,0.1) 4px,rgba(239,68,68,0.1) 8px); cursor: not-allowed; }
   .tl-cell.holiday:not(.sunday) { background: rgba(168,85,247,0.12); }
   .tl-cell:not(.sunday):hover { background: rgba(245,158,11,0.15); }
@@ -836,6 +836,7 @@
       📦 Ultimul backup: <span id="backupInfoText">—</span>
     </div>
     
+    <button class="btn btn-secondary btn-small" id="statsBtn" onclick="openStats()" style="width:100%; margin-bottom:6px; display:none">📊 Statistici Krank & Fără plată</button>
     <button class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleSidebar()">▼ Arată persoanele</button>
     <div id="sidebarCollapsible">
     <div class="section-title" style="display:flex; justify-content:space-between; align-items:center">
@@ -872,9 +873,7 @@
       <button class="btn btn-big" onclick="openQuickLeave()" style="flex:1; max-width:300px">
         ➕ Adaugă concediu rapid
       </button>
-      <button class="btn btn-big" id="statsBtn" onclick="openStats()" style="flex:1; max-width:200px; display:none; background:var(--bg-elev-2); color:var(--text); border:1px solid var(--border)">
-        📊 Statistici
-      </button>
+
     </div>
 
     <!-- Group filter — only for Tania/Admin -->
@@ -1459,7 +1458,7 @@ window.openPinAdmin = async function(){
     const color = USERS[uk].color;
     const initial = USERS[uk].initial;
     const hasPin = !!hash;
-    const pinDisplay = storedPin ? `<span style="font-family:monospace;font-size:14px;letter-spacing:3px;color:var(--accent)">${storedPin}</span>` : (hasPin?"<em style='color:var(--text-dim)'>setat (vizibil după reset)</em>":"—");
+    const pinDisplay = storedPin ? `<span style="font-family:monospace;font-size:16px;letter-spacing:4px;color:var(--accent);background:var(--bg);padding:2px 8px;border-radius:4px">${storedPin}</span>` : (hasPin?`<span style="color:var(--text-dim);font-size:11px">Setat înainte de această versiune — va fi vizibil după ce userul resetează PIN-ul</span>`:"<span style='color:var(--text-dim)'>—</span>");
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg-elev-2);border-radius:6px;margin-bottom:6px">
       <div style="width:32px;height:32px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0">${initial}</div>
       <div style="flex:1">
