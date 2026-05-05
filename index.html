@@ -596,7 +596,7 @@
     border-left: 3px solid var(--accent);
     padding-left: 9px;
   }
-  .tl-cell { border-right: 1px solid var(--border); cursor: pointer; }
+  .tl-cell { border-right: 1px solid var(--border); cursor: pointer; display:flex; align-items:center; justify-content:center; height:100%; overflow:hidden; }
   .tl-cell.sunday { background: repeating-linear-gradient(45deg,rgba(239,68,68,0.05),rgba(239,68,68,0.05) 4px,rgba(239,68,68,0.1) 4px,rgba(239,68,68,0.1) 8px); cursor: not-allowed; }
   .tl-cell.holiday:not(.sunday) { background: rgba(168,85,247,0.12); }
   .tl-cell:not(.sunday):hover { background: rgba(245,158,11,0.15); }
@@ -764,8 +764,8 @@
   }
   @media (max-width: 768px) {
     .sidebar-toggle-btn { display: block; }
-    .sidebar-collapsible { display: none; }
-    .sidebar-collapsible.open { display: block; }
+    #sidebarCollapsible { display: none; }
+    #sidebarCollapsible.open { display: block; }
   }
 </style>
 </head>
@@ -833,6 +833,9 @@
       <div class="save-dot"></div>
       <span id="saveStatusText">Salvat automat</span>
     </div>
+    <div id="backupInfoLine" style="display:none;font-size:10px;color:var(--text-dim);padding:4px 8px;background:var(--bg-elev-2);border-radius:4px;margin-bottom:4px">
+      📦 Ultimul backup: <span id="backupInfoText">—</span>
+    </div>
     
     <button class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleSidebar()">▼ Arată persoanele</button>
     <div id="sidebarCollapsible">
@@ -842,10 +845,7 @@
     </div>
     <button class="btn btn-secondary btn-small" id="addDriverBtn" onclick="openAddDriver()" style="width:100%; margin-bottom:6px">+ Persoană nouă</button>
     <button class="btn btn-secondary btn-small" id="pinMgrBtn" onclick="openPinAdmin()" style="width:100%; margin-bottom:6px; display:none">🔐 Coduri PIN</button>
-    <button class="btn btn-secondary btn-small" id="backupBtn" onclick="exportBackup()" style="width:100%; margin-bottom:6px; display:none">💾 Descarcă backup</button>
     <button class="btn btn-secondary btn-small" id="loadBackupBtn" onclick="loadLastFirestoreBackup()" style="width:100%; margin-bottom:6px; display:none">🔄 Restaurează ultimul backup</button>
-    <button class="btn btn-secondary btn-small" id="importBackupBtn" onclick="document.getElementById('importBackupFile').click()" style="width:100%; margin-bottom:6px; display:none">📂 Încarcă backup fișier</button>
-    <input type="file" id="importBackupFile" accept=".json" style="display:none" onchange="importBackup(event)">
     <div style="position:relative;margin-bottom:8px">
       <input type="text" id="searchDriver" placeholder="🔍 Caută persoană..." oninput="renderDrivers()" style="width:100%;padding-right:28px">
       <button onclick="clearSearch('searchDriver')" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;line-height:1;padding:2px">✕</button>
@@ -1173,6 +1173,8 @@ function finishInit(){
   lastSavedAt = new Date();
   saveLocalBackup();
   setSaveStatus("ok","Date încărcate ✓");
+  // Backup info line
+  loadBackupInfoFromStorage();
   // Backup automat zilnic pentru admin
   setTimeout(()=>autoSaveDailyBackup(), 3000);
   document.querySelectorAll(".modal-bg").forEach(m=>{
@@ -1231,20 +1233,41 @@ function scheduleSave(){
 
 async function triggerAutoBackup(time){
   try{
-    const today = fmtDate(new Date());
+    const now = new Date();
+    const today = fmtDate(now);
+    const docKey = today+"_"+String(now.getHours()).padStart(2,"0")+String(now.getMinutes()).padStart(2,"0");
     await db.collection("daily_backup").doc(today).set({
       data: JSON.parse(JSON.stringify(state)),
-      savedAt: new Date().toISOString(),
+      savedAt: now.toISOString(),
       time: time,
       drivers: state.drivers.length,
       savedBy: window.activeUserKey||"unknown"
     });
     localStorage.setItem("mtc_last_daily_backup", today);
-    // Notificare vizibilă doar pentru admin
+    localStorage.setItem("mtc_last_backup_time", time);
+    localStorage.setItem("mtc_last_backup_date", today);
+    // Arată linia de info backup (doar admin o vede — e în sidebar care e mereu vizibil)
+    updateBackupInfoLine(today, time);
     if(isAdmin()){
       setSaveStatus("ok","Salvat la "+time+" · backup ✓");
     }
   }catch(e){ console.error("backup err",e); }
+}
+
+function updateBackupInfoLine(date, time){
+  const line = document.getElementById("backupInfoLine");
+  const txt = document.getElementById("backupInfoText");
+  if(!line||!txt) return;
+  if(isAdmin()){
+    line.style.display="block";
+    txt.textContent = date+" la "+time;
+  }
+}
+
+function loadBackupInfoFromStorage(){
+  const date = localStorage.getItem("mtc_last_backup_date");
+  const time = localStorage.getItem("mtc_last_backup_time");
+  if(date&&time) updateBackupInfoLine(date,time);
 }
 
 // ============================================================
@@ -1473,9 +1496,6 @@ function enterApp(userKey){
   document.getElementById("authScreen").style.display = "none";
   document.getElementById("appRoot").style.display    = "grid";
   const backupBtn = document.getElementById("backupBtn");
-  if(backupBtn) backupBtn.style.display = isAdm ? "block" : "none";
-  const importBtn = document.getElementById("importBackupBtn");
-  if(importBtn) importBtn.style.display = isAdm ? "block" : "none";
   const loadBackupBtn = document.getElementById("loadBackupBtn");
   if(loadBackupBtn) loadBackupBtn.style.display = isAdm ? "block" : "none";
   if(legendUnpaid) legendUnpaid.style.display = isTaniaAdm ? "flex" : "none";
@@ -2397,7 +2417,8 @@ function toggleSidebar(){
   const btn=document.getElementById("sidebarToggleBtn");
   if(!c||!btn)return;
   const open=c.classList.toggle("open");
-  btn.textContent=open?"▲ Ascunde persoanele":"▼ Arată persoanele ("+state.drivers.length+")";
+  const cnt=getVisibleDrivers().length;
+  btn.textContent=open?"▲ Ascunde persoanele ("+cnt+")":"▼ Arată persoanele ("+cnt+")";
 }
 </script>
 </body>
