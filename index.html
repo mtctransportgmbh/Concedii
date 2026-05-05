@@ -995,17 +995,11 @@
 <div id="tlSelectTooltip"></div>
 <div class="toast" id="toast"></div>
 
-<!-- Firebase SDKs -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged }
-  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, onSnapshot }
-  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-// ============================================================
-// 🔧 CONFIGURARE FIREBASE — înlocuiește cu datele tale reale
-// ============================================================
+<!-- Firebase SDKs (compat - script normal, nu modul) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
 const firebaseConfig = {
   apiKey: "AIzaSyBb0IFuofRG4vRlcnd9eMBuA8MyK_z0PRc",
   authDomain: "calendar-f2589.firebaseapp.com",
@@ -1014,208 +1008,191 @@ const firebaseConfig = {
   messagingSenderId: "124144206277",
   appId: "1:124144206277:web:dc813e88dd100a0443cbac"
 };
-// ============================================================
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
 
-// ============================================================
-// 🔧 PAROLA ADMIN — schimb-o după prima intrare
-// ============================================================
-const ADMIN_EMAIL    = "paulandreimacarie@yahoo.com";
-// Parola admin e gestionată direct în Firebase Authentication
-// ============================================================
+const ADMIN_EMAIL = "paulandreimacarie@yahoo.com";
 
-// ============================================================
-// 👤 UTILIZATORI: Raluca, Madalina, Tania, Admin
-//    Fiecare are doc propriu în Firestore.
-//    Tania și Admin văd combinat toate persoanele.
-// ============================================================
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getFirestore(app);
-
-// ---- USERS CONFIG ----
 const USERS = {
-  raluca:   { name: "Raluca",   color: "linear-gradient(135deg,#ec4899,#a855f7)", initial: "R" },
-  tania:    { name: "Tania",    color: "linear-gradient(135deg,#3b82f6,#06b6d4)", initial: "T" },
-  madalina: { name: "Mădălina", color: "linear-gradient(135deg,#10b981,#84cc16)", initial: "M" },
-  corina:   { name: "Corina",   color: "linear-gradient(135deg,#f97316,#eab308)", initial: "C" },
-  admin:    { name: "Admin",    color: "linear-gradient(135deg,#f59e0b,#ef4444)", initial: "A" }
+  raluca:   { name:"Raluca",   color:"linear-gradient(135deg,#ec4899,#a855f7)", initial:"R" },
+  tania:    { name:"Tania",    color:"linear-gradient(135deg,#3b82f6,#06b6d4)", initial:"T" },
+  madalina: { name:"Mădălina", color:"linear-gradient(135deg,#10b981,#84cc16)", initial:"M" },
+  corina:   { name:"Corina",   color:"linear-gradient(135deg,#f97316,#eab308)", initial:"C" },
+  admin:    { name:"Admin",    color:"linear-gradient(135deg,#f59e0b,#ef4444)", initial:"A" }
 };
 
-let activeUserKey = null; // 'raluca' | 'tania' | 'admin'
+function showErr(msg){ const el=document.getElementById('authErr'); el.textContent=msg; el.style.display='block'; }
+function hideErr(){ document.getElementById('authErr').style.display='none'; }
 
-// ---- AUTH UI helpers ----
-function showErr(msg) {
-  const el = document.getElementById('authErr');
-  el.textContent = msg; el.style.display = 'block';
-}
-function hideErr() { document.getElementById('authErr').style.display = 'none'; }
+window.toggleAdminForm = function(){ document.getElementById('adminForm').classList.toggle('show'); };
 
-// ---- Simple user login — gestionat de sistemul PIN din scriptul principal ----
-// loginAsUser este definit în scriptul non-modul (PIN system)
-// Aici expunem doar enterApp pe window ca PIN-ul să poată intra în app
-
-// ---- Admin login with Firebase email/password ----
-window.toggleAdminForm = function() {
-  document.getElementById('adminForm').classList.toggle('show');
-};
-
-window.loginAdmin = async function() {
+window.loginAdmin = async function(){
   hideErr();
-  const pass = document.getElementById('adminPass').value.trim();
-  if (!pass) { showErr('Introdu parola'); return; }
-  try {
-    await signInWithEmailAndPassword(auth, ADMIN_EMAIL, pass);
-    // onAuthStateChanged will fire and call enterApp
-  } catch(e) {
-    if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') showErr('Parolă greșită');
-    else if (e.code === 'auth/too-many-requests') showErr('Prea multe încercări. Încearcă mai târziu.');
-    else showErr('Eroare: ' + e.message);
+  const pass=document.getElementById('adminPass').value.trim();
+  if(!pass){ showErr('Introdu parola'); return; }
+  try{
+    await auth.signInWithEmailAndPassword(ADMIN_EMAIL, pass);
+  }catch(e){
+    if(e.code==='auth/wrong-password'||e.code==='auth/invalid-credential') showErr('Parolă greșită');
+    else if(e.code==='auth/too-many-requests') showErr('Prea multe încercări.');
+    else showErr('Eroare: '+e.message);
   }
 };
 
-// ---- Firebase auth state (only used for admin) ----
-onAuthStateChanged(auth, (user) => {
-  if (user && user.email === ADMIN_EMAIL) {
-    activeUserKey = 'admin';
-    window.enterApp('admin');
-  } else if (!user && activeUserKey === 'admin') {
-    activeUserKey = null;
-    document.getElementById('authScreen').style.display = 'flex';
-    document.getElementById('appRoot').style.display = 'none';
+auth.onAuthStateChanged(user => {
+  if(user && user.email===ADMIN_EMAIL){
+    window.activeUserKey='admin';
+    enterApp('admin');
+  } else if(!user && window.activeUserKey==='admin'){
+    window.activeUserKey=null;
+    document.getElementById('authScreen').style.display='flex';
+    document.getElementById('appRoot').style.display='none';
   }
 });
 
-// ---- Enter app ----
-function enterApp(userKey) {
-  const user = USERS[userKey];
-  window.activeUserKey = userKey;
-  const avatarDiv = document.getElementById('userAvatarDiv');
-  avatarDiv.textContent = user.initial;
-  avatarDiv.style.background = user.color;
-  document.getElementById('userName').textContent = user.name + (userKey === 'admin' ? ' 👑' : '');
-
-  // Butoane admin
-  const addBtn = document.getElementById('addDriverBtn');
-  if (addBtn) addBtn.style.display = (userKey === 'admin') ? 'block' : 'none';
-  const pinBtn = document.getElementById('pinMgrBtn');
-  if (pinBtn) pinBtn.style.display = (userKey === 'admin') ? 'block' : 'none';
-
-  document.getElementById('authScreen').style.display = 'none';
-  document.getElementById('appRoot').style.display = 'grid';
-  initApp(userKey);
-}
-// Expune pe window — apelat din sistemul PIN (script non-modul)
-window.enterApp = enterApp;
-
-function showAuthScreen() {
-  document.getElementById('authScreen').style.display = 'flex';
-  document.getElementById('appRoot').style.display = 'none';
-  document.getElementById('adminPass').value = '';
-  document.getElementById('adminForm').classList.remove('show');
-}
-
-// ---- Logout ----
-window.doLogout = async function() {
+window.doLogout = async function(){
   unsubAll();
-  if (window.activeUserKey === 'admin') {
-    await fbSignOut(auth);
-  }
   clearSession(window.activeUserKey);
-  window.activeUserKey = null;
-  state = { drivers: [], thresholds: { warn: 3, crit: 5 } };
-  document.getElementById('appRoot').style.display = 'none';
-  document.getElementById('authScreen').style.display = 'flex';
+  if(window.activeUserKey==='admin') await auth.signOut();
+  window.activeUserKey=null;
+  state={drivers:[],thresholds:{warn:3,crit:5}};
+  document.getElementById('appRoot').style.display='none';
+  document.getElementById('authScreen').style.display='flex';
 };
 
-// ===== FIRESTORE SAVE / LOAD =====
-// Fiecare user are doc propriu: concedii/raluca, concedii/madalina
-// Tania și Admin citesc din TOATE docurile și salvează în cel propriu
-let saveTimer = null;
-let lastSavedAt = null;
-let isSaving = false;
+// ===== FIRESTORE =====
+let unsubListeners=[], saveTimer=null, lastSavedAt=null, isSaving=false;
+function unsubAll(){ unsubListeners.forEach(u=>{try{u();}catch(e){}}); unsubListeners=[]; }
 
-function docIdForUser(userKey) {
-  // admin folosește același doc ca tania (vede tot)
-  if (userKey === 'admin') return 'tania';
-  return userKey; // 'raluca' | 'madalina' | 'tania'
+function initApp(userKey){
+  setSaveStatus('saving','Se încarcă...');
+  unsubAll();
+
+  if(userKey==='tania'||userKey==='admin'){
+    const docKeys=['raluca','madalina','corina','tania'];
+    const cache={};
+    let loaded=0;
+
+    const rebuild=(live)=>{
+      const byName={};
+      ['madalina','corina','raluca','tania'].forEach(dk=>{
+        if(cache[dk])(cache[dk].drivers||[]).forEach(d=>{byName[d.name]=d;});
+      });
+      state={drivers:Object.values(byName),thresholds:{warn:3,crit:5}};
+      if(live){renderAll();saveLocalBackup();setSaveStatus('ok','Sincronizat ✓');}
+    };
+
+    docKeys.forEach(dk=>{
+      const unsub=db.collection('concedii').doc(dk).onSnapshot(snap=>{
+        cache[dk]=snap.exists?snap.data():{drivers:[],thresholds:{warn:3,crit:5}};
+        if(loaded<docKeys.length){
+          loaded++;
+          if(loaded===docKeys.length){rebuild(false);finishInit();}
+        } else { rebuild(true); }
+      },err=>console.error('snap err',dk,err));
+      unsubListeners.push(unsub);
+    });
+
+  } else {
+    let first=true;
+    const unsub=db.collection('concedii').doc(userKey).onSnapshot(snap=>{
+      if(snap.exists){
+        state=snap.data();
+        if(!state.thresholds)state.thresholds={warn:3,crit:5};
+        state.thresholds={warn:3,crit:5};
+      } else {
+        loadDefaultDrivers();
+        db.collection('concedii').doc(userKey).set(JSON.parse(JSON.stringify(state)));
+      }
+      if(first){first=false;finishInit();}
+      else{renderAll();saveLocalBackup();setSaveStatus('ok','Sincronizat ✓');}
+    },err=>{
+      console.error('snap err',userKey,err);
+      const bk=loadLocalBackup();
+      if(bk?.data?.drivers)state=bk.data; else loadDefaultDrivers();
+      finishInit();
+    });
+    unsubListeners.push(unsub);
+  }
 }
 
-// Expune Firestore helpers pe window — folosite de initApp din scriptul normal
-window._db = db;
-window._fsDoc = doc;
-window._fsGetDoc = getDoc;
-window._fsSetDoc = setDoc;
-window._fsOnSnapshot = onSnapshot;
+function finishInit(){
+  state.thresholds={warn:3,crit:5};
+  updateThresholdLegend();
+  renderAll();
+  lastSavedAt=new Date();
+  saveLocalBackup();
+  setSaveStatus('ok','Date încărcate ✓');
+  document.querySelectorAll('.modal-bg').forEach(m=>{
+    m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');});
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape')document.querySelectorAll('.modal-bg.show').forEach(m=>m.classList.remove('show'));
+  });
+}
 
-// uid helper
-window.uid2 = function(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); };
-
-window.scheduleSave = async function() {
-  if (saveTimer) clearTimeout(saveTimer);
-  setSaveStatus('saving', 'Se salvează...');
-  saveTimer = setTimeout(async () => {
-    try {
-      isSaving = true;
-      const uk = window.activeUserKey || 'tania';
-      const db = window._db, doc = window._fsDoc, setDoc = window._fsSetDoc;
-
-      if (uk === 'tania' || uk === 'admin') {
-        // Tania/Admin: distribuie fiecare persoană în docurile corecte
-        // după câmpul visibleTo (setat la adăugare/editare de admin)
-        const driversByDoc = { raluca: [], madalina: [], corina: [], tania: [] };
-
-        state.drivers.forEach(dr => {
-          const vis = dr.visibleTo || [];
-          // Adaugă în fiecare doc pentru care are vizibilitate
-          if (vis.includes('raluca'))   driversByDoc.raluca.push(dr);
-          if (vis.includes('madalina')) driversByDoc.madalina.push(dr);
-          if (vis.includes('corina'))   driversByDoc.corina.push(dr);
-          // Tania vede tot mereu
-          driversByDoc.tania.push(dr);
+function scheduleSave(){
+  if(saveTimer)clearTimeout(saveTimer);
+  setSaveStatus('saving','Se salvează...');
+  saveTimer=setTimeout(async()=>{
+    try{
+      isSaving=true;
+      const uk=window.activeUserKey||'tania';
+      if(uk==='tania'||uk==='admin'){
+        const byDoc={raluca:[],madalina:[],corina:[],tania:[]};
+        state.drivers.forEach(dr=>{
+          const vis=dr.visibleTo||[];
+          if(vis.includes('raluca'))   byDoc.raluca.push(dr);
+          if(vis.includes('madalina')) byDoc.madalina.push(dr);
+          if(vis.includes('corina'))   byDoc.corina.push(dr);
+          byDoc.tania.push(dr);
         });
-
         await Promise.all([
-          setDoc(doc(db, 'concedii', 'raluca'),   { drivers: driversByDoc.raluca,   thresholds: state.thresholds }),
-          setDoc(doc(db, 'concedii', 'madalina'), { drivers: driversByDoc.madalina, thresholds: state.thresholds }),
-          setDoc(doc(db, 'concedii', 'corina'),   { drivers: driversByDoc.corina,   thresholds: state.thresholds }),
-          setDoc(doc(db, 'concedii', 'tania'),    { drivers: driversByDoc.tania,    thresholds: state.thresholds }),
+          db.collection('concedii').doc('raluca').set({drivers:byDoc.raluca,thresholds:state.thresholds}),
+          db.collection('concedii').doc('madalina').set({drivers:byDoc.madalina,thresholds:state.thresholds}),
+          db.collection('concedii').doc('corina').set({drivers:byDoc.corina,thresholds:state.thresholds}),
+          db.collection('concedii').doc('tania').set({drivers:byDoc.tania,thresholds:state.thresholds}),
         ]);
       } else {
-        // Raluca, Madalina, Corina: salvează doar în doc-ul lor
-        // (concediile adăugate de ei se reflectă în docul lor)
-        const docRef = doc(db, 'concedii', uk);
-        await setDoc(docRef, JSON.parse(JSON.stringify(state)));
-        // Sincronizează și în docul tania ca să vadă tot
-        // (citim docul tania, updatăm persoanele care sunt în comun)
-        try {
-          const tSnap = await getDoc(doc(db, 'concedii', 'tania'));
-          if (tSnap.exists()) {
-            const tData = tSnap.data();
-            const myIds = new Set(state.drivers.map(d => d.id));
-            // Înlocuiește în docul tania persoanele din docul curent
-            const merged = (tData.drivers || []).map(td =>
-              myIds.has(td.id) ? state.drivers.find(d => d.id === td.id) : td
-            );
-            await setDoc(doc(db, 'concedii', 'tania'), { drivers: merged, thresholds: state.thresholds });
+        await db.collection('concedii').doc(uk).set(JSON.parse(JSON.stringify(state)));
+        // Sync în tania
+        try{
+          const tSnap=await db.collection('concedii').doc('tania').get();
+          if(tSnap.exists){
+            const tData=tSnap.data();
+            const myIds=new Set(state.drivers.map(d=>d.id));
+            const merged=(tData.drivers||[]).map(td=>myIds.has(td.id)?state.drivers.find(d=>d.id===td.id):td);
+            await db.collection('concedii').doc('tania').set({drivers:merged,thresholds:state.thresholds});
           }
-        } catch(syncErr) { console.warn('Sync tania failed:', syncErr); }
+        }catch(e){console.warn('sync tania',e);}
       }
-
-      lastSavedAt = new Date();
-      const t = lastSavedAt;
-      const time = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
+      lastSavedAt=new Date();
+      const t=lastSavedAt;
+      const time=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
       saveLocalBackup();
-      setSaveStatus('ok', `Salvat la ${time} · backup local ✓`);
-    } catch (e) {
-      console.error('Save error:', e);
-      setSaveStatus('error', 'Eroare la salvare!');
-    } finally {
-      isSaving = false;
-    }
-  }, 600);
-};
+      setSaveStatus('ok',`Salvat la ${time} ✓`);
+    }catch(e){
+      console.error('save err',e);
+      setSaveStatus('error','Eroare la salvare!');
+    }finally{ isSaving=false; }
+  },600);
+}
 
+function enterApp(userKey){
+  const user=USERS[userKey];
+  window.activeUserKey=userKey;
+  const av=document.getElementById('userAvatarDiv');
+  av.textContent=user.initial; av.style.background=user.color;
+  document.getElementById('userName').textContent=user.name+(userKey==='admin'?' 👑':'');
+  const addBtn=document.getElementById('addDriverBtn');
+  if(addBtn)addBtn.style.display=(userKey==='admin')?'block':'none';
+  const pinBtn=document.getElementById('pinMgrBtn');
+  if(pinBtn)pinBtn.style.display=(userKey==='admin')?'block':'none';
+  document.getElementById('authScreen').style.display='none';
+  document.getElementById('appRoot').style.display='grid';
+  initApp(userKey);
+}
 </script>
 
 <script>
@@ -1353,92 +1330,6 @@ function visibleToForName(name){
 function loadDefaultDrivers(){
   const list=getDriverListForUser(window.activeUserKey||"tania");
   state.drivers=list.map(name=>({id:uid(),name,leaves:[],maxDays:0,visibleTo:visibleToForName(name)}));
-}
-
-// ===== FIRESTORE INIT & REAL-TIME SYNC (în scriptul normal) =====
-let unsubListeners = [];
-
-function unsubAll(){ unsubListeners.forEach(u=>{ try{u();}catch(e){} }); unsubListeners=[]; }
-
-function initApp(userKey) {
-  setSaveStatus('saving', 'Se încarcă...');
-  unsubAll();
-
-  const db = window._db;
-  const fsDoc = window._fsDoc;
-  const fsSetDoc = window._fsSetDoc;
-  const fsOnSnapshot = window._fsOnSnapshot;
-
-  if(!db || !fsDoc || !fsOnSnapshot){
-    // Firebase nu e încă inițializat — încearcă din nou
-    setTimeout(()=>initApp(userKey), 150);
-    return;
-  }
-
-  if (userKey === 'tania' || userKey === 'admin') {
-    const docKeys = ['raluca','madalina','corina','tania'];
-    const cache = {};
-    let loadedCount = 0;
-
-    const rebuild = (fromLive) => {
-      const allByName = {};
-      ['madalina','corina','raluca','tania'].forEach(dk => {
-        if(cache[dk]) (cache[dk].drivers||[]).forEach(d => { allByName[d.name] = d; });
-      });
-      state = { drivers: Object.values(allByName), thresholds: { warn:3, crit:5 } };
-      if(fromLive) { renderAll(); saveLocalBackup(); setSaveStatus('ok','Sincronizat ✓'); }
-    };
-
-    docKeys.forEach(dk => {
-      const unsub = fsOnSnapshot(fsDoc(db,'concedii',dk), snap => {
-        cache[dk] = snap.exists() ? snap.data() : { drivers:[], thresholds:{warn:3,crit:5} };
-        if(loadedCount < docKeys.length) {
-          loadedCount++;
-          if(loadedCount === docKeys.length) { rebuild(false); finishInit(); }
-        } else {
-          rebuild(true);
-        }
-      }, err => { console.error('snapshot err', dk, err); });
-      unsubListeners.push(unsub);
-    });
-
-  } else {
-    let firstLoad = true;
-    const unsub = fsOnSnapshot(fsDoc(db,'concedii',userKey), snap => {
-      if(snap.exists()) {
-        state = snap.data();
-        if(!state.thresholds) state.thresholds = { warn:3, crit:5 };
-        state.thresholds = { warn:3, crit:5 };
-      } else {
-        loadDefaultDrivers();
-        fsSetDoc(fsDoc(db,'concedii',userKey), JSON.parse(JSON.stringify(state)));
-      }
-      if(firstLoad) { firstLoad=false; finishInit(); }
-      else { renderAll(); saveLocalBackup(); setSaveStatus('ok','Sincronizat ✓'); }
-    }, err => {
-      console.error('snapshot err', userKey, err);
-      const bk = loadLocalBackup();
-      if(bk?.data?.drivers) state = bk.data;
-      else loadDefaultDrivers();
-      finishInit();
-    });
-    unsubListeners.push(unsub);
-  }
-}
-
-function finishInit() {
-  state.thresholds = { warn:3, crit:5 };
-  updateThresholdLegend();
-  renderAll();
-  lastSavedAt = new Date();
-  saveLocalBackup();
-  setSaveStatus('ok', 'Date încărcate ✓');
-  document.querySelectorAll('.modal-bg').forEach(m => {
-    m.addEventListener('click', e => { if(e.target===m) m.classList.remove('show'); });
-  });
-  document.addEventListener('keydown', e => {
-    if(e.key==='Escape') document.querySelectorAll('.modal-bg.show').forEach(m=>m.classList.remove('show'));
-  });
 }
 function openModal(id){document.getElementById(id).classList.add('show');}
 function closeModal(id){document.getElementById(id).classList.remove('show');}
