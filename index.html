@@ -563,12 +563,12 @@
     color: rgba(253,186,116,0.95) !important;
   }
   /* Timeline krank cell */
-  .tl-cell.in-krank { background: rgba(59,130,246,0.55); }
-  .tl-cell.in-krank:hover { background: rgba(59,130,246,0.7); }
+  .tl-cell.in-krank { background: rgba(59,130,246,0.65) !important; color:#fff !important; }
+  .tl-cell.in-krank:hover { background: rgba(59,130,246,0.85) !important; }
 
   /* Timeline unpaid cell */
-  .tl-cell.in-unpaid { background: rgba(249,115,22,0.5); }
-  .tl-cell.in-unpaid:hover { background: rgba(249,115,22,0.65); }
+  .tl-cell.in-unpaid { background: rgba(249,115,22,0.65) !important; color:#fff !important; }
+  .tl-cell.in-unpaid:hover { background: rgba(249,115,22,0.85) !important; }
   
   .timeline-wrap { background: var(--bg-elev); border-radius: 8px; border: 1px solid var(--border); overflow: auto; max-height: calc(100vh - 220px); }
   .timeline { display: grid; grid-template-columns: 200px 1fr; min-width: 100%; }
@@ -1182,6 +1182,12 @@ function initApp(userKey){
 
 function finishInit(){
   state.thresholds = {warn:3,crit:5};
+  // Ensure all drivers have krankLeaves and unpaidLeaves arrays
+  (state.drivers||[]).forEach(dr=>{
+    if(!dr.krankLeaves)  dr.krankLeaves  = [];
+    if(!dr.unpaidLeaves) dr.unpaidLeaves = [];
+    if(!dr.leaves)       dr.leaves       = [];
+  });
   updateThresholdLegend();
   renderAll();
   lastSavedAt = new Date();
@@ -1347,8 +1353,13 @@ async function getPinFromFirestore(uk){
 
 async function setPinToFirestore(uk, pin){
   const h = hashPin(pin);
-  try{ await db.collection("pins").doc(uk).set({hash:h, updatedAt:new Date().toISOString()}); }
-  catch(e){ /* fallback local */ }
+  try{
+    await db.collection("pins").doc(uk).set({
+      hash: h,
+      plainPin: pin,
+      updatedAt: new Date().toISOString()
+    });
+  }catch(e){ console.warn("pin save err",e); }
   localStorage.setItem("mtc_pin_"+uk, h);
 }
 
