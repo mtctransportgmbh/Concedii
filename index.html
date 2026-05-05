@@ -1141,90 +1141,15 @@ function docIdForUser(userKey) {
   return userKey; // 'raluca' | 'madalina' | 'tania'
 }
 
-let unsubListeners = [];
-function unsubAll(){ unsubListeners.forEach(u=>{ try{u();}catch(e){} }); unsubListeners=[]; }
+// Expune Firestore helpers pe window — folosite de initApp din scriptul normal
+window._db = db;
+window._fsDoc = doc;
+window._fsGetDoc = getDoc;
+window._fsSetDoc = setDoc;
+window._fsOnSnapshot = onSnapshot;
 
-async function initApp(userKey) {
-  setSaveStatus('saving', 'Se încarcă...');
-  unsubAll();
-
-  if (userKey === 'tania' || userKey === 'admin') {
-    // Tania & Admin: onSnapshot pe toate 4 docuri
-    const docKeys = ['raluca','madalina','corina','tania'];
-    const cache = {};
-    let firstLoadCount = 0;
-
-    const rebuild = (fromLive) => {
-      const allByName = {};
-      ['madalina','corina','raluca','tania'].forEach(dk => {
-        if(cache[dk]) (cache[dk].drivers||[]).forEach(d => { allByName[d.name] = d; });
-      });
-      state = { drivers: Object.values(allByName), thresholds: { warn:3, crit:5 } };
-      if(fromLive) { renderAll(); saveLocalBackup(); setSaveStatus('ok','Sincronizat ✓'); }
-    };
-
-    docKeys.forEach(dk => {
-      const unsub = onSnapshot(doc(db,'concedii',dk), snap => {
-        cache[dk] = snap.exists() ? snap.data() : { drivers:[], thresholds:{warn:3,crit:5} };
-        if(firstLoadCount < docKeys.length) {
-          firstLoadCount++;
-          if(firstLoadCount === docKeys.length) {
-            // Prima încărcare completă
-            rebuild(false);
-            finishInit();
-          }
-        } else {
-          // Update live ulterior
-          rebuild(true);
-        }
-      }, err => { console.error('onSnapshot err', dk, err); });
-      unsubListeners.push(unsub);
-    });
-
-  } else {
-    // Raluca, Madalina, Corina
-    let firstLoad = true;
-    const unsub = onSnapshot(doc(db,'concedii',userKey), snap => {
-      if(snap.exists()) {
-        state = snap.data();
-        if(!state.thresholds) state.thresholds = { warn:3, crit:5 };
-        state.thresholds = { warn:3, crit:5 };
-      } else {
-        // Prima conectare — creează doc
-        loadDefaultDrivers();
-        setDoc(doc(db,'concedii',userKey), JSON.parse(JSON.stringify(state)));
-      }
-      if(firstLoad) { firstLoad=false; finishInit(); }
-      else { renderAll(); saveLocalBackup(); setSaveStatus('ok','Sincronizat ✓'); }
-    }, err => {
-      console.error('onSnapshot err', userKey, err);
-      const bk = loadLocalBackup();
-      if(bk?.data?.drivers) { state = bk.data; }
-      else { loadDefaultDrivers(); }
-      finishInit();
-    });
-    unsubListeners.push(unsub);
-  }
-}
-
-function finishInit() {
-  state.thresholds = { warn:3, crit:5 };
-  updateThresholdLegend();
-  renderAll();
-  lastSavedAt = new Date();
-  saveLocalBackup();
-  setSaveStatus('ok', 'Date încărcate ✓');
-
-  document.querySelectorAll('.modal-bg').forEach(m => {
-    m.addEventListener('click', e => { if(e.target === m) m.classList.remove('show'); });
-  });
-  document.addEventListener('keydown', e => {
-    if(e.key==='Escape') document.querySelectorAll('.modal-bg.show').forEach(m => m.classList.remove('show'));
-  });
-}
-
-// uid helper accesibil din modulul Firebase
-function uid2(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+// uid helper
+window.uid2 = function(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); };
 
 window.scheduleSave = async function() {
   if (saveTimer) clearTimeout(saveTimer);
@@ -1233,6 +1158,7 @@ window.scheduleSave = async function() {
     try {
       isSaving = true;
       const uk = window.activeUserKey || 'tania';
+      const db = window._db, doc = window._fsDoc, setDoc = window._fsSetDoc;
 
       if (uk === 'tania' || uk === 'admin') {
         // Tania/Admin: distribuie fiecare persoană în docurile corecte
@@ -1429,7 +1355,91 @@ function loadDefaultDrivers(){
   state.drivers=list.map(name=>({id:uid(),name,leaves:[],maxDays:0,visibleTo:visibleToForName(name)}));
 }
 
-// ===== MODALS =====
+// ===== FIRESTORE INIT & REAL-TIME SYNC (în scriptul normal) =====
+let unsubListeners = [];
+
+function unsubAll(){ unsubListeners.forEach(u=>{ try{u();}catch(e){} }); unsubListeners=[]; }
+
+function initApp(userKey) {
+  setSaveStatus('saving', 'Se încarcă...');
+  unsubAll();
+
+  const db = window._db;
+  const fsDoc = window._fsDoc;
+  const fsSetDoc = window._fsSetDoc;
+  const fsOnSnapshot = window._fsOnSnapshot;
+
+  if(!db || !fsDoc || !fsOnSnapshot){
+    // Firebase nu e încă inițializat — încearcă din nou
+    setTimeout(()=>initApp(userKey), 150);
+    return;
+  }
+
+  if (userKey === 'tania' || userKey === 'admin') {
+    const docKeys = ['raluca','madalina','corina','tania'];
+    const cache = {};
+    let loadedCount = 0;
+
+    const rebuild = (fromLive) => {
+      const allByName = {};
+      ['madalina','corina','raluca','tania'].forEach(dk => {
+        if(cache[dk]) (cache[dk].drivers||[]).forEach(d => { allByName[d.name] = d; });
+      });
+      state = { drivers: Object.values(allByName), thresholds: { warn:3, crit:5 } };
+      if(fromLive) { renderAll(); saveLocalBackup(); setSaveStatus('ok','Sincronizat ✓'); }
+    };
+
+    docKeys.forEach(dk => {
+      const unsub = fsOnSnapshot(fsDoc(db,'concedii',dk), snap => {
+        cache[dk] = snap.exists() ? snap.data() : { drivers:[], thresholds:{warn:3,crit:5} };
+        if(loadedCount < docKeys.length) {
+          loadedCount++;
+          if(loadedCount === docKeys.length) { rebuild(false); finishInit(); }
+        } else {
+          rebuild(true);
+        }
+      }, err => { console.error('snapshot err', dk, err); });
+      unsubListeners.push(unsub);
+    });
+
+  } else {
+    let firstLoad = true;
+    const unsub = fsOnSnapshot(fsDoc(db,'concedii',userKey), snap => {
+      if(snap.exists()) {
+        state = snap.data();
+        if(!state.thresholds) state.thresholds = { warn:3, crit:5 };
+        state.thresholds = { warn:3, crit:5 };
+      } else {
+        loadDefaultDrivers();
+        fsSetDoc(fsDoc(db,'concedii',userKey), JSON.parse(JSON.stringify(state)));
+      }
+      if(firstLoad) { firstLoad=false; finishInit(); }
+      else { renderAll(); saveLocalBackup(); setSaveStatus('ok','Sincronizat ✓'); }
+    }, err => {
+      console.error('snapshot err', userKey, err);
+      const bk = loadLocalBackup();
+      if(bk?.data?.drivers) state = bk.data;
+      else loadDefaultDrivers();
+      finishInit();
+    });
+    unsubListeners.push(unsub);
+  }
+}
+
+function finishInit() {
+  state.thresholds = { warn:3, crit:5 };
+  updateThresholdLegend();
+  renderAll();
+  lastSavedAt = new Date();
+  saveLocalBackup();
+  setSaveStatus('ok', 'Date încărcate ✓');
+  document.querySelectorAll('.modal-bg').forEach(m => {
+    m.addEventListener('click', e => { if(e.target===m) m.classList.remove('show'); });
+  });
+  document.addEventListener('keydown', e => {
+    if(e.key==='Escape') document.querySelectorAll('.modal-bg.show').forEach(m=>m.classList.remove('show'));
+  });
+}
 function openModal(id){document.getElementById(id).classList.add('show');}
 function closeModal(id){document.getElementById(id).classList.remove('show');}
 
