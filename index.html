@@ -996,9 +996,9 @@
 <div class="toast" id="toast"></div>
 
 <!-- Firebase SDKs (compat - script normal, nu modul) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBb0IFuofRG4vRlcnd9eMBuA8MyK_z0PRc",
@@ -1051,6 +1051,9 @@ auth.onAuthStateChanged(user => {
   }
 });
 
+// ===== FIRESTORE STATE =====
+let unsubListeners=[], saveTimer=null, lastSavedAt=null, isSaving=false;
+
 window.doLogout = async function(){
   unsubAll();
   clearSession(window.activeUserKey);
@@ -1060,9 +1063,6 @@ window.doLogout = async function(){
   document.getElementById('appRoot').style.display='none';
   document.getElementById('authScreen').style.display='flex';
 };
-
-// ===== FIRESTORE =====
-let unsubListeners=[], saveTimer=null, lastSavedAt=null, isSaving=false;
 function unsubAll(){ unsubListeners.forEach(u=>{try{u();}catch(e){}}); unsubListeners=[]; }
 
 function setSaveStatus(status,text){
@@ -1953,8 +1953,10 @@ function resetAutoLogout(){
 ['click','keydown','touchstart','mousemove'].forEach(ev =>
   document.addEventListener(ev, ()=>{ if(window.activeUserKey && window.activeUserKey!=='admin') resetAutoLogout(); }, {passive:true})
 );
+
+let pinState = {
   userKey: null,
-  mode: 'enter',      // 'create' | 'confirm' | 'enter'
+  mode: 'enter',
   entered: '',
   firstPin: '',
   attempts: 0
