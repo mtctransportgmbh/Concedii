@@ -1065,6 +1065,13 @@ window.doLogout = async function(){
 let unsubListeners=[], saveTimer=null, lastSavedAt=null, isSaving=false;
 function unsubAll(){ unsubListeners.forEach(u=>{try{u();}catch(e){}}); unsubListeners=[]; }
 
+function setSaveStatus(status,text){
+  const el=document.getElementById('saveStatus'),txt=document.getElementById('saveStatusText');
+  el.classList.remove('saving','error');
+  if(status==='saving')el.classList.add('saving');
+  if(status==='error')el.classList.add('error');
+  txt.textContent=text;
+}
 function initApp(userKey){
   setSaveStatus('saving','Se încarcă...');
   unsubAll();
@@ -1110,7 +1117,7 @@ function initApp(userKey){
     },err=>{
       console.error('snap err',userKey,err);
       const bk=loadLocalBackup();
-      if(bk?.data?.drivers)state=bk.data; else loadDefaultDrivers();
+      if(bk && bk.data && bk.data.drivers)state=bk.data; else loadDefaultDrivers();
       finishInit();
     });
     unsubListeners.push(unsub);
@@ -1193,9 +1200,7 @@ function enterApp(userKey){
   document.getElementById('appRoot').style.display='grid';
   initApp(userKey);
 }
-</script>
 
-<script>
 // ===== HOLIDAYS (Bavaria) =====
 function getEaster(year) {
   const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),month=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;
@@ -1263,13 +1268,6 @@ function getLevel(count){const{warn,crit}=state.thresholds;if(count===0)return 0
 function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function normalizeForSearch(s){return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[ăâ]/g,'a').replace(/î/g,'i').replace(/[șş]/g,'s').replace(/[țţ]/g,'t');}
 
-function setSaveStatus(status,text){
-  const el=document.getElementById('saveStatus'),txt=document.getElementById('saveStatusText');
-  el.classList.remove('saving','error');
-  if(status==='saving')el.classList.add('saving');
-  if(status==='error')el.classList.add('error');
-  txt.textContent=text;
-}
 
 function toast(msg,isError){
   const t=document.getElementById('toast');
@@ -1313,7 +1311,7 @@ function getLocalBackupInfo(){
   const d=new Date(b.savedAt);
   const diff=Math.round((Date.now()-d)/60000);
   let ago=diff<1?'acum câteva secunde':diff<60?`acum ${diff} min`:diff<1440?`acum ${Math.round(diff/60)}h`:`acum ${Math.round(diff/1440)}z`;
-  return {ago, drivers:b.data.drivers?.length||0, savedAt:d};
+  return {ago, drivers:(b.data.drivers?b.data.drivers.length:0), savedAt:d};
 }
 
 function getDriverListForUser(userKey){if(userKey==="madalina")return DRIVERS_MADALINA;if(userKey==="raluca")return DRIVERS_RALUCA;if(userKey==="corina")return DRIVERS_CORINA;return DRIVERS_TANIA;}
