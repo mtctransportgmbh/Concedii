@@ -569,6 +569,14 @@
   .tl-day-header .dnum { font-size: 11px; font-weight: 600; color: var(--text); }
   .tl-day-header.today .dnum { color: var(--accent); }
   .tl-row { display: grid; height: 30px; border-bottom: 1px solid var(--border); position: relative; }
+  .tl-row.tl-row-active { background: rgba(245,158,11,0.06); }
+  .tl-driver-row.tl-row-active {
+    background: rgba(245,158,11,0.12) !important;
+    color: var(--accent);
+    font-weight: 700;
+    border-left: 3px solid var(--accent);
+    padding-left: 9px;
+  }
   .tl-cell { border-right: 1px solid var(--border); cursor: pointer; }
   .tl-cell.sunday { background: repeating-linear-gradient(45deg,rgba(239,68,68,0.05),rgba(239,68,68,0.05) 4px,rgba(239,68,68,0.1) 4px,rgba(239,68,68,0.1) 8px); cursor: not-allowed; }
   .tl-cell.holiday:not(.sunday) { background: rgba(168,85,247,0.12); }
@@ -1862,7 +1870,10 @@ function tlDragStart(driverId, dn, isSun, onLeave) {
   tlDrag.driverId = driverId;
   tlDrag.startDay = dn;
   tlDrag.endDay = dn;
-  tlDrag.removing = onLeave; // dacă ziua e verde, drag = ștergere
+  tlDrag.removing = onLeave;
+  // Highlight rând activ
+  document.querySelectorAll('.tl-row, .tl-driver-row').forEach(el => el.classList.remove('tl-row-active'));
+  document.querySelectorAll(`.tl-row[data-driver-row="${driverId}"], .tl-driver-row[data-driver-row="${driverId}"]`).forEach(el => el.classList.add('tl-row-active'));
   tlDragUpdate(dn);
 }
 
@@ -1899,6 +1910,7 @@ function tlDragEnd() {
   tlDrag.active = false;
   document.getElementById('tlSelectTooltip').style.display = 'none';
   document.querySelectorAll('.tl-selecting').forEach(c => c.classList.remove('tl-selecting'));
+  document.querySelectorAll('.tl-row-active').forEach(el => el.classList.remove('tl-row-active'));
 
   const y=currentDate.getFullYear(), m=currentDate.getMonth();
   const s=Math.min(tlDrag.startDay, tlDrag.endDay);
@@ -1945,7 +1957,7 @@ function renderTimeline(){
   const colWidthPx=32,gridCols=`repeat(${daysInMonth},${colWidthPx}px)`;
 
   let driverHtml='<div class="tl-driver-col"><div class="tl-driver-header">Persoană</div>';
-  sortedDrivers.forEach(dr=>{driverHtml+=`<div class="tl-driver-row" onclick="openLeaveModal('${dr.id}')" title="Click pentru detalii / Drag pe calendar pentru concediu">${escapeHtml(dr.name)}</div>`;});
+  sortedDrivers.forEach(dr=>{driverHtml+=`<div class="tl-driver-row" data-driver-row="${dr.id}" onclick="openLeaveModal('${dr.id}')" title="Click pentru detalii / Drag pe calendar pentru concediu">${escapeHtml(dr.name)}</div>`;});
   driverHtml+='<div class="tl-driver-row" style="background:var(--bg-elev-2);font-weight:700;font-size:11px;text-transform:uppercase;color:var(--text-dim);letter-spacing:0.5px;cursor:default">Total / zi</div></div>';
 
   let gridHtml='<div class="tl-grid-wrap">';
@@ -1955,7 +1967,7 @@ function renderTimeline(){
 
   const dailyCounts=new Array(daysInMonth+1).fill(0);
   sortedDrivers.forEach(dr=>{
-    gridHtml+=`<div class="tl-row" style="grid-template-columns:${gridCols}">`;
+    gridHtml+=`<div class="tl-row" data-driver-row="${dr.id}" style="grid-template-columns:${gridCols}">`;
     for(let dn=1;dn<=daysInMonth;dn++){
       const d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d),onLeave=!isSun&&dr.leaves.some(l=>dateInLeave(d,l));
       const cls=['tl-cell'];
