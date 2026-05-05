@@ -1142,106 +1142,84 @@ function docIdForUser(userKey) {
 }
 
 let unsubListeners = [];
-
-function unsubAll(){ unsubListeners.forEach(u=>u()); unsubListeners=[]; }
+function unsubAll(){ unsubListeners.forEach(u=>{ try{u();}catch(e){} }); unsubListeners=[]; }
 
 async function initApp(userKey) {
   setSaveStatus('saving', 'Se încarcă...');
-  unsubAll(); // curăță listeners anteriori
+  unsubAll();
 
-  try {
-    if (userKey === 'tania' || userKey === 'admin') {
-      // Tania & Admin: ascultă toate 4 docuri în timp real
-      const docs = ['raluca','madalina','corina','tania'];
-      let snapshots = {}; // stochează ultima versiune a fiecărui doc
-      let initialized = false;
+  if (userKey === 'tania' || userKey === 'admin') {
+    // Tania & Admin: onSnapshot pe toate 4 docuri
+    const docKeys = ['raluca','madalina','corina','tania'];
+    const cache = {};
+    let firstLoadCount = 0;
 
-      const rebuild = () => {
-        const allByName = {};
-        ['madalina','corina','raluca','tania'].forEach(dk => {
-          if(snapshots[dk]) (snapshots[dk].drivers||[]).forEach(d=>{ allByName[d.name]=d; });
-        });
-        const thresholds = snapshots['tania']?.thresholds || { warn:3, crit:5 };
-        state = { drivers: Object.values(allByName), thresholds };
-        state.thresholds = { warn:3, crit:5 };
-        if(initialized){ renderAll(); saveLocalBackup(); setSaveStatus('ok','Sincronizat ✓'); }
-      };
-
-      await Promise.all(docs.map(dk => new Promise(resolve => {
-        const unsub = onSnapshot(doc(db,'concedii',dk), snap => {
-          if(snap.exists()) snapshots[dk] = snap.data();
-          else snapshots[dk] = { drivers:[], thresholds:{warn:3,crit:5} };
-          rebuild();
-          resolve();
-        });
-        unsubListeners.push(unsub);
-      })));
-
-      initialized = true;
-      rebuild();
-
-      // Inițializează docuri lipsă
-      if (!snapshots['raluca']?.drivers?.length) {
-        const drR = DRIVERS_RALUCA.map(name=>({id:uid2(),name,leaves:[],maxDays:0,visibleTo:visibleToForName(name)}));
-        await setDoc(doc(db,'concedii','raluca'),{drivers:drR,thresholds:{warn:3,crit:5}});
-      }
-      if (!snapshots['madalina']?.drivers?.length) {
-        const drM = DRIVERS_MADALINA.map(name=>({id:uid2(),name,leaves:[],maxDays:0,visibleTo:visibleToForName(name)}));
-        await setDoc(doc(db,'concedii','madalina'),{drivers:drM,thresholds:{warn:3,crit:5}});
-      }
-      if (!snapshots['corina']?.drivers?.length) {
-        const drC = DRIVERS_CORINA.map(name=>({id:uid2(),name,leaves:[],maxDays:0,visibleTo:visibleToForName(name)}));
-        await setDoc(doc(db,'concedii','corina'),{drivers:drC,thresholds:{warn:3,crit:5}});
-      }
-
-    } else {
-      // Raluca, Madalina, Corina: ascultă doar doc-ul lor
-      await new Promise(resolve => {
-        const unsub = onSnapshot(doc(db,'concedii',userKey), snap => {
-          if(snap.exists()){
-            const prev = state.drivers?.length;
-            state = snap.data();
-            if(!state.thresholds) state.thresholds={warn:3,crit:5};
-            state.thresholds={warn:3,crit:5};
-            if(prev !== undefined){ renderAll(); saveLocalBackup(); setSaveStatus('ok','Sincronizat ✓'); }
-          } else {
-            window.activeUserKey = userKey;
-            loadDefaultDrivers();
-            setDoc(doc(db,'concedii',userKey), JSON.parse(JSON.stringify(state)));
-          }
-          resolve();
-        });
-        unsubListeners.push(unsub);
+    const rebuild = (fromLive) => {
+      const allByName = {};
+      ['madalina','corina','raluca','tania'].forEach(dk => {
+        if(cache[dk]) (cache[dk].drivers||[]).forEach(d => { allByName[d.name] = d; });
       });
-    }
-  } catch (e) {
-    console.error('Load error:', e);
-    const localBackup = loadLocalBackup();
-    if (localBackup && localBackup.data && localBackup.data.drivers) {
-      state = localBackup.data;
-      if (!state.thresholds) state.thresholds = { warn: 3, crit: 5 };
-      const info = getLocalBackupInfo();
-      setSaveStatus('error', `Firestore offline · backup local din ${info?info.ago:'?'}`);
-      toast(`⚠️ Date din backup local (${info?info.ago:'?'})`, true);
-    } else {
-      setSaveStatus('error', 'Eroare la încărcare!');
-      loadDefaultDrivers();
-    }
-  }
+      state = { drivers: Object.values(allByName), thresholds: { warn:3, crit:5 } };
+      if(fromLive) { renderAll(); saveLocalBackup(); setSaveStatus('ok','Sincronizat ✓'); }
+    };
 
-  // Praguri fixe: 3 atenție, 5 critic
-  state.thresholds = { warn: 3, crit: 5 };
+    docKeys.forEach(dk => {
+      const unsub = onSnapshot(doc(db,'concedii',dk), snap => {
+        cache[dk] = snap.exists() ? snap.data() : { drivers:[], thresholds:{warn:3,crit:5} };
+        if(firstLoadCount < docKeys.length) {
+          firstLoadCount++;
+          if(firstLoadCount === docKeys.length) {
+            // Prima încărcare completă
+            rebuild(false);
+            finishInit();
+          }
+        } else {
+          // Update live ulterior
+          rebuild(true);
+        }
+      }, err => { console.error('onSnapshot err', dk, err); });
+      unsubListeners.push(unsub);
+    });
+
+  } else {
+    // Raluca, Madalina, Corina
+    let firstLoad = true;
+    const unsub = onSnapshot(doc(db,'concedii',userKey), snap => {
+      if(snap.exists()) {
+        state = snap.data();
+        if(!state.thresholds) state.thresholds = { warn:3, crit:5 };
+        state.thresholds = { warn:3, crit:5 };
+      } else {
+        // Prima conectare — creează doc
+        loadDefaultDrivers();
+        setDoc(doc(db,'concedii',userKey), JSON.parse(JSON.stringify(state)));
+      }
+      if(firstLoad) { firstLoad=false; finishInit(); }
+      else { renderAll(); saveLocalBackup(); setSaveStatus('ok','Sincronizat ✓'); }
+    }, err => {
+      console.error('onSnapshot err', userKey, err);
+      const bk = loadLocalBackup();
+      if(bk?.data?.drivers) { state = bk.data; }
+      else { loadDefaultDrivers(); }
+      finishInit();
+    });
+    unsubListeners.push(unsub);
+  }
+}
+
+function finishInit() {
+  state.thresholds = { warn:3, crit:5 };
   updateThresholdLegend();
   renderAll();
   lastSavedAt = new Date();
   saveLocalBackup();
-  setSaveStatus('ok', 'Date încărcate · backup local ✓');
+  setSaveStatus('ok', 'Date încărcate ✓');
 
   document.querySelectorAll('.modal-bg').forEach(m => {
-    m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); });
+    m.addEventListener('click', e => { if(e.target === m) m.classList.remove('show'); });
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') document.querySelectorAll('.modal-bg.show').forEach(m => m.classList.remove('show'));
+    if(e.key==='Escape') document.querySelectorAll('.modal-bg.show').forEach(m => m.classList.remove('show'));
   });
 }
 
