@@ -1000,7 +1000,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc }
+import { getFirestore, doc, getDoc, setDoc, onSnapshot }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ============================================================
@@ -1117,11 +1117,11 @@ function showAuthScreen() {
 
 // ---- Logout ----
 window.doLogout = async function() {
-  // Pentru admin: deconectare Firebase
+  unsubAll();
   if (window.activeUserKey === 'admin') {
     await fbSignOut(auth);
   }
-  // NU ștergem sesiunea PIN — la re-click pe buton intră automat
+  clearSession(window.activeUserKey);
   window.activeUserKey = null;
   state = { drivers: [], thresholds: { warn: 3, crit: 5 } };
   document.getElementById('appRoot').style.display = 'none';
@@ -1141,62 +1141,81 @@ function docIdForUser(userKey) {
   return userKey; // 'raluca' | 'madalina' | 'tania'
 }
 
+let unsubListeners = [];
+
+function unsubAll(){ unsubListeners.forEach(u=>u()); unsubListeners=[]; }
+
 async function initApp(userKey) {
   setSaveStatus('saving', 'Se încarcă...');
+  unsubAll(); // curăță listeners anteriori
 
   try {
     if (userKey === 'tania' || userKey === 'admin') {
-      // Tania & Admin: combină docurile raluca + madalina + corina (+ tania propriu)
-      const [snapR, snapM, snapC, snapT] = await Promise.all([
-        getDoc(doc(db, 'concedii', 'raluca')),
-        getDoc(doc(db, 'concedii', 'madalina')),
-        getDoc(doc(db, 'concedii', 'corina')),
-        getDoc(doc(db, 'concedii', 'tania')),
-      ]);
+      // Tania & Admin: ascultă toate 4 docuri în timp real
+      const docs = ['raluca','madalina','corina','tania'];
+      let snapshots = {}; // stochează ultima versiune a fiecărui doc
+      let initialized = false;
 
-      const driversR = snapR.exists() ? (snapR.data().drivers || []) : [];
-      const driversM = snapM.exists() ? (snapM.data().drivers || []) : [];
-      const driversC = snapC.exists() ? (snapC.data().drivers || []) : [];
-      const driversT = snapT.exists() ? (snapT.data().drivers || []) : [];
-      const thresholds = snapT.exists() ? (snapT.data().thresholds || { warn: 3, crit: 5 }) : { warn: 3, crit: 5 };
+      const rebuild = () => {
+        const allByName = {};
+        ['madalina','corina','raluca','tania'].forEach(dk => {
+          if(snapshots[dk]) (snapshots[dk].drivers||[]).forEach(d=>{ allByName[d.name]=d; });
+        });
+        const thresholds = snapshots['tania']?.thresholds || { warn:3, crit:5 };
+        state = { drivers: Object.values(allByName), thresholds };
+        state.thresholds = { warn:3, crit:5 };
+        if(initialized){ renderAll(); saveLocalBackup(); setSaveStatus('ok','Sincronizat ✓'); }
+      };
 
-      const allByName = {};
-      [...driversM, ...driversC, ...driversR, ...driversT].forEach(d => { allByName[d.name] = d; });
-      state = { drivers: Object.values(allByName), thresholds };
+      await Promise.all(docs.map(dk => new Promise(resolve => {
+        const unsub = onSnapshot(doc(db,'concedii',dk), snap => {
+          if(snap.exists()) snapshots[dk] = snap.data();
+          else snapshots[dk] = { drivers:[], thresholds:{warn:3,crit:5} };
+          rebuild();
+          resolve();
+        });
+        unsubListeners.push(unsub);
+      })));
 
-      if (!snapR.exists()) {
-        const drR = DRIVERS_RALUCA.map(name => ({ id: uid2(), name, leaves: [] }));
-        await setDoc(doc(db, 'concedii', 'raluca'), { drivers: drR, thresholds });
+      initialized = true;
+      rebuild();
+
+      // Inițializează docuri lipsă
+      if (!snapshots['raluca']?.drivers?.length) {
+        const drR = DRIVERS_RALUCA.map(name=>({id:uid2(),name,leaves:[],maxDays:0,visibleTo:visibleToForName(name)}));
+        await setDoc(doc(db,'concedii','raluca'),{drivers:drR,thresholds:{warn:3,crit:5}});
       }
-      if (!snapM.exists()) {
-        const drM = DRIVERS_MADALINA.map(name => ({ id: uid2(), name, leaves: [] }));
-        await setDoc(doc(db, 'concedii', 'madalina'), { drivers: drM, thresholds });
+      if (!snapshots['madalina']?.drivers?.length) {
+        const drM = DRIVERS_MADALINA.map(name=>({id:uid2(),name,leaves:[],maxDays:0,visibleTo:visibleToForName(name)}));
+        await setDoc(doc(db,'concedii','madalina'),{drivers:drM,thresholds:{warn:3,crit:5}});
       }
-      if (!snapC.exists()) {
-        const drC = DRIVERS_CORINA.map(name => ({ id: uid2(), name, leaves: [] }));
-        await setDoc(doc(db, 'concedii', 'corina'), { drivers: drC, thresholds });
-      }
-      if (!snapT.exists()) {
-        await setDoc(doc(db, 'concedii', 'tania'), { drivers: Object.values(allByName), thresholds });
+      if (!snapshots['corina']?.drivers?.length) {
+        const drC = DRIVERS_CORINA.map(name=>({id:uid2(),name,leaves:[],maxDays:0,visibleTo:visibleToForName(name)}));
+        await setDoc(doc(db,'concedii','corina'),{drivers:drC,thresholds:{warn:3,crit:5}});
       }
 
     } else {
-      // Raluca sau Madalina: citesc doar din doc-ul lor
-      const docRef = doc(db, 'concedii', userKey);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        state = snap.data();
-        if (!state.thresholds) state.thresholds = { warn: 3, crit: 5 };
-      } else {
-        // Prima oară — inițializează cu lista lor
-        window.activeUserKey = userKey;
-        loadDefaultDrivers();
-        await setDoc(docRef, JSON.parse(JSON.stringify(state)));
-      }
+      // Raluca, Madalina, Corina: ascultă doar doc-ul lor
+      await new Promise(resolve => {
+        const unsub = onSnapshot(doc(db,'concedii',userKey), snap => {
+          if(snap.exists()){
+            const prev = state.drivers?.length;
+            state = snap.data();
+            if(!state.thresholds) state.thresholds={warn:3,crit:5};
+            state.thresholds={warn:3,crit:5};
+            if(prev !== undefined){ renderAll(); saveLocalBackup(); setSaveStatus('ok','Sincronizat ✓'); }
+          } else {
+            window.activeUserKey = userKey;
+            loadDefaultDrivers();
+            setDoc(doc(db,'concedii',userKey), JSON.parse(JSON.stringify(state)));
+          }
+          resolve();
+        });
+        unsubListeners.push(unsub);
+      });
     }
   } catch (e) {
     console.error('Load error:', e);
-    // Încearcă să încarce din backup-ul local
     const localBackup = loadLocalBackup();
     if (localBackup && localBackup.data && localBackup.data.drivers) {
       state = localBackup.data;
@@ -2022,7 +2041,7 @@ function renderMain(){if(view==='calendar')renderCalendar();else renderTimeline(
 // Sesiune activă: mtc_session_raluca (timestamp) — valabil 30 zile
 // Hash simplu pentru PIN (nu transmitem PIN-ul plain text în Firestore)
 
-const PIN_SESSION_DAYS = 30;
+const PIN_SESSION_MINS = 10; // sesiune 10 minute
 const USERS_WITH_PIN = ['raluca','tania','madalina','corina'];
 const USER_COLORS = {
   raluca: 'linear-gradient(135deg,#ec4899,#a855f7)',
@@ -2033,7 +2052,30 @@ const USER_COLORS = {
 };
 const USER_INITIALS = {raluca:'R',tania:'T',madalina:'M',corina:'C',admin:'A'};
 
-let pinState = {
+// La fiecare încărcare a paginii, ștergem sesiunile — PIN obligatoriu
+USERS_WITH_PIN.forEach(uk => clearSession(uk));
+
+// Auto-logout după 10 minute de inactivitate
+let autoLogoutTimer = null;
+function resetAutoLogout(){
+  if(autoLogoutTimer) clearTimeout(autoLogoutTimer);
+  autoLogoutTimer = setTimeout(()=>{
+    const uk = window.activeUserKey;
+    if(uk && uk !== 'admin'){
+      clearSession(uk);
+      window.activeUserKey = null;
+      state = { drivers: [], thresholds: { warn: 3, crit: 5 } };
+      document.getElementById('appRoot').style.display = 'none';
+      document.getElementById('authScreen').style.display = 'flex';
+      // Arată PIN la revenire
+      setTimeout(()=>showPinScreen(uk), 100);
+    }
+  }, PIN_SESSION_MINS * 60 * 1000);
+}
+// Resetează timer la orice interacțiune
+['click','keydown','touchstart','mousemove'].forEach(ev =>
+  document.addEventListener(ev, ()=>{ if(window.activeUserKey && window.activeUserKey!=='admin') resetAutoLogout(); }, {passive:true})
+);
   userKey: null,
   mode: 'enter',      // 'create' | 'confirm' | 'enter'
   entered: '',
@@ -2055,8 +2097,8 @@ function clearPin(userKey){ localStorage.removeItem('mtc_pin_'+userKey); }
 function getSession(userKey){
   const ts = localStorage.getItem('mtc_session_'+userKey);
   if(!ts) return false;
-  const age = (Date.now() - parseInt(ts)) / (1000*60*60*24);
-  return age < PIN_SESSION_DAYS;
+  const ageMin = (Date.now() - parseInt(ts)) / (1000*60);
+  return ageMin < PIN_SESSION_MINS;
 }
 function setSession(userKey){ localStorage.setItem('mtc_session_'+userKey, Date.now().toString()); }
 function clearSession(userKey){ localStorage.removeItem('mtc_session_'+userKey); }
@@ -2075,6 +2117,7 @@ window.loginAsUser = function(userKey) {
   // Sesiune validă → intră direct
   if(getSession(userKey)){
     window.activeUserKey = userKey;
+    resetAutoLogout();
     window.enterApp(userKey);
     return;
   }
@@ -2178,6 +2221,7 @@ function pinSubmit(){
     if(hashPin(pin) === getPinHash(pinState.userKey)){
       pinState.attempts = 0;
       setSession(pinState.userKey);
+      resetAutoLogout();
       document.getElementById('pinScreen').classList.remove('show');
       window.enterApp(pinState.userKey);
     } else {
