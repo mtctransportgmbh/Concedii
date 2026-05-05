@@ -518,6 +518,9 @@
     line-height: 1;
   }
   .cal-day.lvl-0 .cal-day-count { display: none; }
+  /* Krank/unpaid tint on calendar cells with no normal leave */
+  .cal-day.has-krank-only { background: rgba(59,130,246,0.2); }
+  .cal-day.has-unpaid-only { background: rgba(249,115,22,0.2); }
 
   .cal-names {
     display: flex;
@@ -564,9 +567,7 @@
   /* Timeline krank cell */
   .tl-cell.in-krank { background: rgba(59,130,246,0.55); }
   .tl-cell.in-krank:hover { background: rgba(59,130,246,0.7); }
-  .tl-k { display:flex; align-items:center; justify-content:center; width:100%; height:100%; font-size:11px; font-weight:900; letter-spacing:0; }
-  .tl-cell.in-krank .tl-k { color:rgba(255,255,255,0.95); }
-  .tl-cell.in-unpaid .tl-k { color:rgba(255,255,255,0.95); }
+  .tl-k { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; color:rgba(255,255,255,0.95); pointer-events:none; }
   /* Timeline unpaid cell */
   .tl-cell.in-unpaid { background: rgba(249,115,22,0.5); }
   .tl-cell.in-unpaid:hover { background: rgba(249,115,22,0.65); }
@@ -596,7 +597,7 @@
     border-left: 3px solid var(--accent);
     padding-left: 9px;
   }
-  .tl-cell { border-right: 1px solid var(--border); cursor: pointer; display:flex; align-items:center; justify-content:center; height:100%; overflow:hidden; }
+  .tl-cell { border-right: 1px solid var(--border); cursor: pointer; position:relative; }
   .tl-cell.sunday { background: repeating-linear-gradient(45deg,rgba(239,68,68,0.05),rgba(239,68,68,0.05) 4px,rgba(239,68,68,0.1) 4px,rgba(239,68,68,0.1) 8px); cursor: not-allowed; }
   .tl-cell.holiday:not(.sunday) { background: rgba(168,85,247,0.12); }
   .tl-cell:not(.sunday):hover { background: rgba(245,158,11,0.15); }
@@ -846,6 +847,7 @@
     <button class="btn btn-secondary btn-small" id="addDriverBtn" onclick="openAddDriver()" style="width:100%; margin-bottom:6px">+ Persoană nouă</button>
     <button class="btn btn-secondary btn-small" id="pinMgrBtn" onclick="openPinAdmin()" style="width:100%; margin-bottom:6px; display:none">🔐 Coduri PIN</button>
     <button class="btn btn-secondary btn-small" id="loadBackupBtn" onclick="loadLastFirestoreBackup()" style="width:100%; margin-bottom:6px; display:none">🔄 Restaurează ultimul backup</button>
+    <button class="btn btn-secondary btn-small" id="resetCarryBtn" onclick="resetCarryOverYear()" style="width:100%; margin-bottom:6px; display:none; border-color:var(--orange); color:var(--orange)">⚠️ Resetează zile reportate 2026</button>
     <div style="position:relative;margin-bottom:8px">
       <input type="text" id="searchDriver" placeholder="🔍 Caută persoană..." oninput="renderDrivers()" style="width:100%;padding-right:28px">
       <button onclick="clearSearch('searchDriver')" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;line-height:1;padding:2px">✕</button>
@@ -1173,8 +1175,6 @@ function finishInit(){
   lastSavedAt = new Date();
   saveLocalBackup();
   setSaveStatus("ok","Date încărcate ✓");
-  // Backup info line
-  loadBackupInfoFromStorage();
   // Backup automat zilnic pentru admin
   setTimeout(()=>autoSaveDailyBackup(), 3000);
   document.querySelectorAll(".modal-bg").forEach(m=>{
@@ -1498,6 +1498,8 @@ function enterApp(userKey){
   const backupBtn = document.getElementById("backupBtn");
   const loadBackupBtn = document.getElementById("loadBackupBtn");
   if(loadBackupBtn) loadBackupBtn.style.display = isAdm ? "block" : "none";
+  const resetCarryBtn = document.getElementById("resetCarryBtn");
+  if(resetCarryBtn) resetCarryBtn.style.display = isAdm ? "block" : "none";
   if(legendUnpaid) legendUnpaid.style.display = isTaniaAdm ? "flex" : "none";
   initApp(userKey);
 }
@@ -2150,33 +2152,36 @@ function renderCalendar(){
 function renderCalDay(d,otherMonth,today){
   const dnum=d.getDate(),isSun=isSunday(d),holiday=getHoliday(d),isToday=sameDay(d,today);
   const drivers=(otherMonth||isSun)?[]:driversOnDate(d);
+  const kDriversCal=(otherMonth||isSun)?[]:krankOnDate(d);
+  const uDriversCal=(otherMonth||isSun)?[]:unpaidOnDate(d);
+  const hasKrank=kDriversCal.length>0;
+  const hasUnpaid=uDriversCal.length>0;
   const classes=["cal-day"];
-  if(isSun)classes.push("sunday");else classes.push("lvl-"+getLevel(drivers.length));
+  if(isSun)classes.push("sunday");
+  else {
+    classes.push("lvl-"+getLevel(drivers.length));
+    if(hasKrank&&!drivers.length&&!hasUnpaid) classes.push("has-krank-only");
+    if(hasUnpaid&&!drivers.length&&!hasKrank) classes.push("has-unpaid-only");
+  }
   if(holiday)classes.push("holiday");if(otherMonth)classes.push("other-month");if(isToday)classes.push("today");
   const ds=fmtDate(d),clickHandler=isSun?"":`onclick="openDayDetail('${ds}')"`;
   let namesHtml="";
   if(!isSun&&!otherMonth){
     const MAX_SHOW=10;
-    // Concediu normal
     const leaveDrivers=drivers;
-    // Krank
-    const kDrivers=krankOnDate(d);
-    // Unpaid (doar tania/admin)
-    const uDrivers=unpaidOnDate(d);
+    const kDrivers=kDriversCal;
+    const uDrivers=uDriversCal;
+    // Pune krank și unpaid PRIMII, apoi concediu normal
     const allShown=[];
-    leaveDrivers.slice(0,MAX_SHOW).forEach(dr=>allShown.push({dr,type:"leave"}));
-    // Adaugă krank dacă mai e loc
-    const remaining=MAX_SHOW-allShown.length;
-    kDrivers.slice(0,remaining).forEach(dr=>{ if(!allShown.find(x=>x.dr.id===dr.id)) allShown.push({dr,type:"krank"}); });
-    // Adaugă unpaid
-    const remaining2=MAX_SHOW-allShown.length;
-    uDrivers.slice(0,remaining2).forEach(dr=>{ if(!allShown.find(x=>x.dr.id===dr.id)) allShown.push({dr,type:"unpaid"}); });
-    const totalAll=leaveDrivers.length+kDrivers.length+uDrivers.length;
-    const rest=totalAll-allShown.length;
-    if(allShown.length>0){
+    kDrivers.forEach(dr=>allShown.push({dr,type:"krank"}));
+    uDrivers.forEach(dr=>{ if(!allShown.find(x=>x.dr.id===dr.id)) allShown.push({dr,type:"unpaid"}); });
+    leaveDrivers.forEach(dr=>{ if(!allShown.find(x=>x.dr.id===dr.id)) allShown.push({dr,type:"leave"}); });
+    const visible=allShown.slice(0,MAX_SHOW);
+    const rest=allShown.length-visible.length;
+    if(visible.length>0){
       namesHtml=`<div class="cal-names">`+
-        allShown.map(({dr,type})=>`<div class="cal-name${type==="krank"?" krank":type==="unpaid"?" unpaid":""}">${escapeHtml(dr.name.split(" ")[0])}${type==="krank"?" K":type==="unpaid"?" U":""}</div>`).join("")+
-        (rest>0?`<div class="cal-name cal-name-more">+${rest}</div>`:"")+
+        visible.map(({dr,type})=>`<div class="cal-name${type==="krank"?" krank":type==="unpaid"?" unpaid":""}">${escapeHtml(dr.name.split(" ")[0])}${type==="krank"?" K":type==="unpaid"?" U":""}</div>`).join("")+
+        (restCount>0?`<div class="cal-name cal-name-more">+${restCount}</div>`:"")+
       `</div>`;
     }
   }
@@ -2410,6 +2415,25 @@ function renderAll(includeDrivers=true){if(includeDrivers)renderDrivers();render
 function clearSearch(id){
   const el=document.getElementById(id);
   if(el){el.value="";el.dispatchEvent(new Event("input"));}
+}
+
+function resetCarryOverYear(){
+  if(!isAdmin()) return;
+  const y = prompt("Pentru ce an resetezi zilele reportate? (ex: 2026)", "2026");
+  if(!y) return;
+  if(!confirm("Resetezi carryOverDays și carryOverByYear["+y+"] pentru TOATE persoanele?\nFolosește asta dacă s-au dublat accidental.")) return;
+  let count=0;
+  state.drivers.forEach(dr=>{
+    if(dr.carryOverByYear && dr.carryOverByYear[y] !== undefined){
+      delete dr.carryOverByYear[y];
+      count++;
+    }
+    if(y === String(new Date().getFullYear()) || !dr.carryOverByYear || Object.keys(dr.carryOverByYear).length===0){
+      dr.carryOverDays=0;
+    }
+  });
+  scheduleSave(); renderAll();
+  toast("✓ "+count+" persoane: zile reportate din "+y+" resetate");
 }
 
 function toggleSidebar(){
