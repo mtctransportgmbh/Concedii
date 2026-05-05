@@ -1051,12 +1051,9 @@ function showErr(msg) {
 }
 function hideErr() { document.getElementById('authErr').style.display = 'none'; }
 
-// ---- Simple user login (Raluca / Tania) ----
-window.loginAsUser = function(userKey) {
-  hideErr();
-  activeUserKey = userKey;
-  enterApp(userKey);
-};
+// ---- Simple user login — gestionat de sistemul PIN din scriptul principal ----
+// loginAsUser este definit în scriptul non-modul (PIN system)
+// Aici expunem doar enterApp pe window ca PIN-ul să poată intra în app
 
 // ---- Admin login with Firebase email/password ----
 window.toggleAdminForm = function() {
@@ -1081,11 +1078,11 @@ window.loginAdmin = async function() {
 onAuthStateChanged(auth, (user) => {
   if (user && user.email === ADMIN_EMAIL) {
     activeUserKey = 'admin';
-    enterApp('admin');
+    window.enterApp('admin');
   } else if (!user && activeUserKey === 'admin') {
-    // Admin logged out
     activeUserKey = null;
-    showAuthScreen();
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
   }
 });
 
@@ -1108,6 +1105,8 @@ function enterApp(userKey) {
   document.getElementById('appRoot').style.display = 'grid';
   initApp(userKey);
 }
+// Expune pe window — apelat din sistemul PIN (script non-modul)
+window.enterApp = enterApp;
 
 function showAuthScreen() {
   document.getElementById('authScreen').style.display = 'flex';
@@ -2067,10 +2066,16 @@ window.loginAsUser = function(userKey) {
   // Admin nu are PIN
   if(userKey === 'admin') return;
 
+  // Dacă Firebase nu s-a încărcat încă, așteaptă
+  if(typeof window.enterApp !== 'function'){
+    setTimeout(()=>window.loginAsUser(userKey), 100);
+    return;
+  }
+
   // Sesiune validă → intră direct
   if(getSession(userKey)){
     window.activeUserKey = userKey;
-    enterApp(userKey);
+    window.enterApp(userKey);
     return;
   }
 
@@ -2153,7 +2158,7 @@ function pinSubmit(){
       setPinHash(pinState.userKey, pin);
       setSession(pinState.userKey);
       document.getElementById('pinScreen').classList.remove('show');
-      enterApp(pinState.userKey);
+      window.enterApp(pinState.userKey);
       toast('✓ Cod PIN setat cu succes!');
     } else {
       pinDotsError();
@@ -2174,7 +2179,7 @@ function pinSubmit(){
       pinState.attempts = 0;
       setSession(pinState.userKey);
       document.getElementById('pinScreen').classList.remove('show');
-      enterApp(pinState.userKey);
+      window.enterApp(pinState.userKey);
     } else {
       pinState.attempts++;
       pinDotsError();
