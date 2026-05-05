@@ -518,9 +518,7 @@
     line-height: 1;
   }
   .cal-day.lvl-0 .cal-day-count { display: none; }
-  /* Krank/unpaid tint on calendar cells with no normal leave */
-  .cal-day.has-krank-only { background: rgba(59,130,246,0.2); }
-  .cal-day.has-unpaid-only { background: rgba(249,115,22,0.2); }
+
 
   .cal-names {
     display: flex;
@@ -567,7 +565,7 @@
   /* Timeline krank cell */
   .tl-cell.in-krank { background: rgba(59,130,246,0.55); }
   .tl-cell.in-krank:hover { background: rgba(59,130,246,0.7); }
-  .tl-k { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; color:rgba(255,255,255,0.95); pointer-events:none; }
+
   /* Timeline unpaid cell */
   .tl-cell.in-unpaid { background: rgba(249,115,22,0.5); }
   .tl-cell.in-unpaid:hover { background: rgba(249,115,22,0.65); }
@@ -874,6 +872,9 @@
       <button class="btn btn-big" onclick="openQuickLeave()" style="flex:1; max-width:300px">
         ➕ Adaugă concediu rapid
       </button>
+      <button class="btn btn-big" id="statsBtn" onclick="openStats()" style="flex:1; max-width:200px; display:none; background:var(--bg-elev-2); color:var(--text); border:1px solid var(--border)">
+        📊 Statistici
+      </button>
     </div>
 
     <!-- Group filter — only for Tania/Admin -->
@@ -1059,6 +1060,18 @@
   </div>
 </div>
 
+<!-- STATS MODAL -->
+<div class="modal-bg" id="modalStats">
+  <div class="modal" style="max-width:640px">
+    <h3>📊 Statistici Krank & Fără plată</h3>
+    <div class="modal-sub" id="modalStatsSub"></div>
+    <div id="statsContent" style="margin-top:12px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalStats')">Închide</button>
+    </div>
+  </div>
+</div>
+
 <div id="tlSelectTooltip"></div>
 <div class="toast" id="toast"></div>
 
@@ -1235,22 +1248,31 @@ async function triggerAutoBackup(time){
   try{
     const now = new Date();
     const today = fmtDate(now);
-    const docKey = today+"_"+String(now.getHours()).padStart(2,"0")+String(now.getMinutes()).padStart(2,"0");
-    await db.collection("daily_backup").doc(today).set({
-      data: JSON.parse(JSON.stringify(state)),
-      savedAt: now.toISOString(),
-      time: time,
-      drivers: state.drivers.length,
-      savedBy: window.activeUserKey||"unknown"
+    // Salvează DOAR concedii/krank/unpaid — nu configurații, nu maxDays etc.
+    const leavesOnly = {};
+    (state.drivers||[]).forEach(dr=>{
+      const hasData = (dr.leaves&&dr.leaves.length>0)||
+                      (dr.krankLeaves&&dr.krankLeaves.length>0)||
+                      (dr.unpaidLeaves&&dr.unpaidLeaves.length>0);
+      if(hasData){
+        leavesOnly[dr.name]={
+          leaves:      (dr.leaves||[]),
+          krankLeaves: (dr.krankLeaves||[]),
+          unpaidLeaves:(dr.unpaidLeaves||[])
+        };
+      }
     });
-    localStorage.setItem("mtc_last_daily_backup", today);
+    await db.collection("daily_backup").doc(today).set({
+      leaves:    leavesOnly,
+      savedAt:   now.toISOString(),
+      time:      time,
+      count:     Object.keys(leavesOnly).length,
+      savedBy:   window.activeUserKey||"unknown"
+    });
     localStorage.setItem("mtc_last_backup_time", time);
     localStorage.setItem("mtc_last_backup_date", today);
-    // Arată linia de info backup (doar admin o vede — e în sidebar care e mereu vizibil)
     updateBackupInfoLine(today, time);
-    if(isAdmin()){
-      setSaveStatus("ok","Salvat la "+time+" · backup ✓");
-    }
+    if(isAdmin()) setSaveStatus("ok","Salvat la "+time+" · backup ✓");
   }catch(e){ console.error("backup err",e); }
 }
 
@@ -1428,20 +1450,23 @@ window.openPinAdmin = async function(){
   const results = await Promise.all(users.map(async uk=>{
     const snap = await db.collection("pins").doc(uk).get();
     const hash = snap.exists ? snap.data().hash : null;
-    const pinDisplay = snap.exists ? snap.data().pin || "●●●●●●" : "—";
-    return {uk, hash, pinDisplay};
+    // Reconstituie PIN-ul din hash (nu se poate — hash e one-way)
+    // Dar putem stoca PIN-ul plain în Firestore la creare
+    const storedPin = snap.exists ? snap.data().plainPin||null : null;
+    return {uk, hash, storedPin};
   }));
-  list.innerHTML = results.map(({uk,hash})=>{
+  list.innerHTML = results.map(({uk,hash,storedPin})=>{
     const color = USERS[uk].color;
     const initial = USERS[uk].initial;
     const hasPin = !!hash;
+    const pinDisplay = storedPin ? `<span style="font-family:monospace;font-size:14px;letter-spacing:3px;color:var(--accent)">${storedPin}</span>` : (hasPin?"<em style='color:var(--text-dim)'>setat (vizibil după reset)</em>":"—");
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg-elev-2);border-radius:6px;margin-bottom:6px">
       <div style="width:32px;height:32px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0">${initial}</div>
       <div style="flex:1">
         <div style="font-weight:600;font-size:13px">${names[uk]}</div>
-        <div style="font-size:11px;color:var(--text-dim)">PIN: ${hasPin?"✅ Setat":"⚠️ Nesetat"}</div>
+        <div style="font-size:12px;margin-top:2px">PIN: ${pinDisplay}</div>
       </div>
-      <button class="btn btn-secondary btn-small" onclick="adminResetPin('${uk}')" style="font-size:11px">Reset PIN</button>
+      <button class="btn btn-secondary btn-small" onclick="adminResetPin('${uk}')" style="font-size:11px">Reset</button>
     </div>`;
   }).join("");
 };
@@ -2069,20 +2094,27 @@ function importBackup(e){
 
 async function loadLastFirestoreBackup(){
   if(!isAdmin()){toast("Doar Admin",true);return;}
-  if(!confirm("Încarci ultimul backup automat din Firestore?\nDatele actuale vor fi înlocuite."))return;
+  if(!confirm("Restaurezi ultimul backup de concedii din Firestore?\nDatele actuale de concedii vor fi înlocuite cu cele din backup."))return;
   try{
     setSaveStatus("saving","Se încarcă backup...");
-    // Get list of backup docs and find latest
     const snap = await db.collection("daily_backup").orderBy("savedAt","desc").limit(1).get();
     if(snap.empty){toast("Nu există backup în Firestore",true);setSaveStatus("ok","Gata");return;}
-    const doc = snap.docs[0];
-    const bkData = doc.data();
-    if(!bkData.data||!bkData.data.drivers){toast("Backup corupt",true);return;}
-    state = bkData.data;
-    if(!state.thresholds)state.thresholds={warn:3,crit:5};
-    state.thresholds={warn:3,crit:5};
-    scheduleSave();renderAll();
-    toast("✓ Backup din "+doc.id+" restaurat ("+bkData.drivers+" persoane, "+bkData.time+")");
+    const bkDoc = snap.docs[0];
+    const bkData = bkDoc.data();
+    if(!bkData.leaves){toast("Format backup vechi — nu conține date de concedii",true);return;}
+    // Restaurează DOAR leaves/krank/unpaid per persoană după nume
+    let restored=0;
+    state.drivers.forEach(dr=>{
+      if(bkData.leaves[dr.name]){
+        const bk=bkData.leaves[dr.name];
+        dr.leaves       = bk.leaves||[];
+        dr.krankLeaves  = bk.krankLeaves||[];
+        dr.unpaidLeaves = bk.unpaidLeaves||[];
+        restored++;
+      }
+    });
+    scheduleSave(); renderAll();
+    toast("✓ Backup din "+bkDoc.id+" ("+bkData.time+"): "+restored+" persoane restaurate");
   }catch(e){toast("Eroare: "+e.message,true);setSaveStatus("error","Eroare backup");}
 }
 
@@ -2160,28 +2192,19 @@ function renderCalDay(d,otherMonth,today){
   if(isSun)classes.push("sunday");
   else {
     classes.push("lvl-"+getLevel(drivers.length));
-    if(hasKrank&&!drivers.length&&!hasUnpaid) classes.push("has-krank-only");
-    if(hasUnpaid&&!drivers.length&&!hasKrank) classes.push("has-unpaid-only");
+
   }
   if(holiday)classes.push("holiday");if(otherMonth)classes.push("other-month");if(isToday)classes.push("today");
   const ds=fmtDate(d),clickHandler=isSun?"":`onclick="openDayDetail('${ds}')"`;
   let namesHtml="";
   if(!isSun&&!otherMonth){
     const MAX_SHOW=10;
-    const leaveDrivers=drivers;
-    const kDrivers=kDriversCal;
-    const uDrivers=uDriversCal;
-    // Pune krank și unpaid PRIMII, apoi concediu normal
-    const allShown=[];
-    kDrivers.forEach(dr=>allShown.push({dr,type:"krank"}));
-    uDrivers.forEach(dr=>{ if(!allShown.find(x=>x.dr.id===dr.id)) allShown.push({dr,type:"unpaid"}); });
-    leaveDrivers.forEach(dr=>{ if(!allShown.find(x=>x.dr.id===dr.id)) allShown.push({dr,type:"leave"}); });
-    const visible=allShown.slice(0,MAX_SHOW);
-    const rest=allShown.length-visible.length;
-    if(visible.length>0){
+    const allShown=drivers.slice(0,MAX_SHOW);
+    const rest=drivers.length-allShown.length;
+    if(allShown.length>0){
       namesHtml=`<div class="cal-names">`+
-        visible.map(({dr,type})=>`<div class="cal-name${type==="krank"?" krank":type==="unpaid"?" unpaid":""}">${escapeHtml(dr.name.split(" ")[0])}${type==="krank"?" K":type==="unpaid"?" U":""}</div>`).join("")+
-        (restCount>0?`<div class="cal-name cal-name-more">+${restCount}</div>`:"")+
+        allShown.map(dr=>`<div class="cal-name">${escapeHtml(dr.name.split(" ")[0])}</div>`).join("")+
+        (rest>0?`<div class="cal-name cal-name-more">+${rest}</div>`:"")+
       `</div>`;
     }
   }
@@ -2329,7 +2352,7 @@ function renderTimeline(){
         `onmousemove="if(event.buttons===1&&tlDrag.active)tlDragMove(${dn},event.pageX,event.pageY)" `;
       const tipLabel=onKrank?"Krank":onUnpaid?"Fără plată":onLeave?"Concediu":"";
       const tipText=isSun?"Duminică":(isOccupied?"Drag pentru a șterge ("+tipLabel+")":"Drag pentru a adăuga concediu");
-      const cellContent=onKrank?`<div class='tl-k'>K</div>`:onUnpaid?`<div class='tl-k'>U</div>`:"";
+      const cellContent=onKrank?"K":onUnpaid?"U":"";
       gridHtml+=`<div class='${cls.join(" ")}' ${dragAttrs} title="${escapeHtml(dr.name+" · "+formatDateRO(ds)+(holiday?" · "+holiday:"")+" — "+tipText)}" data-driver='${dr.id}' data-day='${dn}'>${cellContent}</div>`;
     }
     gridHtml+="</div>";
@@ -2411,6 +2434,111 @@ function updateThresholdLegend(){
 }
 function renderMain(){if(view==="calendar")renderCalendar();else renderTimeline();}
 function renderAll(includeDrivers=true){if(includeDrivers)renderDrivers();renderMain();}
+
+function openStats(){
+  if(!isAdminOrTania()) return;
+  const y = currentDate.getFullYear();
+  document.getElementById("modalStatsSub").textContent = "Anul "+y+" — toate persoanele vizibile";
+  const drivers = getVisibleDrivers();
+  const monthNames = ["Ian","Feb","Mar","Apr","Mai","Iun","Iul","Aug","Sep","Oct","Nov","Dec"];
+
+  // Build krank stats per month
+  const krankByMonth = new Array(12).fill(0);
+  const unpaidByMonth = new Array(12).fill(0);
+  const krankPersons = {}; // name -> total days
+  const unpaidPersons = {};
+
+  drivers.forEach(dr=>{
+    // Krank
+    (dr.krankLeaves||[]).forEach(l=>{
+      const s=parseDate(l.start), e=parseDate(l.end);
+      if(e.getFullYear()<y||s.getFullYear()>y) return;
+      const ys=new Date(y,0,1), ye=new Date(y,11,31);
+      const from=s<ys?ys:s, to=e>ye?ye:e;
+      const days=countWorkdays(from,to);
+      krankPersons[dr.name]=(krankPersons[dr.name]||0)+days;
+      // Per month
+      for(let m=0;m<12;m++){
+        const ms=new Date(y,m,1), me=new Date(y,m+1,0);
+        const mfrom=from<ms?ms:from, mto=to>me?me:to;
+        if(mfrom<=mto) krankByMonth[m]+=countWorkdays(mfrom,mto);
+      }
+    });
+    // Unpaid
+    (dr.unpaidLeaves||[]).forEach(l=>{
+      const s=parseDate(l.start), e=parseDate(l.end);
+      if(e.getFullYear()<y||s.getFullYear()>y) return;
+      const ys=new Date(y,0,1), ye=new Date(y,11,31);
+      const from=s<ys?ys:s, to=e>ye?ye:e;
+      const days=countWorkdays(from,to);
+      unpaidPersons[dr.name]=(unpaidPersons[dr.name]||0)+days;
+      for(let m=0;m<12;m++){
+        const ms=new Date(y,m,1), me=new Date(y,m+1,0);
+        const mfrom=from<ms?ms:from, mto=to>me?me:to;
+        if(mfrom<=mto) unpaidByMonth[m]+=countWorkdays(mfrom,mto);
+      }
+    });
+  });
+
+  const totalKrank = Object.values(krankPersons).reduce((a,b)=>a+b,0);
+  const totalUnpaid = Object.values(unpaidPersons).reduce((a,b)=>a+b,0);
+
+  // Build HTML
+  let html = "";
+
+  // Krank section
+  html += `<div style="margin-bottom:20px">
+    <div style="font-size:13px;font-weight:700;color:rgba(59,130,246,0.9);margin-bottom:10px">🤒 KRANK — Total ${y}: <strong>${totalKrank} zile</strong></div>`;
+  if(totalKrank>0){
+    // Monthly bar chart
+    const maxK = Math.max(...krankByMonth,1);
+    html += `<div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-bottom:12px">`;
+    krankByMonth.forEach((v,m)=>{
+      const h = v>0?Math.max(4,Math.round(v/maxK*40)):0;
+      html+=`<div style="text-align:center">
+        <div style="height:40px;display:flex;align-items:flex-end;justify-content:center">
+          <div style="width:100%;background:rgba(59,130,246,0.6);height:${h}px;border-radius:2px 2px 0 0"></div>
+        </div>
+        <div style="font-size:9px;color:var(--text-dim)">${monthNames[m]}</div>
+        <div style="font-size:10px;font-weight:700;color:${v>0?"rgba(59,130,246,0.9)":"var(--text-dim)"}">${v||""}</div>
+      </div>`;
+    });
+    html += `</div>`;
+    // Per person
+    const sorted = Object.entries(krankPersons).sort((a,b)=>b[1]-a[1]);
+    html += sorted.map(([name,days])=>`<div style="display:flex;justify-content:space-between;padding:5px 8px;background:var(--bg-elev-2);border-radius:4px;margin-bottom:3px;font-size:12px"><span>${escapeHtml(name)}</span><span style="color:rgba(59,130,246,0.9);font-weight:700">${days}z</span></div>`).join("");
+  } else {
+    html += `<div style="color:var(--text-dim);font-size:12px">Nicio zi krank înregistrată în ${y}</div>`;
+  }
+  html += `</div>`;
+
+  // Unpaid section
+  html += `<div>
+    <div style="font-size:13px;font-weight:700;color:rgba(249,115,22,0.9);margin-bottom:10px">⛔ FĂRĂ PLATĂ — Total ${y}: <strong>${totalUnpaid} zile</strong></div>`;
+  if(totalUnpaid>0){
+    const maxU = Math.max(...unpaidByMonth,1);
+    html += `<div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-bottom:12px">`;
+    unpaidByMonth.forEach((v,m)=>{
+      const h = v>0?Math.max(4,Math.round(v/maxU*40)):0;
+      html+=`<div style="text-align:center">
+        <div style="height:40px;display:flex;align-items:flex-end;justify-content:center">
+          <div style="width:100%;background:rgba(249,115,22,0.6);height:${h}px;border-radius:2px 2px 0 0"></div>
+        </div>
+        <div style="font-size:9px;color:var(--text-dim)">${monthNames[m]}</div>
+        <div style="font-size:10px;font-weight:700;color:${v>0?"rgba(249,115,22,0.9)":"var(--text-dim)"}">${v||""}</div>
+      </div>`;
+    });
+    html += `</div>`;
+    const sorted2 = Object.entries(unpaidPersons).sort((a,b)=>b[1]-a[1]);
+    html += sorted2.map(([name,days])=>`<div style="display:flex;justify-content:space-between;padding:5px 8px;background:var(--bg-elev-2);border-radius:4px;margin-bottom:3px;font-size:12px"><span>${escapeHtml(name)}</span><span style="color:rgba(249,115,22,0.9);font-weight:700">${days}z</span></div>`).join("");
+  } else {
+    html += `<div style="color:var(--text-dim);font-size:12px">Nicio zi fără plată înregistrată în ${y}</div>`;
+  }
+  html += `</div>`;
+
+  document.getElementById("statsContent").innerHTML = html;
+  openModal("modalStats");
+}
 
 function clearSearch(id){
   const el=document.getElementById(id);
