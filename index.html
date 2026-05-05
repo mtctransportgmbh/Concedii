@@ -489,7 +489,7 @@
   .cal-day.sunday .sunday-mark { margin: auto 0; text-align: center; font-size: 8px; color: var(--red); opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
   
   .cal-day.holiday:not(.sunday) { background: linear-gradient(135deg,rgba(168,85,247,0.12),rgba(168,85,247,0.22)); border: 1px dashed rgba(168,85,247,0.45); }
-  .cal-day.holiday .holiday-name { font-size: 8px; color: var(--holiday); line-height: 1.1; margin-top: 1px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .cal-day.holiday .holiday-name { font-size: 10px; color: var(--holiday); line-height: 1.2; margin-top: 2px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .cal-day.sunday.holiday { opacity: 0.85; background: linear-gradient(135deg,rgba(168,85,247,0.1),rgba(168,85,247,0.18)),repeating-linear-gradient(45deg,rgba(239,68,68,0.06),rgba(239,68,68,0.06) 6px,rgba(239,68,68,0.12) 6px,rgba(239,68,68,0.12) 12px); }
   
   .cal-day-count { margin-top: auto; font-size: 10px; font-weight: 700; padding: 1px 4px; border-radius: 3px; align-self: flex-end; }
@@ -564,7 +564,9 @@
   /* Timeline krank cell */
   .tl-cell.in-krank { background: rgba(59,130,246,0.55); }
   .tl-cell.in-krank:hover { background: rgba(59,130,246,0.7); }
-  .tl-cell.in-krank .tl-k { display:flex; align-items:center; justify-content:center; height:100%; font-size:10px; font-weight:900; color:rgba(255,255,255,0.9); }
+  .tl-k { display:flex; align-items:center; justify-content:center; width:100%; height:100%; font-size:11px; font-weight:900; letter-spacing:0; }
+  .tl-cell.in-krank .tl-k { color:rgba(255,255,255,0.95); }
+  .tl-cell.in-unpaid .tl-k { color:rgba(255,255,255,0.95); }
   /* Timeline unpaid cell */
   .tl-cell.in-unpaid { background: rgba(249,115,22,0.5); }
   .tl-cell.in-unpaid:hover { background: rgba(249,115,22,0.65); }
@@ -739,7 +741,31 @@
     .app { grid-template-columns: 1fr; }
     .sidebar { max-height: none; }
     .stats { grid-template-columns: repeat(2, 1fr); }
-    .main { padding: 16px; }
+    .main { padding: 12px; }
+    .cal-names { display: none !important; }
+    .cal-day { min-height: 36px !important; padding: 3px !important; }
+    .cal-day-num { font-size: 11px !important; }
+  }
+
+  /* Mobile sidebar toggle */
+  .sidebar-toggle-btn {
+    display: none;
+    width: 100%;
+    padding: 10px;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 8px;
+    text-align: left;
+  }
+  @media (max-width: 768px) {
+    .sidebar-toggle-btn { display: block; }
+    .sidebar-collapsible { display: none; }
+    .sidebar-collapsible.open { display: block; }
   }
 </style>
 </head>
@@ -808,6 +834,8 @@
       <span id="saveStatusText">Salvat automat</span>
     </div>
     
+    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleSidebar()">▼ Arată persoanele</button>
+    <div id="sidebarCollapsible">
     <div class="section-title" style="display:flex; justify-content:space-between; align-items:center">
       <span>Persoane</span>
       <span id="driverCount" style="text-transform:none; letter-spacing:0; color:var(--text-dim)">0</span>
@@ -815,10 +843,15 @@
     <button class="btn btn-secondary btn-small" id="addDriverBtn" onclick="openAddDriver()" style="width:100%; margin-bottom:6px">+ Persoană nouă</button>
     <button class="btn btn-secondary btn-small" id="pinMgrBtn" onclick="openPinAdmin()" style="width:100%; margin-bottom:6px; display:none">🔐 Coduri PIN</button>
     <button class="btn btn-secondary btn-small" id="backupBtn" onclick="exportBackup()" style="width:100%; margin-bottom:6px; display:none">💾 Descarcă backup</button>
-    <button class="btn btn-secondary btn-small" id="importBackupBtn" onclick="document.getElementById('importBackupFile').click()" style="width:100%; margin-bottom:6px; display:none">📂 Încarcă backup</button>
+    <button class="btn btn-secondary btn-small" id="loadBackupBtn" onclick="loadLastFirestoreBackup()" style="width:100%; margin-bottom:6px; display:none">🔄 Restaurează ultimul backup</button>
+    <button class="btn btn-secondary btn-small" id="importBackupBtn" onclick="document.getElementById('importBackupFile').click()" style="width:100%; margin-bottom:6px; display:none">📂 Încarcă backup fișier</button>
     <input type="file" id="importBackupFile" accept=".json" style="display:none" onchange="importBackup(event)">
-    <input type="text" id="searchDriver" placeholder="🔍 Caută persoană..." oninput="renderDrivers()" style="margin-bottom:8px">
+    <div style="position:relative;margin-bottom:8px">
+      <input type="text" id="searchDriver" placeholder="🔍 Caută persoană..." oninput="renderDrivers()" style="width:100%;padding-right:28px">
+      <button onclick="clearSearch('searchDriver')" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;line-height:1;padding:2px">✕</button>
+    </div>
     <div class="driver-list" id="driverList"></div>
+    </div><!-- /sidebarCollapsible -->
   </aside>
   
   <main class="main">
@@ -883,7 +916,10 @@
     
     <div id="timelineView" class="timeline-wrap" style="display:none">
       <div style="padding:8px 10px;border-bottom:1px solid var(--border);background:var(--bg-elev);position:sticky;top:0;z-index:4">
-        <input type="text" id="tlSearch" placeholder="🔍 Caută persoană în timeline..." oninput="renderTimeline()" style="max-width:280px;padding:6px 10px;font-size:12px">
+        <div style="position:relative;display:inline-block">
+          <input type="text" id="tlSearch" placeholder="🔍 Caută persoană în timeline..." oninput="renderTimeline()" style="max-width:280px;padding:6px 28px 6px 10px;font-size:12px">
+          <button onclick="clearSearch('tlSearch');renderTimeline()" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;line-height:1;padding:2px">✕</button>
+        </div>
       </div>
       <div class="timeline" id="timeline"></div>
     </div>
@@ -1186,9 +1222,29 @@ function scheduleSave(){
       const time = String(t.getHours()).padStart(2,"0")+":"+String(t.getMinutes()).padStart(2,"0");
       saveLocalBackup();
       setSaveStatus("ok","Salvat la "+time+" ✓");
+      // Auto backup în Firestore la fiecare salvare
+      triggerAutoBackup(time);
     }catch(e){ console.error("save",e); setSaveStatus("error","Eroare la salvare!"); }
     finally { isSaving = false; }
   },600);
+}
+
+async function triggerAutoBackup(time){
+  try{
+    const today = fmtDate(new Date());
+    await db.collection("daily_backup").doc(today).set({
+      data: JSON.parse(JSON.stringify(state)),
+      savedAt: new Date().toISOString(),
+      time: time,
+      drivers: state.drivers.length,
+      savedBy: window.activeUserKey||"unknown"
+    });
+    localStorage.setItem("mtc_last_daily_backup", today);
+    // Notificare vizibilă doar pentru admin
+    if(isAdmin()){
+      setSaveStatus("ok","Salvat la "+time+" · backup ✓");
+    }
+  }catch(e){ console.error("backup err",e); }
 }
 
 // ============================================================
@@ -1420,6 +1476,8 @@ function enterApp(userKey){
   if(backupBtn) backupBtn.style.display = isAdm ? "block" : "none";
   const importBtn = document.getElementById("importBackupBtn");
   if(importBtn) importBtn.style.display = isAdm ? "block" : "none";
+  const loadBackupBtn = document.getElementById("loadBackupBtn");
+  if(loadBackupBtn) loadBackupBtn.style.display = isAdm ? "block" : "none";
   if(legendUnpaid) legendUnpaid.style.display = isTaniaAdm ? "flex" : "none";
   initApp(userKey);
 }
@@ -1485,7 +1543,6 @@ function countWorkdays(from,to){
 }
 
 function usedDaysThisYear(dr, type, year){
-  // year = anul vizualizat (default: anul curent navigat în calendar)
   const y = year || currentDate.getFullYear();
   const arr = type==="krank" ? (dr.krankLeaves||[]) : type==="unpaid" ? (dr.unpaidLeaves||[]) : (dr.leaves||[]);
   return arr.reduce((sum,l)=>{
@@ -1495,6 +1552,14 @@ function usedDaysThisYear(dr, type, year){
     const from=s<ys?ys:s, to=e>ye?ye:e;
     return sum+countWorkdays(from,to);
   },0);
+}
+
+// Returnează zilele reportate pentru un an specific
+function getCarryOverForYear(dr, year){
+  if(dr.carryOverByYear && dr.carryOverByYear[String(year)] !== undefined)
+    return dr.carryOverByYear[String(year)];
+  // Fallback la carryOverDays vechi (compatibilitate)
+  return dr.carryOverDays||0;
 }
 
 function getLevel(count){const{warn,crit}=state.thresholds;if(count===0)return 0;if(count>=crit)return 4;if(count>=warn)return 3;if(count>=Math.ceil(warn/2)+1)return 2;return 1;}
@@ -1649,7 +1714,7 @@ function openLeaveModal(id, leaveType){
   // Quota bar
   const maxDays=dr.maxDays||0;
   const used=usedDaysThisYear(dr,"leaves");
-  const carry=dr.carryOverDays||0;
+  const carry=getCarryOverForYear(dr, currentDate.getFullYear());
   const total=maxDays+carry;
   const quotaBar=document.getElementById("leaveQuotaBar");
   if(leaveType==="leaves"&&total>0){
@@ -1710,7 +1775,11 @@ function saveMaxDays(){
 }
 function saveCarryOver(){
   const dr=state.drivers.find(d=>d.id===leaveDriverId);if(!dr)return;
-  dr.carryOverDays=parseInt(document.getElementById("leaveCarryInput").value)||0;
+  const val=parseInt(document.getElementById("leaveCarryInput").value)||0;
+  const y=String(currentDate.getFullYear());
+  if(!dr.carryOverByYear) dr.carryOverByYear={};
+  dr.carryOverByYear[y]=val;
+  dr.carryOverDays=val; // keep legacy field in sync
   openLeaveModal(leaveDriverId,"leaves");scheduleSave();
 }
 
@@ -1969,13 +2038,30 @@ function importBackup(e){
       state=loaded;
       if(!state.thresholds)state.thresholds={warn:3,crit:5};
       state.thresholds={warn:3,crit:5};
-      scheduleSave();
-      renderAll();
-      toast("✓ Backup restaurat: "+state.drivers.length+" persoane");
-    }catch(err){toast("Eroare la restaurare: "+err.message,true);}
+      scheduleSave();renderAll();
+      toast("✓ Backup fișier restaurat: "+state.drivers.length+" persoane");
+    }catch(err){toast("Eroare: "+err.message,true);}
   };
-  reader.readAsText(file);
-  e.target.value="";
+  reader.readAsText(file);e.target.value="";
+}
+
+async function loadLastFirestoreBackup(){
+  if(!isAdmin()){toast("Doar Admin",true);return;}
+  if(!confirm("Încarci ultimul backup automat din Firestore?\nDatele actuale vor fi înlocuite."))return;
+  try{
+    setSaveStatus("saving","Se încarcă backup...");
+    // Get list of backup docs and find latest
+    const snap = await db.collection("daily_backup").orderBy("savedAt","desc").limit(1).get();
+    if(snap.empty){toast("Nu există backup în Firestore",true);setSaveStatus("ok","Gata");return;}
+    const doc = snap.docs[0];
+    const bkData = doc.data();
+    if(!bkData.data||!bkData.data.drivers){toast("Backup corupt",true);return;}
+    state = bkData.data;
+    if(!state.thresholds)state.thresholds={warn:3,crit:5};
+    state.thresholds={warn:3,crit:5};
+    scheduleSave();renderAll();
+    toast("✓ Backup din "+doc.id+" restaurat ("+bkData.drivers+" persoane, "+bkData.time+")");
+  }catch(e){toast("Eroare: "+e.message,true);setSaveStatus("error","Eroare backup");}
 }
 
 // Auto backup zilnic pentru Admin — salvat în Firestore col "daily_backup"
@@ -2260,9 +2346,13 @@ function changeMonth(delta){
 }
 
 function autoCalculateCarryOver(fromYear, toYear){
+  // Stocăm carry-over per an: dr.carryOverByYear = {2026: 5, 2027: 3}
   let updated = 0;
   state.drivers.forEach(dr=>{
     if(!dr.maxDays || dr.maxDays===0) return;
+    if(!dr.carryOverByYear) dr.carryOverByYear = {};
+    // Nu recalcula dacă există deja pentru acest fromYear
+    if(dr.carryOverByYear[String(toYear)] !== undefined) return;
     const usedInFromYear = (dr.leaves||[]).reduce((sum,l)=>{
       const s=parseDate(l.start),e=parseDate(l.end);
       if(e.getFullYear()<fromYear||s.getFullYear()>fromYear)return sum;
@@ -2271,16 +2361,14 @@ function autoCalculateCarryOver(fromYear, toYear){
       return sum+countWorkdays(from,to);
     },0);
     const remaining = Math.max(0, dr.maxDays - usedInFromYear);
-    // Adaugă zilele rămase ca reportate pentru noul an (nu suprascrie cele existente)
-    const existing = dr.carryOverDays||0;
-    if(remaining > 0 && existing === 0){
-      dr.carryOverDays = remaining;
+    if(remaining > 0){
+      dr.carryOverByYear[String(toYear)] = remaining;
       updated++;
     }
   });
   if(updated > 0){
     scheduleSave();
-    toast("✓ "+updated+" persoane: zile rămase din "+fromYear+" reportate automat în "+toYear);
+    toast("✓ "+updated+" persoane: zile rămase din "+fromYear+" reportate în "+toYear);
   }
 }
 
@@ -2298,6 +2386,19 @@ function updateThresholdLegend(){
 }
 function renderMain(){if(view==="calendar")renderCalendar();else renderTimeline();}
 function renderAll(includeDrivers=true){if(includeDrivers)renderDrivers();renderMain();}
+
+function clearSearch(id){
+  const el=document.getElementById(id);
+  if(el){el.value="";el.dispatchEvent(new Event("input"));}
+}
+
+function toggleSidebar(){
+  const c=document.getElementById("sidebarCollapsible");
+  const btn=document.getElementById("sidebarToggleBtn");
+  if(!c||!btn)return;
+  const open=c.classList.toggle("open");
+  btn.textContent=open?"▲ Ascunde persoanele":"▼ Arată persoanele ("+state.drivers.length+")";
+}
 </script>
 </body>
 </html>
