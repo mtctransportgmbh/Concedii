@@ -1881,7 +1881,8 @@ function openLeaveModal(id, leaveType){
     if(cr)cr.style.display="none";
   }
 
-  const arr = dr[leaveType]||[];
+  const arrKey2 = leaveType==="krank"?"krankLeaves":leaveType==="unpaid"?"unpaidLeaves":"leaves";
+  const arr = dr[arrKey2]||[];
   const total2=arr.reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end)),0);
   document.getElementById("modalLeaveSub").textContent=arr.length+" perioadă(e) · "+total2+" zile lucrătoare";
   renderLeaveList(dr, leaveType);
@@ -1904,7 +1905,8 @@ function saveCarryOver(){
 }
 
 function renderLeaveList(dr, leaveType){
-  const arr = dr[leaveType]||[];
+  const arrKey = leaveType==="krank"?"krankLeaves":leaveType==="unpaid"?"unpaidLeaves":"leaves";
+  const arr = dr[arrKey]||[];
   const list=document.getElementById("leaveList");
   if(!arr.length){list.innerHTML='<div class="empty">Nicio perioadă</div>';return;}
   const sorted=[...arr].sort((a,b)=>a.start.localeCompare(b.start));
@@ -1999,8 +2001,10 @@ function addLeave(){
 function deleteLeave(driverId,start,end,leaveType){
   if(!leaveType)leaveType="leaves";
   const dr=state.drivers.find(d=>d.id===driverId);if(!dr)return;
-  if(!dr[leaveType])dr[leaveType]=[];
-  dr[leaveType]=dr[leaveType].filter(l=>!(l.start===start&&l.end===end));
+  // Map leaveType to correct array name
+  const arrKey = leaveType==="krank"?"krankLeaves":leaveType==="unpaid"?"unpaidLeaves":"leaves";
+  if(!dr[arrKey]) dr[arrKey]=[];
+  dr[arrKey]=dr[arrKey].filter(l=>!(l.start===start&&l.end===end));
   openLeaveModal(driverId,leaveType);
   renderMain();scheduleSave();toast("🗑 Perioadă ștearsă");
 }
