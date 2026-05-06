@@ -991,6 +991,12 @@
 <div class="modal-bg" id="modalLeave">
   <div class="modal">
     <h3 id="modalLeaveTitle">Concedii</h3>
+    <!-- Tab selector -->
+    <div id="leaveTypeTabs" style="display:flex;gap:6px;margin-bottom:12px">
+      <button id="tabLeaves"  class="group-tab active" onclick="switchLeaveTab('leaves')">✈️ Concediu</button>
+      <button id="tabKrank"   class="group-tab"        onclick="switchLeaveTab('krank')">🤒 Krank</button>
+      <button id="tabUnpaid"  class="group-tab"        onclick="switchLeaveTab('unpaid')" id="tabUnpaidBtn">⛔ Fără plată</button>
+    </div>
     <div class="modal-sub" id="modalLeaveSub"></div>
     <div id="leaveQuotaBar" style="display:none; margin-bottom:10px"></div>
     <div id="leaveMaxDaysRow" style="display:none; margin-bottom:10px">
@@ -1795,12 +1801,30 @@ function deleteDriver(id){
 // ============================================================
 // LEAVE MODAL
 // ============================================================
+function switchLeaveTab(type){
+  if(!leaveDriverId) return;
+  ['leaves','krank','unpaid'].forEach(t=>{
+    const btn=document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1));
+    if(btn) btn.classList.toggle('active', t===type);
+  });
+  openLeaveModal(leaveDriverId, type);
+}
+
 function openLeaveModal(id, leaveType){
   leaveDriverId=id;
   if(!leaveType) leaveType="leaves";
   const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
+
+  // Activate correct tab
+  ['leaves','krank','unpaid'].forEach(t=>{
+    const btn=document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1));
+    if(btn) btn.classList.toggle('active', t===leaveType);
+  });
+  // Hide unpaid tab for non-admin/tania
+  const tabUnpaid=document.getElementById('tabUnpaid');
+  if(tabUnpaid) tabUnpaid.style.display=isAdminOrTania()?"block":"none";
   const typeLabel = leaveType==="krank" ? "Krank" : leaveType==="unpaid" ? "Fără plată" : "Concediu";
-  document.getElementById("modalLeaveTitle").textContent=typeLabel+" — "+dr.name;
+  document.getElementById("modalLeaveTitle").textContent=dr.name+" — "+typeLabel;
   document.getElementById("leaveStart").value="";
   document.getElementById("leaveEnd").value="";
   // Store active leave type
