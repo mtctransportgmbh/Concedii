@@ -2195,7 +2195,7 @@ function importBackup(e){
 }
 
 async function loadLastFirestoreBackup(){
-  if(!isAdmin()){toast("Doar Admin",true);return;}
+  if(!isAdminOrTania()){toast("Doar Admin sau Tania",true);return;}
   try{
     setSaveStatus("saving","Se încarcă lista backup-uri...");
     const snap = await db.collection("daily_backup").orderBy("savedAt","desc").limit(9).get();
@@ -2258,7 +2258,7 @@ function uploadLocalBackup(e){
 }
 
 function downloadBackupNow(){
-  if(!isAdmin()&&!isAdminOrTania()) return;
+  if(!isAdminOrTania()) return;
   const leavesOnly={};
   (state.drivers||[]).forEach(dr=>{
     leavesOnly[dr.name]={
