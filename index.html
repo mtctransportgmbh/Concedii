@@ -845,8 +845,9 @@
     </div>
     <button class="btn btn-secondary btn-small" id="addDriverBtn" onclick="openAddDriver()" style="width:100%; margin-bottom:6px">+ Persoană nouă</button>
     <button class="btn btn-secondary btn-small" id="pinMgrBtn" onclick="openPinAdmin()" style="width:100%; margin-bottom:6px; display:none">🔐 Coduri PIN</button>
-    <button class="btn btn-secondary btn-small" id="loadBackupBtn" onclick="loadLastFirestoreBackup()" style="width:100%; margin-bottom:6px; display:none">🔄 Restaurează ultimul backup</button>
-    <button class="btn btn-secondary btn-small" id="resetCarryBtn" onclick="resetCarryOverYear()" style="width:100%; margin-bottom:6px; display:none; border-color:var(--orange); color:var(--orange)">⚠️ Resetează zile reportate 2026</button>
+    <button class="btn btn-secondary btn-small" id="loadBackupBtn" onclick="loadLastFirestoreBackup()" style="width:100%; margin-bottom:6px; display:none">🔄 Restaurează backup Firestore</button>
+    <button class="btn btn-secondary btn-small" id="downloadBackupBtn" onclick="downloadBackupNow()" style="width:100%; margin-bottom:6px; display:none">💾 Descarcă backup acum</button>
+
     <div style="position:relative;margin-bottom:8px">
       <input type="text" id="searchDriver" placeholder="🔍 Caută persoană..." oninput="renderDrivers()" style="width:100%;padding-right:28px">
       <button onclick="clearSearch('searchDriver')" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;line-height:1;padding:2px">✕</button>
@@ -1253,24 +1254,25 @@ async function triggerAutoBackup(time){
   try{
     const now = new Date();
     const today = fmtDate(now);
-    // Salvează DOAR concedii/krank/unpaid — nu configurații, nu maxDays etc.
+    const hour = String(now.getHours()).padStart(2,"0");
+    // Slot: morning(0-8), midday(8-16), evening(16-24)
+    const slot = now.getHours()<8?"A":now.getHours()<16?"B":"C";
+    const docId = today+"_"+slot; // max 3 versions per day
+    // Salvează DOAR concedii/krank/unpaid per sofer
     const leavesOnly = {};
     (state.drivers||[]).forEach(dr=>{
-      const hasData = (dr.leaves&&dr.leaves.length>0)||
-                      (dr.krankLeaves&&dr.krankLeaves.length>0)||
-                      (dr.unpaidLeaves&&dr.unpaidLeaves.length>0);
-      if(hasData){
-        leavesOnly[dr.name]={
-          leaves:      (dr.leaves||[]),
-          krankLeaves: (dr.krankLeaves||[]),
-          unpaidLeaves:(dr.unpaidLeaves||[])
-        };
-      }
+      leavesOnly[dr.name]={
+        leaves:      (dr.leaves||[]),
+        krankLeaves: (dr.krankLeaves||[]),
+        unpaidLeaves:(dr.unpaidLeaves||[])
+      };
     });
-    await db.collection("daily_backup").doc(today).set({
+    await db.collection("daily_backup").doc(docId).set({
       leaves:    leavesOnly,
       savedAt:   now.toISOString(),
       time:      time,
+      date:      today,
+      slot:      slot,
       count:     Object.keys(leavesOnly).length,
       savedBy:   window.activeUserKey||"unknown"
     });
@@ -1339,12 +1341,20 @@ function resetAutoLogout(){
 async function getPinFromFirestore(uk){
   try{
     const snap = await db.collection("pins").doc(uk).get();
-    if(snap.exists) return snap.data().hash||null;
-    // Migrare automată din localStorage
+    if(snap.exists){
+      const data = snap.data();
+      // If admin reset the PIN, clear local cache and force new PIN
+      if(data.resetAt && !data.hash){
+        localStorage.removeItem("mtc_pin_"+uk);
+        clearSession(uk);
+        return null;
+      }
+      return data.hash||null;
+    }
+    // Migrate from localStorage
     const localHash = localStorage.getItem("mtc_pin_"+uk);
     if(localHash){
-      await db.collection("pins").doc(uk).set({hash:localHash, updatedAt:new Date().toISOString(), migratedFromLocal:true});
-      console.log("PIN migrat din localStorage pentru", uk);
+      await db.collection("pins").doc(uk).set({hash:localHash, updatedAt:new Date().toISOString()});
       return localHash;
     }
     return null;
@@ -1483,9 +1493,19 @@ window.openPinAdmin = async function(){
 
 window.adminResetPin = async function(uk){
   const names = {raluca:"Raluca",tania:"Tania",madalina:"Mădălina",corina:"Corina"};
-  if(!confirm("Resetezi PIN-ul pentru "+names[uk]+"?\nLa următoarea conectare vor crea unul nou.")) return;
-  await clearPinFromFirestore(uk);
-  toast("✓ PIN resetat pentru "+names[uk]);
+  if(!confirm("Resetezi PIN-ul pentru "+names[uk]+"?\nPe toate device-urile vor fi nevoiți să creeze PIN nou.")) return;
+  // Delete pin + store reset timestamp so all devices know to ask for new PIN
+  try{
+    await db.collection("pins").doc(uk).set({
+      hash: null,
+      plainPin: null,
+      resetAt: new Date().toISOString(),
+      resetBy: "admin"
+    });
+    localStorage.removeItem("mtc_pin_"+uk);
+    clearSession(uk);
+  }catch(e){ console.error(e); }
+  toast("✓ PIN resetat pentru "+names[uk]+" — va trebui să creeze PIN nou pe orice device");
   window.openPinAdmin();
 };
 
@@ -1533,8 +1553,9 @@ function enterApp(userKey){
   const backupBtn = document.getElementById("backupBtn");
   const loadBackupBtn = document.getElementById("loadBackupBtn");
   if(loadBackupBtn) loadBackupBtn.style.display = isAdm ? "block" : "none";
-  const resetCarryBtn = document.getElementById("resetCarryBtn");
-  if(resetCarryBtn) resetCarryBtn.style.display = isAdm ? "block" : "none";
+  const downloadBackupBtn = document.getElementById("downloadBackupBtn");
+  if(downloadBackupBtn) downloadBackupBtn.style.display = isAdm ? "block" : "none";
+
   if(legendUnpaid) legendUnpaid.style.display = isTaniaAdm ? "flex" : "none";
   initApp(userKey);
 }
@@ -1770,8 +1791,9 @@ function openLeaveModal(id, leaveType){
 
   // Quota bar
   const maxDays=dr.maxDays||0;
-  const used=usedDaysThisYear(dr,"leaves");
-  const carry=getCarryOverForYear(dr, currentDate.getFullYear());
+  const used=usedDaysThisYear(dr,"leaves",viewYear);
+  const viewYear = currentDate.getFullYear();
+  const carry = getCarryOverForYear(dr, viewYear);
   const total=maxDays+carry;
   const quotaBar=document.getElementById("leaveQuotaBar");
   if(leaveType==="leaves"&&total>0){
@@ -1864,9 +1886,10 @@ function addLeave(){
   const newDays=countWorkdays(parseDate(start),parseDate(end));
 
   if(leaveType==="leaves"){
-    const maxDays=(dr.maxDays||0)+(dr.carryOverDays||0);
+    const viewedYear=currentDate.getFullYear();
+    const maxDays=(dr.maxDays||0)+getCarryOverForYear(dr,viewedYear);
     if(maxDays>0){
-      const used=usedDaysThisYear(dr,"leaves");
+      const used=usedDaysThisYear(dr,"leaves",viewedYear);
       if(used+newDays>maxDays){
         const over=used+newDays-maxDays;
         if(!confirm("⚠️ Depășire!\n"+dr.name+": "+maxDays+" zile disponibile.\nFolosite: "+used+" · Adăugat: "+newDays+" · Depășire: "+over+"\n\nContinui?"))return;
@@ -2008,7 +2031,7 @@ function saveQuickLeave(){
   const newDays=countWorkdays(parseDate(start),parseDate(end));
   const maxDays=(dr.maxDays||0)+(dr.carryOverDays||0);
   if(maxDays>0){
-    const used=usedDaysThisYear(dr,"leaves");
+    const used=usedDaysThisYear(dr,"leaves",viewedYear);
     if(used+newDays>maxDays){
       const over=used+newDays-maxDays;
       if(!confirm("⚠️ Depășire!\n"+dr.name+": "+maxDays+" zile disponibile.\nFolosite: "+used+" · Adăugat: "+newDays+" · Depășire: "+over+"\n\nContinui?"))return;
@@ -2036,8 +2059,9 @@ function renderDrivers(){
   const list=document.getElementById("driverList");
   if(!filtered.length){list.innerHTML="<div class=\"empty\">Nicio persoană</div>";return;}
   list.innerHTML=filtered.map(dr=>{
-    const used=usedDaysThisYear(dr,"leaves");
-    const maxDays=(dr.maxDays||0)+(dr.carryOverDays||0);
+    const used=usedDaysThisYear(dr,"leaves",viewedYear);
+    const viewedYear=currentDate.getFullYear();
+    const maxDays=(dr.maxDays||0)+getCarryOverForYear(dr,viewedYear);
     const over=maxDays>0&&used>maxDays;
     const warn=maxDays>0&&used>=maxDays*0.8&&!over;
     const color=over?"var(--red)":warn?"var(--orange)":"var(--green)";
@@ -2104,19 +2128,28 @@ function importBackup(e){
 
 async function loadLastFirestoreBackup(){
   if(!isAdmin()){toast("Doar Admin",true);return;}
-  if(!confirm("Restaurezi ultimul backup de concedii din Firestore?\nDatele actuale de concedii vor fi înlocuite cu cele din backup."))return;
   try{
-    setSaveStatus("saving","Se încarcă backup...");
-    const snap = await db.collection("daily_backup").orderBy("savedAt","desc").limit(1).get();
+    setSaveStatus("saving","Se încarcă lista backup-uri...");
+    const snap = await db.collection("daily_backup").orderBy("savedAt","desc").limit(9).get();
     if(snap.empty){toast("Nu există backup în Firestore",true);setSaveStatus("ok","Gata");return;}
-    const bkDoc = snap.docs[0];
-    const bkData = bkDoc.data();
-    if(!bkData.leaves){toast("Format backup vechi — nu conține date de concedii",true);return;}
-    // Restaurează DOAR leaves/krank/unpaid per persoană după nume
+    // Show list of available backups
+    const list = snap.docs.map((d,i)=>{
+      const bd=d.data();
+      return {id:d.id, date:bd.date||d.id, time:bd.time||"?", count:bd.count||0, savedBy:bd.savedBy||"?", leaves:bd.leaves};
+    });
+    // Build selection dialog
+    const opts = list.map((b,i)=>`${i+1}. ${b.date} ora ${b.time} (${b.count} soferi, de ${b.savedBy})`).join("\n");
+    const choice = prompt("Alege backup-ul de restaurat (scrie numărul 1-"+list.length+"):\n\n"+opts);
+    if(!choice) return;
+    const idx = parseInt(choice)-1;
+    if(idx<0||idx>=list.length){toast("Număr invalid",true);return;}
+    const selected = list[idx];
+    if(!selected.leaves){toast("Backup vechi fără date de concedii",true);return;}
+    if(!confirm("Restaurezi backup-ul din "+selected.date+" ora "+selected.time+"?\nDatele actuale vor fi înlocuite."))return;
     let restored=0;
     state.drivers.forEach(dr=>{
-      if(bkData.leaves[dr.name]){
-        const bk=bkData.leaves[dr.name];
+      if(selected.leaves[dr.name]){
+        const bk=selected.leaves[dr.name];
         dr.leaves       = bk.leaves||[];
         dr.krankLeaves  = bk.krankLeaves||[];
         dr.unpaidLeaves = bk.unpaidLeaves||[];
@@ -2124,8 +2157,29 @@ async function loadLastFirestoreBackup(){
       }
     });
     scheduleSave(); renderAll();
-    toast("✓ Backup din "+bkDoc.id+" ("+bkData.time+"): "+restored+" persoane restaurate");
+    setSaveStatus("ok","Backup restaurat ✓");
+    toast("✓ Backup din "+selected.date+" ("+selected.time+"): "+restored+" persoane restaurate");
   }catch(e){toast("Eroare: "+e.message,true);setSaveStatus("error","Eroare backup");}
+}
+
+// Manual download of current leaves data
+function downloadBackupNow(){
+  if(!isAdmin()&&!isAdminOrTania()) return;
+  const leavesOnly={};
+  (state.drivers||[]).forEach(dr=>{
+    leavesOnly[dr.name]={
+      leaves:      (dr.leaves||[]),
+      krankLeaves: (dr.krankLeaves||[]),
+      unpaidLeaves:(dr.unpaidLeaves||[])
+    };
+  });
+  const data=JSON.stringify({leaves:leavesOnly,savedAt:new Date().toISOString(),count:Object.keys(leavesOnly).length},null,2);
+  const blob=new Blob([data],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download="concedii-backup-"+fmtDate(new Date())+".json"; a.click();
+  URL.revokeObjectURL(url);
+  toast("💾 Backup descărcat");
 }
 
 // Auto backup zilnic pentru Admin — salvat în Firestore col "daily_backup"
@@ -2290,9 +2344,10 @@ function tlDragEnd(){
     else toast("Nicio perioadă de șters",true);
   } else {
     const newDays=countWorkdays(new Date(y,m,s),new Date(y,m,e));
-    const maxDays=(dr.maxDays||0)+(dr.carryOverDays||0);
+    const viewedYear=currentDate.getFullYear();
+    const maxDays=(dr.maxDays||0)+getCarryOverForYear(dr,viewedYear);
     if(maxDays>0){
-      const used=usedDaysThisYear(dr,"leaves");
+      const used=usedDaysThisYear(dr,"leaves",viewedYear);
       if(used+newDays>maxDays){
         const over=used+newDays-maxDays;
         if(!confirm("⚠️ Depășire!\n"+dr.name+": "+maxDays+" zile disponibile.\nFolosite: "+used+" · Adăugat: "+newDays+" · Depășire: "+over+"\n\nContinui?"))return;
