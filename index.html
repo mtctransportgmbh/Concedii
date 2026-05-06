@@ -2059,8 +2059,8 @@ function renderDrivers(){
   const list=document.getElementById("driverList");
   if(!filtered.length){list.innerHTML="<div class=\"empty\">Nicio persoană</div>";return;}
   list.innerHTML=filtered.map(dr=>{
-    const used=usedDaysThisYear(dr,"leaves",viewedYear);
     const viewedYear=currentDate.getFullYear();
+    const used=usedDaysThisYear(dr,"leaves",viewedYear);
     const maxDays=(dr.maxDays||0)+getCarryOverForYear(dr,viewedYear);
     const over=maxDays>0&&used>maxDays;
     const warn=maxDays>0&&used>=maxDays*0.8&&!over;
