@@ -1268,6 +1268,43 @@ function scheduleSave(){
   },600);
 }
 
+function buildCompleteBackup(){
+  const backup = {
+    version: 2,
+    savedAt: new Date().toISOString(),
+    drivers: (state.drivers||[]).map(dr=>({
+      id:            dr.id,
+      name:          dr.name,
+      visibleTo:     dr.visibleTo||[],
+      maxDays:       dr.maxDays||0,
+      carryOverDays: dr.carryOverDays||0,
+      carryOverByYear: dr.carryOverByYear||{},
+      leaves:        dr.leaves||[],
+      krankLeaves:   dr.krankLeaves||[],
+      unpaidLeaves:  dr.unpaidLeaves||[]
+    }))
+  };
+  return backup;
+}
+
+function restoreCompleteBackup(bk){
+  if(!bk || !bk.drivers) throw new Error("Format invalid — lipsesc driverii");
+  let restored=0;
+  bk.drivers.forEach(bkDr=>{
+    const dr = state.drivers.find(d=>d.id===bkDr.id || d.name===bkDr.name);
+    if(dr){
+      dr.leaves        = bkDr.leaves||[];
+      dr.krankLeaves   = bkDr.krankLeaves||[];
+      dr.unpaidLeaves  = bkDr.unpaidLeaves||[];
+      dr.maxDays       = bkDr.maxDays||dr.maxDays||0;
+      dr.carryOverDays = bkDr.carryOverDays||0;
+      dr.carryOverByYear = bkDr.carryOverByYear||{};
+      restored++;
+    }
+  });
+  return restored;
+}
+
 async function triggerAutoBackup(time){
   try{
     const now = new Date();
@@ -2210,18 +2247,20 @@ async function loadLastFirestoreBackup(){
     const idx = parseInt(choice)-1;
     if(idx<0||idx>=list.length){toast("Număr invalid",true);return;}
     const selected = list[idx];
-    if(!selected.leaves){toast("Backup vechi fără date de concedii",true);return;}
-    if(!confirm("Restaurezi backup-ul din "+selected.date+" ora "+selected.time+"?\nDatele actuale vor fi înlocuite."))return;
+    if(!selected.drivers && !selected.leaves){toast("Backup fără date utilizabile",true);return;}
+    if(!confirm("Restaurezi backup-ul din "+selected.date+" ora "+selected.time+"?\nConcedii, krank, fără plată, zile disponibile și reportate vor fi înlocuite."))return;
     let restored=0;
-    state.drivers.forEach(dr=>{
-      if(selected.leaves[dr.name]){
-        const bk=selected.leaves[dr.name];
-        dr.leaves       = bk.leaves||[];
-        dr.krankLeaves  = bk.krankLeaves||[];
-        dr.unpaidLeaves = bk.unpaidLeaves||[];
-        restored++;
-      }
-    });
+    if(selected.drivers){
+      restored=restoreCompleteBackup(selected);
+    } else if(selected.leaves){
+      state.drivers.forEach(dr=>{
+        if(selected.leaves[dr.name]){
+          const bk=selected.leaves[dr.name];
+          dr.leaves=bk.leaves||[];dr.krankLeaves=bk.krankLeaves||[];dr.unpaidLeaves=bk.unpaidLeaves||[];
+          restored++;
+        }
+      });
+    }
     scheduleSave(); renderAll();
     setSaveStatus("ok","Backup restaurat ✓");
     toast("✓ Backup din "+selected.date+" ("+selected.time+"): "+restored+" persoane restaurate");
@@ -2231,23 +2270,26 @@ async function loadLastFirestoreBackup(){
 // Manual download of current leaves data
 function uploadLocalBackup(e){
   const file=e.target.files[0];if(!file)return;
-  if(!confirm("Restaurezi concediile din fișierul backup?\nDatele actuale vor fi înlocuite."))
+  if(!confirm("Restaurezi datele din fișierul backup?\nConcedii, krank, fără plată, zile disponibile și reportate vor fi înlocuite."))
     {e.target.value="";return;}
   const reader=new FileReader();
   reader.onload=ev=>{
     try{
       const bk=JSON.parse(ev.target.result);
-      if(!bk.leaves) throw new Error("Format invalid — lipsește câmpul leaves");
       let restored=0;
-      state.drivers.forEach(dr=>{
-        if(bk.leaves[dr.name]){
-          const d=bk.leaves[dr.name];
-          dr.leaves      =d.leaves||[];
-          dr.krankLeaves =d.krankLeaves||[];
-          dr.unpaidLeaves=d.unpaidLeaves||[];
-          restored++;
-        }
-      });
+      // Support both old format (bk.leaves) and new format (bk.drivers)
+      if(bk.drivers){
+        restored=restoreCompleteBackup(bk);
+      } else if(bk.leaves){
+        // Old format fallback
+        state.drivers.forEach(dr=>{
+          if(bk.leaves[dr.name]){
+            const d=bk.leaves[dr.name];
+            dr.leaves=d.leaves||[];dr.krankLeaves=d.krankLeaves||[];dr.unpaidLeaves=d.unpaidLeaves||[];
+            restored++;
+          }
+        });
+      } else throw new Error("Format necunoscut");
       scheduleSave();renderAll();
       toast("✓ Restaurat: "+restored+" persoane din "+file.name);
     }catch(err){toast("Eroare: "+err.message,true);}
@@ -2257,21 +2299,14 @@ function uploadLocalBackup(e){
 
 function downloadBackupNow(){
   if(!isAdminOrTania()) return;
-  const leavesOnly={};
-  (state.drivers||[]).forEach(dr=>{
-    leavesOnly[dr.name]={
-      leaves:      (dr.leaves||[]),
-      krankLeaves: (dr.krankLeaves||[]),
-      unpaidLeaves:(dr.unpaidLeaves||[])
-    };
-  });
-  const data=JSON.stringify({leaves:leavesOnly,savedAt:new Date().toISOString(),count:Object.keys(leavesOnly).length},null,2);
+  const backup = buildCompleteBackup();
+  const data=JSON.stringify(backup,null,2);
   const blob=new Blob([data],{type:"application/json"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
-  a.href=url; a.download="concedii-backup-"+fmtDate(new Date())+".json"; a.click();
+  a.href=url; a.download="mtc-backup-complet-"+fmtDate(new Date())+".json"; a.click();
   URL.revokeObjectURL(url);
-  toast("💾 Backup descărcat");
+  toast("💾 Backup complet descărcat ("+backup.drivers.length+" persoane)");
 }
 
 // Auto backup zilnic pentru Admin — salvat în Firestore col "daily_backup"
