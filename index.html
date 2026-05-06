@@ -401,7 +401,7 @@
   
   .stats {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 10px;
     margin-bottom: 16px;
   }
@@ -876,7 +876,9 @@
       <button class="btn btn-big" onclick="openQuickLeave()" style="flex:1; max-width:300px">
         ➕ Adaugă concediu rapid
       </button>
-
+      <button class="btn btn-big" id="quickKrankBtn" onclick="openQuickKrank()" style="flex:1; max-width:180px; background:rgba(59,130,246,0.2); color:rgba(147,197,253,0.95); border:1px solid rgba(59,130,246,0.4)">
+        🤒 Krank rapid
+      </button>
     </div>
 
     <!-- Group filter — only for Tania/Admin -->
@@ -1560,6 +1562,9 @@ function enterApp(userKey){
   if(filterBar) filterBar.style.display = isTaniaAdm?"flex":"none";
   document.getElementById("authScreen").style.display = "none";
   document.getElementById("appRoot").style.display    = "grid";
+  // Krank rapid — all users
+  const quickKrankBtn = document.getElementById("quickKrankBtn");
+  if(quickKrankBtn) quickKrankBtn.style.display = "block";
   const backupBtn = document.getElementById("backupBtn");
   const loadBackupBtn = document.getElementById("loadBackupBtn");
   if(loadBackupBtn) loadBackupBtn.style.display = isAdm ? "block" : "none";
@@ -1979,7 +1984,22 @@ function deleteLeave(driverId,start,end,leaveType){
 // ============================================================
 // QUICK LEAVE
 // ============================================================
+function openQuickKrank(){
+  comboSelectedId=null;
+  document.getElementById("comboInput").value="";
+  document.getElementById("quickStart").value="";
+  document.getElementById("quickEnd").value="";
+  document.getElementById("comboList").classList.remove("show");
+  document.getElementById("modalQuick").dataset.quickType="krank";
+  openModal("modalQuick");
+  // Update modal title
+  document.getElementById("modalQuick").querySelector("h3").textContent="Adaugă Krank";
+  setTimeout(()=>document.getElementById("comboInput").focus(),50);
+}
+
 function openQuickLeave(){
+  document.getElementById("modalQuick").dataset.quickType="leaves";
+  document.getElementById("modalQuick").querySelector("h3").textContent="Adaugă concediu";
   comboSelectedId=null;
   document.getElementById("comboInput").value="";
   document.getElementById("quickStart").value="";
