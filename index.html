@@ -1706,12 +1706,21 @@ function getVisibleDrivers(){
   const uk = window.activeUserKey||"tania";
   let drivers;
   if(uk==="tania"||uk==="admin"){
-    drivers = state.drivers;
-    // Apply group filter
-    if(activeGroup!=="total"&&GROUPS[activeGroup]){
-      const nameSet = new Set(GROUPS[activeGroup].map(n=>n.toLowerCase()));
-      drivers = drivers.filter(dr=>nameSet.has(dr.name.toLowerCase()));
+    let drivers = state.drivers;
+    if(activeGroup!=="total"){
+      // Filtrează după visibleTo — mai precis decât lista de nume
+      const groupUserKey = activeGroup==="eiselfing"?"madalina":activeGroup==="ruhstorf"?"raluca":activeGroup==="camion"?"corina":null;
+      if(groupUserKey){
+        const nameSet = new Set((GROUPS[activeGroup]||[]).map(n=>n.toLowerCase()));
+        drivers = drivers.filter(dr=>{
+          // Prima opțiune: câmpul visibleTo (persoane noi)
+          if(dr.visibleTo && dr.visibleTo.length>0) return dr.visibleTo.includes(groupUserKey);
+          // Fallback: lista hardcodată (persoane vechi)
+          return nameSet.has(dr.name.toLowerCase());
+        });
+      }
     }
+    return drivers;
   } else {
     drivers = state.drivers.filter(dr=>{
       if(!dr.visibleTo||dr.visibleTo.length===0){
@@ -2204,7 +2213,7 @@ function setStatLevel(id,count){const el=document.getElementById(id);el.classLis
 function setGroup(g){
   activeGroup=g;
   document.querySelectorAll(".group-tab").forEach(t=>t.classList.toggle("active",t.dataset.group===g));
-  renderMain();
+  renderAll();
 }
 
 // ============================================================
