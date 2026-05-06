@@ -847,6 +847,8 @@
     <button class="btn btn-secondary btn-small" id="pinMgrBtn" onclick="openPinAdmin()" style="width:100%; margin-bottom:6px; display:none">🔐 Coduri PIN</button>
     <button class="btn btn-secondary btn-small" id="loadBackupBtn" onclick="loadLastFirestoreBackup()" style="width:100%; margin-bottom:6px; display:none">🔄 Restaurează backup Firestore</button>
     <button class="btn btn-secondary btn-small" id="downloadBackupBtn" onclick="downloadBackupNow()" style="width:100%; margin-bottom:6px; display:none">💾 Descarcă backup acum</button>
+    <button class="btn btn-secondary btn-small" id="uploadBackupBtn" onclick="document.getElementById('uploadBackupFile').click()" style="width:100%; margin-bottom:6px; display:none">📂 Încarcă backup fișier</button>
+    <input type="file" id="uploadBackupFile" accept=".json" style="display:none" onchange="uploadLocalBackup(event)">
 
     <div style="position:relative;margin-bottom:8px">
       <input type="text" id="searchDriver" placeholder="🔍 Caută persoană..." oninput="renderDrivers()" style="width:100%;padding-right:28px">
@@ -897,6 +899,10 @@
       <div class="stat" id="statPeakBox">
         <div class="stat-label">Vârf în lună</div>
         <div class="stat-value" id="statPeak">0</div>
+      </div>
+      <div class="stat" id="statKrankBox" onclick="openStats('krank')" style="display:none;cursor:pointer;border-left-color:rgba(59,130,246,0.7)">
+        <div class="stat-label">🤒 Krank luna</div>
+        <div class="stat-value" id="statKrank" style="font-size:18px">0</div>
       </div>
     </div>
     
@@ -1063,9 +1069,13 @@
 <!-- STATS MODAL -->
 <div class="modal-bg" id="modalStats">
   <div class="modal" style="max-width:640px">
-    <h3>📊 Statistici Krank & Fără plată</h3>
+    <h3>📊 Statistici</h3>
     <div class="modal-sub" id="modalStatsSub"></div>
-    <div id="statsContent" style="margin-top:12px"></div>
+    <div style="display:flex;gap:8px;margin:10px 0">
+      <button id="statsFilterKrank" class="group-tab active" onclick="switchStatsFilter('krank')">🤒 Krank</button>
+      <button id="statsFilterUnpaid" class="group-tab" onclick="switchStatsFilter('unpaid')">⛔ Fără plată</button>
+    </div>
+    <div id="statsContent" style="margin-top:8px;max-height:60vh;overflow-y:auto"></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modalStats')">Închide</button>
     </div>
@@ -1555,6 +1565,8 @@ function enterApp(userKey){
   if(loadBackupBtn) loadBackupBtn.style.display = isAdm ? "block" : "none";
   const downloadBackupBtn = document.getElementById("downloadBackupBtn");
   if(downloadBackupBtn) downloadBackupBtn.style.display = isAdm ? "block" : "none";
+  const uploadBackupBtn = document.getElementById("uploadBackupBtn");
+  if(uploadBackupBtn) uploadBackupBtn.style.display = isAdm ? "block" : "none";
 
   if(legendUnpaid) legendUnpaid.style.display = isTaniaAdm ? "flex" : "none";
   initApp(userKey);
@@ -1939,8 +1951,16 @@ function addLeave(){
     }
   }
 
-  if(!dr[leaveType]) dr[leaveType]=[];
-  dr[leaveType].push({start,end});
+  if(leaveType==="krank"){
+    if(!dr.krankLeaves) dr.krankLeaves=[];
+    dr.krankLeaves.push({start,end});
+  } else if(leaveType==="unpaid"){
+    if(!dr.unpaidLeaves) dr.unpaidLeaves=[];
+    dr.unpaidLeaves.push({start,end});
+  } else {
+    if(!dr.leaves) dr.leaves=[];
+    dr.leaves.push({start,end});
+  }
   openLeaveModal(leaveDriverId,leaveType);
   renderMain();scheduleSave();
   toast("✓ "+newDays+" zile lucrătoare adăugate ("+
@@ -2163,6 +2183,32 @@ async function loadLastFirestoreBackup(){
 }
 
 // Manual download of current leaves data
+function uploadLocalBackup(e){
+  const file=e.target.files[0];if(!file)return;
+  if(!confirm("Restaurezi concediile din fișierul backup?\nDatele actuale vor fi înlocuite."))
+    {e.target.value="";return;}
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const bk=JSON.parse(ev.target.result);
+      if(!bk.leaves) throw new Error("Format invalid — lipsește câmpul leaves");
+      let restored=0;
+      state.drivers.forEach(dr=>{
+        if(bk.leaves[dr.name]){
+          const d=bk.leaves[dr.name];
+          dr.leaves      =d.leaves||[];
+          dr.krankLeaves =d.krankLeaves||[];
+          dr.unpaidLeaves=d.unpaidLeaves||[];
+          restored++;
+        }
+      });
+      scheduleSave();renderAll();
+      toast("✓ Restaurat: "+restored+" persoane din "+file.name);
+    }catch(err){toast("Eroare: "+err.message,true);}
+  };
+  reader.readAsText(file);e.target.value="";
+}
+
 function downloadBackupNow(){
   if(!isAdmin()&&!isAdminOrTania()) return;
   const leavesOnly={};
@@ -2239,9 +2285,11 @@ function renderCalendar(){
   const onLeaveToday=driversOnDate(today).length;
   document.getElementById("statToday").textContent=onLeaveToday;setStatLevel("statTodayBox",onLeaveToday);
   const daysInMonth=lastDay.getDate();
-  const counts=[];for(let d=1;d<=daysInMonth;d++){const dt=new Date(y,m,d);counts.push(isSunday(dt)?0:driversOnDate(dt).length);}
-  const peak=Math.max(...counts,0),manDays=counts.reduce((a,b)=>a+b,0);
+  const counts=[];let krankTotal=0;
+  for(let d=1;d<=daysInMonth;d++){const dt=new Date(y,m,d);counts.push(isSunday(dt)?0:driversOnDate(dt).length);if(!isSunday(dt))krankTotal+=krankOnDate(dt).length;}
+  const peak=Math.max(...counts,0);
   document.getElementById("statPeak").textContent=peak;
+  if(document.getElementById("statKrank"))document.getElementById("statKrank").textContent=krankTotal;
   setStatLevel("statPeakBox",peak);
 }
 
@@ -2500,9 +2548,13 @@ function updateThresholdLegend(){
 function renderMain(){if(view==="calendar")renderCalendar();else renderTimeline();}
 function renderAll(includeDrivers=true){if(includeDrivers)renderDrivers();renderMain();}
 
-function openStats(){
+function openStats(filter){
   if(!isAdminOrTania()) return;
+  if(!filter) filter="krank";
   const y = currentDate.getFullYear();
+  // Store current filter
+  document.getElementById("statsFilterKrank").classList.toggle("active", filter==="krank");
+  document.getElementById("statsFilterUnpaid").classList.toggle("active", filter==="unpaid");
   document.getElementById("modalStatsSub").textContent = "Anul "+y+" — toate persoanele vizibile";
   const drivers = getVisibleDrivers();
   const monthNames = ["Ian","Feb","Mar","Apr","Mai","Iun","Iul","Aug","Sep","Oct","Nov","Dec"];
@@ -2550,59 +2602,59 @@ function openStats(){
 
   // Build HTML
   let html = "";
+  const showKrank = filter==="krank";
+  const showUnpaid = filter==="unpaid";
 
   // Krank section
-  html += `<div style="margin-bottom:20px">
-    <div style="font-size:13px;font-weight:700;color:rgba(59,130,246,0.9);margin-bottom:10px">🤒 KRANK — Total ${y}: <strong>${totalKrank} zile</strong></div>`;
-  if(totalKrank>0){
-    // Monthly bar chart
-    const maxK = Math.max(...krankByMonth,1);
-    html += `<div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-bottom:12px">`;
-    krankByMonth.forEach((v,m)=>{
-      const h = v>0?Math.max(4,Math.round(v/maxK*40)):0;
-      html+=`<div style="text-align:center">
-        <div style="height:40px;display:flex;align-items:flex-end;justify-content:center">
-          <div style="width:100%;background:rgba(59,130,246,0.6);height:${h}px;border-radius:2px 2px 0 0"></div>
-        </div>
-        <div style="font-size:9px;color:var(--text-dim)">${monthNames[m]}</div>
-        <div style="font-size:10px;font-weight:700;color:${v>0?"rgba(59,130,246,0.9)":"var(--text-dim)"}">${v||""}</div>
-      </div>`;
-    });
-    html += `</div>`;
-    // Per person
-    const sorted = Object.entries(krankPersons).sort((a,b)=>b[1]-a[1]);
-    html += sorted.map(([name,days])=>`<div style="display:flex;justify-content:space-between;padding:5px 8px;background:var(--bg-elev-2);border-radius:4px;margin-bottom:3px;font-size:12px"><span>${escapeHtml(name)}</span><span style="color:rgba(59,130,246,0.9);font-weight:700">${days}z</span></div>`).join("");
-  } else {
-    html += `<div style="color:var(--text-dim);font-size:12px">Nicio zi krank înregistrată în ${y}</div>`;
+  if(showKrank){
+    html += '<div style="margin-bottom:20px">';
+    html += '<div style="font-size:13px;font-weight:700;color:rgba(59,130,246,0.9);margin-bottom:10px">Total '+y+': <strong>'+totalKrank+' zile krank</strong></div>';
+    if(totalKrank>0){
+      const maxK = Math.max(...krankByMonth,1);
+      html += '<div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-bottom:12px">';
+      krankByMonth.forEach((v,mi)=>{
+        const h = v>0?Math.max(4,Math.round(v/maxK*40)):0;
+        const col = v>0?"rgba(59,130,246,0.9)":"var(--text-dim)";
+        html+='<div style="text-align:center"><div style="height:40px;display:flex;align-items:flex-end;justify-content:center"><div style="width:100%;background:rgba(59,130,246,0.6);height:'+h+'px;border-radius:2px 2px 0 0"></div></div><div style="font-size:9px;color:var(--text-dim)">'+monthNames[mi]+'</div><div style="font-size:10px;font-weight:700;color:'+col+'">'+(v||"")+'</div></div>';
+      });
+      html += '</div>';
+      const sorted = Object.entries(krankPersons).sort((a,b)=>b[1]-a[1]);
+      html += sorted.map(([name,days])=>'<div style="display:flex;justify-content:space-between;padding:5px 8px;background:var(--bg-elev-2);border-radius:4px;margin-bottom:3px;font-size:12px"><span>'+escapeHtml(name)+'</span><span style="color:rgba(59,130,246,0.9);font-weight:700">'+days+'z</span></div>').join("");
+    } else {
+      html += '<div style="color:var(--text-dim);font-size:12px">Nicio zi krank înregistrată în '+y+'</div>';
+    }
+    html += '</div>';
   }
-  html += `</div>`;
 
   // Unpaid section
-  html += `<div>
-    <div style="font-size:13px;font-weight:700;color:rgba(249,115,22,0.9);margin-bottom:10px">⛔ FĂRĂ PLATĂ — Total ${y}: <strong>${totalUnpaid} zile</strong></div>`;
-  if(totalUnpaid>0){
-    const maxU = Math.max(...unpaidByMonth,1);
-    html += `<div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-bottom:12px">`;
-    unpaidByMonth.forEach((v,m)=>{
-      const h = v>0?Math.max(4,Math.round(v/maxU*40)):0;
-      html+=`<div style="text-align:center">
-        <div style="height:40px;display:flex;align-items:flex-end;justify-content:center">
-          <div style="width:100%;background:rgba(249,115,22,0.6);height:${h}px;border-radius:2px 2px 0 0"></div>
-        </div>
-        <div style="font-size:9px;color:var(--text-dim)">${monthNames[m]}</div>
-        <div style="font-size:10px;font-weight:700;color:${v>0?"rgba(249,115,22,0.9)":"var(--text-dim)"}">${v||""}</div>
-      </div>`;
-    });
-    html += `</div>`;
-    const sorted2 = Object.entries(unpaidPersons).sort((a,b)=>b[1]-a[1]);
-    html += sorted2.map(([name,days])=>`<div style="display:flex;justify-content:space-between;padding:5px 8px;background:var(--bg-elev-2);border-radius:4px;margin-bottom:3px;font-size:12px"><span>${escapeHtml(name)}</span><span style="color:rgba(249,115,22,0.9);font-weight:700">${days}z</span></div>`).join("");
-  } else {
-    html += `<div style="color:var(--text-dim);font-size:12px">Nicio zi fără plată înregistrată în ${y}</div>`;
+  if(showUnpaid){
+    html += '<div>';
+    html += '<div style="font-size:13px;font-weight:700;color:rgba(249,115,22,0.9);margin-bottom:10px">Total '+y+': <strong>'+totalUnpaid+' zile fără plată</strong></div>';
+    if(totalUnpaid>0){
+      const maxU = Math.max(...unpaidByMonth,1);
+      html += '<div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-bottom:12px">';
+      unpaidByMonth.forEach((v,mi)=>{
+        const h = v>0?Math.max(4,Math.round(v/maxU*40)):0;
+        const col = v>0?"rgba(249,115,22,0.9)":"var(--text-dim)";
+        html+='<div style="text-align:center"><div style="height:40px;display:flex;align-items:flex-end;justify-content:center"><div style="width:100%;background:rgba(249,115,22,0.6);height:'+h+'px;border-radius:2px 2px 0 0"></div></div><div style="font-size:9px;color:var(--text-dim)">'+monthNames[mi]+'</div><div style="font-size:10px;font-weight:700;color:'+col+'">'+(v||"")+'</div></div>';
+      });
+      html += '</div>';
+      const sorted2 = Object.entries(unpaidPersons).sort((a,b)=>b[1]-a[1]);
+      html += sorted2.map(([name,days])=>'<div style="display:flex;justify-content:space-between;padding:5px 8px;background:var(--bg-elev-2);border-radius:4px;margin-bottom:3px;font-size:12px"><span>'+escapeHtml(name)+'</span><span style="color:rgba(249,115,22,0.9);font-weight:700">'+days+'z</span></div>').join("");
+    } else {
+      html += '<div style="color:var(--text-dim);font-size:12px">Nicio zi fără plată înregistrată în '+y+'</div>';
+    }
+    html += '</div>';
   }
-  html += `</div>`;
 
   document.getElementById("statsContent").innerHTML = html;
   openModal("modalStats");
+}
+
+window._statsFilter = "krank";
+function switchStatsFilter(f){
+  window._statsFilter=f;
+  openStats(f);
 }
 
 function clearSearch(id){
