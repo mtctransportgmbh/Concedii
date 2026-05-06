@@ -2142,14 +2142,12 @@ function renderDrivers(){
     }
     const krankBtn=`<button class="icon-btn" onclick="openLeaveModal('${dr.id}','krank')" title="Krank" style="font-size:11px">🤒</button>`;
     const unpaidBtn=isTaniaAdm?`<button class="icon-btn" onclick="openLeaveModal('${dr.id}','unpaid')" title="Fără plată" style="font-size:11px">⛔</button>`:"";
-    // Extra info krank/unpaid visible only to tania/admin
+    // Krank visible to all users; unpaid only to tania/admin
     let extraHtml="";
-    if(isTaniaAdm){
-      const k=usedDaysThisYear(dr,"krank");
-      const u=usedDaysThisYear(dr,"unpaid");
-      if(k>0||u>0){
-        extraHtml=`<div style="margin-top:3px;font-size:10px;color:var(--text-dim);">${k>0?"🤒 "+k+"z krank":""}${k>0&&u>0?" · ":""}${u>0?"⛔ "+u+"z f.plată":""}</div>`;
-      }
+    const k=usedDaysThisYear(dr,"krank",viewedYear);
+    const u=isTaniaAdm?usedDaysThisYear(dr,"unpaid",viewedYear):0;
+    if(k>0||u>0){
+      extraHtml=`<div style="margin-top:3px;font-size:10px;color:var(--text-dim);">${k>0?`<span style="color:rgba(147,197,253,0.9)">🤒 ${k}z krank</span>`:""}${k>0&&u>0?" · ":""}${u>0?`<span style="color:rgba(253,186,116,0.9)">⛔ ${u}z f.plată</span>`:""}</div>`;
     }    const editBtns=canAdmin?`<div class="driver-actions"><button class="icon-btn" onclick="openEditDriver('${dr.id}')" title="Editează">✏️</button><button class="icon-btn" onclick="deleteDriver('${dr.id}')" title="Șterge">🗑</button></div>`:"";
     return `<div class="driver-item" style="flex-direction:column;align-items:stretch;gap:0;padding:8px 10px">
       <div style="display:flex;align-items:center;justify-content:space-between">
@@ -2359,11 +2357,20 @@ function renderCalDay(d,otherMonth,today){
   let namesHtml="";
   if(!isSun&&!otherMonth){
     const MAX_SHOW=10;
-    const allShown=drivers.slice(0,MAX_SHOW);
-    const rest=drivers.length-allShown.length;
-    if(allShown.length>0){
+    // Build combined list: krank first (blue), unpaid second (orange, tania/admin only), then normal leave
+    const combined=[];
+    kDriversCal.forEach(dr=>combined.push({dr,type:"krank"}));
+    uDriversCal.forEach(dr=>{ if(!combined.find(x=>x.dr.id===dr.id)) combined.push({dr,type:"unpaid"}); });
+    drivers.forEach(dr=>{ if(!combined.find(x=>x.dr.id===dr.id)) combined.push({dr,type:"leave"}); });
+    const visible=combined.slice(0,MAX_SHOW);
+    const rest=combined.length-visible.length;
+    if(visible.length>0){
       namesHtml=`<div class="cal-names">`+
-        allShown.map(dr=>`<div class="cal-name">${escapeHtml(dr.name.split(" ")[0])}</div>`).join("")+
+        visible.map(({dr,type})=>{
+          const cls = type==="krank"?" krank":type==="unpaid"?" unpaid":"";
+          const suffix = type==="krank"?" K":type==="unpaid"?" U":"";
+          return `<div class="cal-name${cls}">${escapeHtml(dr.name.split(" ")[0])}${suffix}</div>`;
+        }).join("")+
         (rest>0?`<div class="cal-name cal-name-more">+${rest}</div>`:"")+
       `</div>`;
     }
