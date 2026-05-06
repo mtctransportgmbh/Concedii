@@ -1807,9 +1807,9 @@ function openLeaveModal(id, leaveType){
   document.getElementById("modalLeave").dataset.leaveType = leaveType;
 
   // Quota bar
+  const viewYear = currentDate.getFullYear();
   const maxDays=dr.maxDays||0;
   const used=usedDaysThisYear(dr,"leaves",viewYear);
-  const viewYear = currentDate.getFullYear();
   const carry = getCarryOverForYear(dr, viewYear);
   const total=maxDays+carry;
   const quotaBar=document.getElementById("leaveQuotaBar");
