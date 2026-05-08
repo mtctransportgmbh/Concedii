@@ -523,26 +523,29 @@
   .cal-names {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 0;
     margin-top: 4px;
     flex: 1;
     overflow: hidden;
-    align-items: flex-start;
+    width: 100%;
   }
   .cal-name {
     font-size: 11px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.95);
-    background: rgba(255,255,255,0.18);
-    border-radius: 20px;
-    padding: 1px 6px;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(0,0,0,0.45);
+    padding: 2px 5px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.5;
-    max-width: 100%;
-    display: inline-block;
+    line-height: 1.4;
+    width: 100%;
+    display: block;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    box-sizing: border-box;
   }
+  .cal-name:first-child { border-top: none; margin-top: 2px; }
+  .cal-day.lvl-0 .cal-name { color: var(--text-dim); background: rgba(0,0,0,0.2); }
   .cal-day.lvl-0 .cal-name {
     color: var(--text-dim);
     background: rgba(255,255,255,0.06);
@@ -552,14 +555,14 @@
     background: rgba(255,255,255,0.1) !important;
     font-style: italic;
   }
-  /* Krank names — blue tint pill */
+  /* Krank names — blue tint */
   .cal-name.krank {
-    background: rgba(59,130,246,0.25) !important;
-    color: rgba(147,197,253,0.95) !important;
+    background: rgba(30,64,175,0.6) !important;
+    color: rgba(186,230,253,0.95) !important;
   }
   /* Unpaid names — orange tint */
   .cal-name.unpaid {
-    background: rgba(249,115,22,0.25) !important;
+    background: rgba(154,52,18,0.6) !important;
     color: rgba(253,186,116,0.95) !important;
   }
   /* Timeline krank cell */
@@ -729,7 +732,7 @@
   .pin-forgot { background:none; border:none; color:var(--text-dim); font-size:12px; cursor:pointer; text-decoration:underline; margin-top:8px; }
 
   @media (min-width: 769px) {
-    .cal-day { min-height: 140px; padding: 3px 4px; }
+    .cal-day { min-height: 110px; padding: 3px 4px; }
     .cal-day-num { font-size: 11px; }
     .cal-name { font-size: 11px; }
     .cal-grid { gap: 2px; }
@@ -2399,9 +2402,9 @@ function renderCalDay(d,otherMonth,today){
   if(holiday)classes.push("holiday");if(otherMonth)classes.push("other-month");if(isToday)classes.push("today");
   const ds=fmtDate(d),clickHandler=isSun?"":`onclick="openDayDetail('${ds}')"`;
   let namesHtml="";
-  if(!isSun&&!otherMonth){
-    const MAX_SHOW=10;
-    // Build combined list: krank first (blue), unpaid second (orange, tania/admin only), then normal leave
+  // Don't show names on holidays or sundays — just like sundays are blocked
+  if(!isSun&&!holiday&&!otherMonth){
+    const MAX_SHOW=5;
     const combined=[];
     kDriversCal.forEach(dr=>combined.push({dr,type:"krank"}));
     uDriversCal.forEach(dr=>{ if(!combined.find(x=>x.dr.id===dr.id)) combined.push({dr,type:"unpaid"}); });
@@ -2447,6 +2450,9 @@ let tlDrag = {active:false,driverId:null,startDay:null,endDay:null,removing:fals
 
 function tlDragStart(driverId,dn,isSun,onLeave){
   if(isSun)return;
+  // Also block holidays
+  const d=new Date(currentDate.getFullYear(),currentDate.getMonth(),dn);
+  if(getHoliday(d))return;
   tlDrag={active:true,driverId,startDay:dn,endDay:dn,removing:onLeave};
   document.querySelectorAll(".tl-row,.tl-driver-row").forEach(el=>el.classList.remove("tl-row-active"));
   document.querySelectorAll(`.tl-row[data-driver-row="${driverId}"],.tl-driver-row[data-driver-row="${driverId}"]`).forEach(el=>el.classList.add("tl-row-active"));
@@ -2559,11 +2565,12 @@ function renderTimeline(){
       else if(onLeave){ cls.push("in-leave"); dailyCounts[dn]++; }
       const ds=fmtDate(d);
       const isOccupied=onLeave||onKrank||onUnpaid;
-      const dragAttrs=isSun?"":
+      const isBlocked=isSun||!!holiday;
+      const dragAttrs=isBlocked?"":
         `onmousedown="tlDragStart('${dr.id}',${dn},false,${isOccupied})" `+
         `onmousemove="if(event.buttons===1&&tlDrag.active)tlDragMove(${dn},event.pageX,event.pageY)" `;
       const tipLabel=onKrank?"Krank":onUnpaid?"Fără plată":onLeave?"Concediu":"";
-      const tipText=isSun?"Duminică":(isOccupied?"Drag pentru a șterge ("+tipLabel+")":"Drag pentru a adăuga concediu");
+      const tipText=isSun?"Duminică":holiday?"Sărbătoare — "+holiday:(isOccupied?"Drag pentru a șterge ("+tipLabel+")":"Drag pentru a adăuga concediu");
       const cellContent=onKrank?"K":onUnpaid?"U":"";
       gridHtml+=`<div class='${cls.join(" ")}' ${dragAttrs} title="${escapeHtml(dr.name+" · "+formatDateRO(ds)+(holiday?" · "+holiday:"")+" — "+tipText)}" data-driver='${dr.id}' data-day='${dn}'>${cellContent}</div>`;
     }
