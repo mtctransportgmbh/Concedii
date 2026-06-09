@@ -1428,7 +1428,7 @@
 // ============================================================
 // CONFIGURARE — schimbă doar USE_TEST pentru a comuta între medii
 // ============================================================
-const USE_TEST = false; // true = test | false = producție
+const USE_TEST = true; // true = test | false = producție
 
 const FIREBASE_CONFIGS = {
   production: {
@@ -3561,12 +3561,33 @@ function getSortKey(){
   return sortCurrentDate.getFullYear()+"-"+String(sortCurrentDate.getMonth()+1).padStart(2,"0"); 
 }
 
+// Helpers pentru drivers per lună
+function getMonthDrivers(mk){
+  if(!mk) mk=getSortKey();
+  if(!sortState.drivers) return [];
+  // Format vechi = array global
+  if(Array.isArray(sortState.drivers)) return sortState.drivers;
+  // Format nou = obiect per lună
+  return sortState.drivers[mk]||[];
+}
+
+function setMonthDrivers(drivers, mk){
+  if(!mk) mk=getSortKey();
+  if(!sortState.drivers||Array.isArray(sortState.drivers)){
+    const old=Array.isArray(sortState.drivers)?sortState.drivers:[];
+    sortState.drivers={};
+    if(old.length) sortState.drivers[mk]=old;
+  }
+  // Sortează mereu alfabetic
+  drivers.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ro'));
+  sortState.drivers[mk]=drivers;
+}
+
 function getSortDrivers(){
   const uk = window.activeUserKey||"tania";
-  const all = sortState.drivers||[];
+  const all = getMonthDrivers();
   if(uk==="mihaela")  return all.filter(d=>d.group==="ruhstorf");
   if(uk==="madalina") return all.filter(d=>d.group==="eiselfing");
-  // tania/admin — filtered by sortView tab
   return all.filter(d=>d.group===sortView);
 }
 
@@ -3614,8 +3635,13 @@ function goSortToday(){ sortCurrentDate = new Date(); renderSortatoriTimeline();
 // ---- Firestore ----
 async function saveSortState(){
   try{
-    if(!sortState.drivers||sortState.drivers.length===0){ console.warn("saveSortState: empty — ABORTED"); return; }
+    // Verificăm că există cel puțin o lună cu date
+    const hasData = Array.isArray(sortState.drivers)
+      ? (sortState.drivers.length > 0)
+      : Object.values(sortState.drivers||{}).some(arr=>arr&&arr.length>0);
+    if(!hasData){ console.warn("saveSortState: no data in any month — ABORTED"); return; }
     await db.collection(sortatoriColl()).doc("state").set(JSON.parse(JSON.stringify(sortState)));
+    scheduleBackup();
   }catch(e){ console.error("sort save",e); }
 }
 
@@ -3626,8 +3652,23 @@ function loadSortState(){
   _sortUnsub = db.collection(sortatoriColl()).doc("state").onSnapshot(snap=>{
     if(snap.exists){
       const data = snap.data();
-      sortState.drivers  = data.drivers  || [];
+      // Suport ambele formate: array (vechi) sau obiect per lună (nou)
+      if(Array.isArray(data.drivers)){
+        // Format vechi - migrăm în format nou la prima salvare
+        sortState.drivers = data.drivers;
+      } else {
+        sortState.drivers = data.drivers||{};
+      }
       sortState.presence = data.presence || {};
+      // Sortăm alfabetic toți sortatorii
+      if(Array.isArray(sortState.drivers)){
+        sortState.drivers.sort((a,b)=>(a.name||"").localeCompare(b.name||"","ro"));
+      } else {
+        Object.keys(sortState.drivers).forEach(mk=>{
+          if(Array.isArray(sortState.drivers[mk]))
+            sortState.drivers[mk].sort((a,b)=>(a.name||"").localeCompare(b.name||"","ro"));
+        });
+      }
     } else {
       // Prima dată — init cu liste default
       sortState.drivers = [
@@ -3738,7 +3779,7 @@ let _pickAvail=[], _pickGroup="", _pickCat="";
 
 function openAddSortatorCat(group, cat){
   // Colecteaza driveri disponibili din modulul concedii
-  const existingNames = new Set((sortState.drivers||[]).filter(d=>d.group===group).map(d=>d.name));
+  const existingNames = new Set(getMonthDrivers().filter(d=>d.group===group).map(d=>d.name));
   const groupKey = group==="eiselfing"?"madalina":"raluca";
   const avail = (state.drivers||[]).filter(d=>{
     const vis = d.visibleTo||[];
@@ -3779,7 +3820,7 @@ function confirmSortPick(){
   if(!checked.length){ toast("Selectează cel puțin o persoană",true); return; }
   checked.forEach(cb=>{
     const dr = _pickAvail[parseInt(cb.value)];
-    if(dr) sortState.drivers.push({id:uid(),name:dr.name,group:_pickGroup,category:_pickCat});
+    if(dr){ const _mk=getSortKey(); const _d=getMonthDrivers(_mk); _d.push({id:uid(),name:dr.name,group:_pickGroup,category:_pickCat}); _d.sort((a,b)=>a.name.localeCompare(b.name,"ro")); setMonthDrivers(_d,_mk); }
   });
   renderSortatoriTimeline(); // render imediat
   saveSortState();           // salveaza in Firestore
@@ -3788,9 +3829,9 @@ function confirmSortPick(){
 }
 
 function deleteSortator(id){
-  const dr = (sortState.drivers||[]).find(d=>d.id===id);
+  const _mkDel=getSortKey(); const _drvDel=getMonthDrivers(_mkDel); const dr=_drvDel.find(d=>d.id===id);
   if(!dr||!confirm("Ștergi "+dr.name+" din sortatori?")) return;
-  sortState.drivers = sortState.drivers.filter(d=>d.id!==id);
+  setMonthDrivers(_drvDel.filter(d=>d.id!==id), _mkDel);
   renderSortatoriTimeline();
   saveSortState();
   toast("🗑 "+dr.name+" șters");
@@ -4331,7 +4372,9 @@ function buildPrintHTML(group){
   html+=`<table class="sum-tbl"><thead><tr>
     <th class="name-col" style="min-width:130px">Persoană</th>
     <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#e8f5e9!important">Total disponibil (an+reportate)</th>
+    <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#e3f2fd!important;font-weight:800">Zile la START ${MONTHS[m]}</th>
     <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fffde7!important">Concediu folosit în ${MONTHS[m]}</th>
+    <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#e3f2fd!important;font-weight:800">Zile la FINAL ${MONTHS[m]}</th>
     <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fffde7!important">Concediu folosit total (${y})</th>
     <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#c8e6c9!important;font-weight:800">Zile rămase actual</th>
     <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#ffcdd2!important">Krank în ${MONTHS[m]}</th>
@@ -4372,12 +4415,27 @@ function buildPrintHTML(group){
       if(from>to) return sum;
       return sum+countWorkdays(from,to);
     },0);
+
+    // Zile la start lună = total - zile folosite ÎNAINTE de această lună
+    const usedBeforeMonth=(dr.leaves||[]).reduce((sum,l)=>{
+      const ls=parseDate(l.start),le=parseDate(l.end);
+      const ms=new Date(y,m,1);
+      if(le>=ms) return sum; // nu include luni curente sau viitoare
+      return sum+countWorkdays(ls,le);
+    },0);
+    const startMonth = total>0 ? Math.max(0, total-usedBeforeMonth) : "-";
+    const endMonth   = total>0 ? Math.max(0, total-usedBeforeMonth-usedMonth) : "-";
+
     const remCol=typeof rem==="number"&&rem<3?"#c62828":typeof rem==="number"&&rem<6?"#e65100":"#2e7d32";
+    const startCol=typeof startMonth==="number"&&startMonth<3?"#c62828":typeof startMonth==="number"&&startMonth<6?"#e65100":"#1565c0";
+    const endCol=typeof endMonth==="number"&&endMonth<3?"#c62828":typeof endMonth==="number"&&endMonth<6?"#e65100":"#1565c0";
     const rowBg=idx%2?"#fafafa":"#fff";
     html+=`<tr style="background:${rowBg};-webkit-print-color-adjust:exact;print-color-adjust:exact">
       <td class="name-col" style="font-size:10px">${escapeHtml(dr.name)}</td>
       <td style="background:#e8f5e9!important;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">${total||"-"}</td>
+      <td style="font-weight:800;color:${startCol};background:#e3f2fd!important;-webkit-print-color-adjust:exact;print-color-adjust:exact">${startMonth}</td>
       <td style="background:#fffde7!important;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">${usedMonth||"-"}</td>
+      <td style="font-weight:800;color:${endCol};background:#e3f2fd!important;-webkit-print-color-adjust:exact;print-color-adjust:exact">${endMonth}</td>
       <td style="background:#fffde7!important;-webkit-print-color-adjust:exact;print-color-adjust:exact">${usedYearly}</td>
       <td style="font-weight:800;color:${remCol};background:#c8e6c9!important;-webkit-print-color-adjust:exact;print-color-adjust:exact">${rem}</td>
       <td style="background:#ffcdd2!important;-webkit-print-color-adjust:exact;print-color-adjust:exact">${kMonth||"-"}</td>
@@ -5023,7 +5081,7 @@ function renderPlanificare(){
     const wkKey=d.getFullYear()+"-W"+String(getISOWeek(d)).padStart(2,"0");
     let cnt=0;
     cats.forEach(cat=>{
-      (sortState.drivers||[]).filter(dr=>dr.group==="ruhstorf"&&(cat.key==="permanent"?(!dr.category||dr.category==="permanent"):dr.category===cat.key)).forEach(dr=>{
+      (getMonthDrivers()||[]).filter(dr=>dr.group==="ruhstorf"&&(cat.key==="permanent"?(!dr.category||dr.category==="permanent"):dr.category===cat.key)).forEach(dr=>{
         const wkData=(planState[wkKey]&&planState[wkKey][dr.name])||[0,0,0,0,0,0,0];
         const concDr=state.drivers.find(sd=>sd.name===dr.name);
         const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)));
@@ -5065,10 +5123,12 @@ function renderPlanificare(){
 
   // ── BODY ──
   html+=`<tbody>`;
+  // Cheia lunii curente din planificare — sortatorii sunt per lună
+  const planKey = y+"-"+String(m+1).padStart(2,"0");
 
   let isFirstCat=true;
   cats.forEach(cat=>{
-    const catDrivers=(sortState.drivers||[])
+    const catDrivers=(getMonthDrivers(planKey)||[])
       .filter(d=>d.group==="ruhstorf"&&(cat.key==="permanent"?(!d.category||d.category==="permanent"):d.category===cat.key))
       .sort((a,b)=>a.name.localeCompare(b.name,"ro"));
     if(!catDrivers.length) return;
@@ -5227,8 +5287,9 @@ function openWhatsAppExport(){
     {label:"Urgențe",    key:"urgenta",   color:"#ef4444"},
   ];
 
+  const _planMk=getSortKey();
   const allRuhDrivers = cats.flatMap(cat=>
-    (sortState.drivers||[]).filter(d=>d.group==="ruhstorf"&&(cat.key==="permanent"?(!d.category||d.category==="permanent"):d.category===cat.key))
+    (getMonthDrivers(_planMk)||[]).filter(d=>d.group==="ruhstorf"&&(cat.key==="permanent"?(!d.category||d.category==="permanent"):d.category===cat.key))
     .sort((a,b)=>a.name.localeCompare(b.name,"ro"))
   );
 
@@ -5295,7 +5356,7 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
     const dow=(d.getDay()+6)%7;
     const list=[];
     cats.filter(c=>c.key!=="camion").forEach(cat=>{
-      (sortState.drivers||[]).filter(dr=>dr.group==="ruhstorf"&&(cat.key==="permanent"?(!dr.category||dr.category==="permanent"):dr.category===cat.key))
+      (getMonthDrivers()||[]).filter(dr=>dr.group==="ruhstorf"&&(cat.key==="permanent"?(!dr.category||dr.category==="permanent"):dr.category===cat.key))
       .forEach(dr=>{
         const dw=weekData[dr.name]||[0,0,0,0,0,0,0];
         const concDr=state.drivers.find(sd=>sd.name===dr.name);
@@ -5309,7 +5370,7 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
 
   function getCamionZi(d){
     const dow=(d.getDay()+6)%7;
-    const cDrivers=(sortState.drivers||[]).filter(dr=>dr.group==="ruhstorf"&&dr.category==="camion");
+    const cDrivers=(getMonthDrivers()||[]).filter(dr=>dr.group==="ruhstorf"&&dr.category==="camion");
     for(const dr of cDrivers){
       const dw=weekData[dr.name]||[0,0,0,0,0,0,0];
       const concDr=state.drivers.find(sd=>sd.name===dr.name);
