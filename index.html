@@ -70,8 +70,6 @@
   [data-theme="light"] .cal-day:hover { border-color: var(--accent); }
   [data-theme="light"] .tl-total { background: var(--bg-elev-2); color: var(--text); border-color: var(--border); }
   [data-theme="light"] .tl-cell.sunday { background: repeating-linear-gradient(45deg,rgba(220,38,38,0.05),rgba(220,38,38,0.05) 4px,rgba(220,38,38,0.1) 4px,rgba(220,38,38,0.1) 8px); }
-  [data-theme="light"] .mod-tab { background: var(--bg-elev-2); border-color: var(--border); color: var(--text-dim); }
-  [data-theme="light"] .mod-tab.active, [data-theme="light"] .mod-tab-active { background: var(--accent); color: #000; border-color: var(--accent); }
   [data-theme="light"] .save-status { background: var(--bg-elev-2); border-color: var(--border); color: var(--text-dim); }
   [data-theme="light"] .modal-bg { background: rgba(0,0,0,0.35); }
   [data-theme="light"] .sort-view-btn { background: var(--bg-elev-2); border-color: var(--border); color: var(--text-dim); }
@@ -459,25 +457,35 @@
     box-shadow: 0 3px 12px rgba(99,102,241,0.45), inset 0 1px 0 rgba(255,255,255,0.15);
   }
   
-  .mod-tab {
-    padding: 10px 24px;
-    font-size: 14px;
-    font-weight: 800;
-    letter-spacing: 1px;
-    border: 2px solid var(--border);
-    border-radius: 8px;
-    cursor: pointer;
+  .mod-tabs-bar {
+    display: inline-flex;
+    gap: 4px;
     background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+  }
+  .mod-tab {
+    padding: 9px 18px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    cursor: pointer;
+    background: transparent;
     color: var(--text-dim);
-    transition: all 0.15s;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
   }
-  .mod-tab:hover { border-color: var(--accent); color: var(--text); }
-  .mod-tab-active, .mod-tab.active {
-    background: var(--accent);
-    color: #000;
-    border-color: var(--accent);
-    box-shadow: 0 2px 12px rgba(245,158,11,0.4);
-  }
+  .mod-tab-icon { font-size: 15px; line-height: 1; }
+  .mod-tab:hover { color: var(--text); background: rgba(0,0,0,0.045); }
+
+  .mod-tab[data-color="amber"].mod-tab-active  { background: #fff; color: #d97706; border-color: rgba(217,119,6,0.35);  box-shadow: 0 2px 6px rgba(217,119,6,0.18); }
+  .mod-tab[data-color="indigo"].mod-tab-active { background: #fff; color: #6366f1; border-color: rgba(99,102,241,0.35); box-shadow: 0 2px 6px rgba(99,102,241,0.18); }
+  .mod-tab[data-color="green"].mod-tab-active  { background: #fff; color: #10b981; border-color: rgba(16,185,129,0.35); box-shadow: 0 2px 6px rgba(16,185,129,0.18); }
 
   .view-tabs {
     display: flex;
@@ -697,6 +705,9 @@
   .tl-driver-row { padding: 0 12px; height: 34px; min-height: 34px; display: flex; align-items: center; border-bottom: 1px solid var(--border); font-size: 12px; cursor: pointer; flex-shrink: 0; box-sizing: border-box; }
   .tl-driver-row:hover { background: var(--bg-elev-2); }
   .tl-grid-wrap { overflow: visible; }
+  .tl-sticky-header { position: sticky; top: 0; z-index: 10; background: var(--bg-elev); display: flex; min-width: 100%; border-bottom: 2px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .tl-sticky-header-name { width: 200px; min-width: 200px; flex-shrink: 0; padding: 0 12px; height: 42px; display: flex; align-items: center; font-size: 11px; text-transform: uppercase; color: var(--text-dim); font-weight: 600; letter-spacing: 0.5px; border-right: 2px solid var(--border); }
+  .tl-sticky-header-days { display: flex; overflow: hidden; }
   .tl-day-headers { display: grid; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg-elev); z-index: 3; height: 42px; }
   .tl-day-header { padding: 4px 0; font-size: 10px; text-align: center; border-right: 1px solid var(--border); color: var(--text-dim); }
   .tl-day-header.sunday { background: repeating-linear-gradient(45deg,rgba(239,68,68,0.08),rgba(239,68,68,0.08) 4px,rgba(239,68,68,0.16) 4px,rgba(239,68,68,0.16) 8px); }
@@ -1019,6 +1030,7 @@
     <button class="btn btn-secondary btn-small" id="addDriverBtn" onclick="openAddDriver()" style="width:100%; margin-bottom:6px">+ Persoană nouă</button>
     <button class="btn btn-secondary btn-small" id="pinMgrBtn" onclick="openPinAdmin()" style="width:100%; margin-bottom:6px; display:none">🔐 Coduri PIN</button>
     <button class="btn btn-secondary btn-small" id="loadBackupBtn" onclick="openBackupManager()" style="width:100%; margin-bottom:6px; display:none">🔄 Manager Backup / Restaurare</button>
+    <button class="btn btn-secondary btn-small" id="archiveBtn" onclick="openArchive()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">📦 Arhivă persoane</button>
     <button class="btn btn-secondary btn-small" id="importExcelBtn" onclick="document.getElementById('importExcelFile').click()" style="width:100%; margin-bottom:6px; display:none; border-color:#34d399; color:#34d399">📥 Import Excel → HTML</button>
     <input type="file" id="importExcelFile" accept=".xlsx,.xlsm,.xls" style="display:none" multiple onchange="importExcelFile(event)">
     <button class="btn btn-secondary btn-small" id="actLogBtn" onclick="openActivityLog()" style="width:100%; margin-bottom:6px; display:none; border-color:#818cf8; color:#818cf8">📋 Istoric activitate</button>
@@ -1041,9 +1053,11 @@
   <main class="main">
     <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
       <button id="sidebarCollapseBtn" onclick="toggleSidebarCollapse()" title="Ascunde meniul" style="display:none;padding:6px 12px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:15px;color:var(--text-dim);line-height:1;flex-shrink:0">◀</button>
-      <button id="modConcedii" class="mod-tab mod-tab-active" onclick="setAppMode('concedii')">📅 CONCEDII</button>
-      <button id="modSortatori" class="mod-tab" onclick="setAppMode('sortatori')" style="display:none">📦 SORTATORI</button>
-      <button id="modPlanificare" class="mod-tab" onclick="setAppMode('planificare')" style="display:none">🗓️ PLANIFICARE</button>
+      <div class="mod-tabs-bar">
+        <button id="modConcedii" class="mod-tab mod-tab-active" data-color="amber" onclick="setAppMode('concedii')"><span class="mod-tab-icon">📅</span>Concedii</button>
+        <button id="modSortatori" class="mod-tab" data-color="indigo" onclick="setAppMode('sortatori')" style="display:none"><span class="mod-tab-icon">📦</span>Sortatori</button>
+        <button id="modPlanificare" class="mod-tab" data-color="green" onclick="setAppMode('planificare')" style="display:none"><span class="mod-tab-icon">🗓️</span>Planificare</button>
+      </div>
     </div>
     <div id="concediiModule">
     <div class="header">
@@ -1155,6 +1169,13 @@
         </div>
       </div>
       <div id="sortEditBanner" style="display:none;padding:8px 14px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:7px;margin-bottom:8px;align-items:center;justify-content:space-between;gap:10px"><span style="font-size:13px;color:#10b981;font-weight:600">✏️ Mod editare activ — bifează prezența, apoi confirmă</span><button onclick="confirmSortEdit()" style="padding:7px 18px;background:#10b981;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">✅ Confirmă</button></div>
+
+      <!-- Panou concedii ieri/azi/mâine — vizibil pentru Mihaela -->
+      <div id="todayLeavePanel" style="display:none;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;display:flex;align-items:center;gap:6px">🏖️ Concedii — Ruhstorf</div>
+        <div id="todayLeaveList" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;color:var(--text)">—</div>
+      </div>
+
       <div class="timeline-wrap">
         <div class="timeline" id="sortatoriTimeline"></div>
       </div>
@@ -1175,7 +1196,14 @@
         </div>
       </div>
       <div id="planificareGrid" style="overflow-x:auto"></div>
-    </div>
+      <!-- Panou verificare respectare planificare -->
+      <div id="planCompliancePanel" style="margin-top:16px;display:none">
+        <div style="font-size:13px;font-weight:700;color:var(--text-dim);margin-bottom:8px;display:flex;align-items:center;gap:8px">
+          📊 Verificare respectare planificare
+          <span id="planCompliancePeriod" style="font-size:11px;font-weight:400;color:var(--text-dim)"></span>
+        </div>
+        <div id="planComplianceContent"></div>
+      </div>
 
   </main>
 </div>
@@ -1185,16 +1213,17 @@
   <div class="modal" style="max-width:860px;max-height:92vh;overflow-y:auto">
     <h3>🔄 Manager Backup / Restaurare</h3>
     <div class="modal-sub" id="backupManagerSub">Se încarcă...</div>
+    <div style="margin:8px 0 4px"><button class="btn btn-secondary btn-small" onclick="showBackupDiff()" style="border-color:#6366f1;color:#6366f1">📊 Compară ultimul backup cu LIVE</button></div>
     <div id="backupManagerList" style="margin-top:12px"></div>
     <div id="backupManagerPreview" style="margin-top:12px;display:none">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <button class="btn btn-secondary btn-small" onclick="document.getElementById('backupManagerPreview').style.display='none';document.getElementById('backupManagerList').style.display='block'">← Înapoi</button>
+        <button class="btn btn-secondary btn-small" onclick="backToBackupList()">← Înapoi</button>
         <span id="backupPreviewTitle" style="font-size:13px;font-weight:700"></span>
       </div>
       <div id="backupPreviewContent"></div>
-      <div style="margin-top:14px;padding:10px;background:rgba(239,68,68,0.1);border-radius:6px;border:1px solid rgba(239,68,68,0.3);font-size:12px;color:var(--red)">⚠️ Restaurarea va înlocui datele curente. Acțiunea nu poate fi anulată.</div>
+      <div id="backupRestoreWarning" style="margin-top:14px;padding:10px;background:rgba(239,68,68,0.1);border-radius:6px;border:1px solid rgba(239,68,68,0.3);font-size:12px;color:var(--red)">⚠️ Restaurarea va înlocui datele curente. Acțiunea nu poate fi anulată.</div>
       <div class="modal-actions" style="margin-top:10px">
-        <button class="btn btn-secondary" onclick="document.getElementById('backupManagerPreview').style.display='none';document.getElementById('backupManagerList').style.display='block'">Anulează</button>
+        <button class="btn btn-secondary" onclick="backToBackupList()">Anulează</button>
         <button class="btn" id="backupRestoreConfirmBtn" onclick="confirmRestoreBackup()" style="background:#ef4444;border-color:#ef4444">🔄 Restaurează</button>
       </div>
     </div>
@@ -1291,9 +1320,20 @@
       </label>
     </div>
     <div class="modal-actions">
+      <button class="btn btn-secondary" id="archiveDriverBtn" onclick="archiveDriver(editingDriverId)" style="display:none;border-color:#8b5cf6;color:#8b5cf6">📦 Arhivează</button>
       <button class="btn btn-secondary" onclick="closeModal('modalDriver')">Anulează</button>
       <button class="btn" onclick="saveDriver()">Salvează</button>
     </div>
+  </div>
+</div>
+
+<!-- ARHIVĂ MODAL -->
+<div class="modal-bg" id="modalArchive">
+  <div class="modal" style="max-width:760px;max-height:92vh;overflow-y:auto">
+    <h3>📦 Arhivă persoane</h3>
+    <div class="modal-sub" id="archiveSub">Persoane care nu mai lucrează la noi — istoricul rămâne salvat.</div>
+    <div id="archiveContent" style="margin-top:12px"></div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('modalArchive')">Închide</button></div>
   </div>
 </div>
 
@@ -1560,6 +1600,27 @@ function initApp(userKey){
       }, err=>{ console.error("snap",dk,err); });
       unsubListeners.push(unsub);
     });
+  } else if(userKey==="mihaela"){
+    // Mihaela nu are propriul document — citește read-only din "tania" (lista completă)
+    // pentru a putea afișa corect panoul "În concediu astăzi"
+    let first = true;
+    const unsub = db.collection(concediiColl()).doc("tania").onSnapshot(snap=>{
+      if(snap.exists){
+        state = snap.data();
+        if(!state.drivers) state.drivers=[];
+        state.thresholds = {warn:3,crit:5};
+      } else {
+        state = {drivers:[], thresholds:{warn:3,crit:5}};
+      }
+      if(first){first=false;finishInit();updateTodayLeavePanel();}
+      else{
+        finishInit();
+        updateTodayLeavePanel();
+        const mod=document.getElementById("sortatoriModule");
+        if(mod&&mod.style.display!=="none") renderSortatoriTimeline();
+      }
+    }, err=>{ console.error("snap tania (mihaela)",err); state={drivers:[],thresholds:{warn:3,crit:5}}; finishInit(); });
+    unsubListeners.push(unsub);
   } else {
     let first = true;
     const unsub = db.collection(concediiColl()).doc(userKey).onSnapshot(snap=>{
@@ -1599,8 +1660,8 @@ function finishInit(){
       setTimeout(()=>showLoginNotification(uk), 400);
     }
   }catch(e){ console.warn("notif err",e); }
-  // Backup automat zilnic pentru admin
-  setTimeout(()=>autoSaveDailyBackup(), 3000);
+  // Backup automat programat (06:00, 14:00, 22:00) — doar admin
+  setTimeout(()=>startScheduledBackups(), 3000);
   // Load prezente state
   loadPresState();
   document.querySelectorAll(".modal-bg").forEach(m=>{
@@ -1659,7 +1720,7 @@ function scheduleSave(){
 
 function buildCompleteBackup(){
   const backup = {
-    version: 3,
+    version: 4,
     year: activeYear,
     savedAt: new Date().toISOString(),
     thresholds: state.thresholds||{warn:3,crit:5},
@@ -1670,6 +1731,10 @@ function buildCompleteBackup(){
       maxDays:       dr.maxDays||0,
       carryOverDays: dr.carryOverDays||0,
       carryOverByYear: dr.carryOverByYear||{},
+      startDate:     dr.startDate||null,
+      endDate:       dr.endDate||null,
+      archived:      dr.archived||false,
+      archivedAt:    dr.archivedAt||null,
       leaves:        dr.leaves||[],
       krankLeaves:   dr.krankLeaves||[],
       unpaidLeaves:  dr.unpaidLeaves||[]
@@ -1685,7 +1750,9 @@ function buildCompleteBackup(){
         drivers: JSON.parse(JSON.stringify(sortState.drivers||{})),
         presence: JSON.parse(JSON.stringify(sortState.presence||{}))
       };
-    })()
+    })(),
+    planificare: (planState && Object.keys(planState).length>0)
+      ? JSON.parse(JSON.stringify(planState)) : null
   };
   return backup;
 }
@@ -1702,6 +1769,8 @@ function restoreCompleteBackup(bk){
       dr.maxDays       = bkDr.maxDays||dr.maxDays||0;
       dr.carryOverDays = bkDr.carryOverDays||0;
       dr.carryOverByYear = bkDr.carryOverByYear||{};
+      if(bkDr.startDate) dr.startDate=bkDr.startDate; else delete dr.startDate;
+      if(bkDr.endDate)   dr.endDate=bkDr.endDate;     else delete dr.endDate;
       restored++;
     }
   });
@@ -1726,6 +1795,7 @@ async function triggerAutoBackup(time){
         name:dr.name, visibleTo:dr.visibleTo||[],
         maxDays:dr.maxDays||0, carryOverDays:dr.carryOverDays||0,
         carryOverByYear:dr.carryOverByYear||{},
+        startDate:dr.startDate||null, endDate:dr.endDate||null,
         leaves:dr.leaves||[], krankLeaves:dr.krankLeaves||[], unpaidLeaves:dr.unpaidLeaves||[]
       };
     });
@@ -1737,16 +1807,19 @@ async function triggerAutoBackup(time){
       ? {drivers:sortState.drivers, presence:sortState.presence||{}} : null;
     const prezenteSnap = (presState.presence&&Object.keys(presState.presence).length>0)
       ? presState.presence : null;
+    const planSnap = (planState && Object.keys(planState).length>0)
+      ? planState : null;
 
     const backupDoc = {
-      version:3, year:activeYear,
+      version:4, year:activeYear,
       savedAt:now.toISOString(), time, date:today, slot,
       savedBy:snapshotUser,
       driverCount:state.drivers.length,
       thresholds:state.thresholds||{warn:3,crit:5},
       drivers:driversData,
       ...(sortatoriSnap?{sortatori:sortatoriSnap}:{}),
-      ...(prezenteSnap?{prezente:prezenteSnap}:{})
+      ...(prezenteSnap?{prezente:prezenteSnap}:{}),
+      ...(planSnap?{planificare:planSnap}:{})
     };
 
     await db.collection(backupColl()).doc(docId).set(backupDoc);
@@ -1804,6 +1877,8 @@ function fullReset(){
   state      = {drivers:[], thresholds:{warn:3,crit:5}};
   presState  = {presence:{}};
   sortState  = {drivers:[], presence:{}};
+  // Resetăm luna curentă pentru sortatori — fiecare login începe pe luna curentă reală
+  sortCurrentDate = new Date();
   if(autoLogoutTimer){ clearTimeout(autoLogoutTimer); autoLogoutTimer=null; }
   if(saveTimer){ clearTimeout(saveTimer); saveTimer=null; }
   try{
@@ -2215,9 +2290,15 @@ function enterApp(userKey){
     if(legend)         legend.style.display="none";
     if(sidebarToggle)  sidebarToggle.style.display="none";
     if(sidebarColl)    sidebarColl.style.display="none";
-    // Forțează sortatori
+    // Forțează sortatori — ascunde toate celelalte module
     appMode="sortatori";
     if(sortatoriModule) sortatoriModule.style.display="block";
+    const _planMod=document.getElementById("planificareModule");
+    if(_planMod) _planMod.style.display="none";
+    const _planComp=document.getElementById("planCompliancePanel");
+    if(_planComp) _planComp.style.display="none";
+    const _concMod=document.getElementById("concediiModule");
+    if(_concMod) _concMod.style.display="none";
     // Setează grup
     sortView="ruhstorf";
     const tabEis=document.getElementById("sortTabEiselfing");
@@ -2262,6 +2343,8 @@ function enterApp(userKey){
 
   const loadBackupBtn = document.getElementById("loadBackupBtn");
   if(loadBackupBtn) loadBackupBtn.style.display = isAdm?"block":"none";
+  const archiveBtn = document.getElementById("archiveBtn");
+  if(archiveBtn) archiveBtn.style.display = isTaniaAdm?"block":"none";
   const importExcelBtn2 = document.getElementById("importExcelBtn");
   if(importExcelBtn2) importExcelBtn2.style.display = isAdm?"block":"none";
   const downloadBackupBtn = document.getElementById("downloadBackupBtn");
@@ -2437,7 +2520,7 @@ function getVisibleDrivers(){
   const y = currentDate.getFullYear(), m = currentDate.getMonth();
   let drivers;
   if(uk==="tania"||uk==="admin"){
-    let drivers = state.drivers;
+    let drivers = state.drivers.filter(dr=>!dr.archived);
     if(activeGroup!=="total"){
       const groupUserKey = activeGroup==="eiselfing"?"madalina":activeGroup==="ruhstorf"?"raluca":activeGroup==="camion"?"corina":null;
       if(groupUserKey){
@@ -2452,6 +2535,7 @@ function getVisibleDrivers(){
     return drivers.filter(dr=>isDriverActiveInMonth(dr,y,m));
   } else {
     drivers = state.drivers.filter(dr=>{
+      if(dr.archived) return false;
       if(!dr.visibleTo||dr.visibleTo.length===0){
         if(uk==="raluca")   return DRIVERS_RALUCA.includes(dr.name);
         if(uk==="madalina") return DRIVERS_MADALINA.includes(dr.name);
@@ -2555,6 +2639,7 @@ function openAddDriver(){
   document.getElementById("driverStartDate").value="";
   document.getElementById("driverEndDate").value="";
   ["visRaluca","visMadalina","visCorina"].forEach(id=>{ document.getElementById(id).checked=false; });
+  const _archBtn=document.getElementById("archiveDriverBtn"); if(_archBtn) _archBtn.style.display="none";
   openModal("modalDriver");
   setTimeout(()=>document.getElementById("driverNameInput").focus(),50);
 }
@@ -2571,6 +2656,7 @@ function openEditDriver(id){
   document.getElementById("visRaluca").checked=vis.includes("raluca");
   document.getElementById("visMadalina").checked=vis.includes("madalina");
   document.getElementById("visCorina").checked=vis.includes("corina");
+  const _archBtn=document.getElementById("archiveDriverBtn"); if(_archBtn) _archBtn.style.display="inline-block";
   openModal("modalDriver");
   setTimeout(()=>document.getElementById("driverNameInput").focus(),50);
 }
@@ -2605,6 +2691,77 @@ function saveDriver(){
   }
   closeModal("modalDriver");renderAll();scheduleSave();
 }
+function archiveDriver(id){
+  if(!isAdmin()){toast("Doar Admin poate arhiva persoane",true);return;}
+  const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
+  if(!confirm("Arhivezi pe "+dr.name+"?\n\nVa dispărea din toate listele active, dar istoricul (concedii, krank, fără plată) rămâne salvat în Arhivă."))return;
+  dr.archived=true;
+  dr.archivedAt=fmtDate(new Date());
+  logActivity("📦 Persoană arhivată",dr.name,"arhivat la "+dr.archivedAt);
+  closeModal("modalDriver");
+  renderAll();scheduleSave();
+  toast("📦 "+dr.name+" arhivat — vezi tab-ul Arhivă");
+}
+
+function unarchiveDriver(id){
+  if(!isAdmin()){toast("Doar Admin poate restaura persoane",true);return;}
+  const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
+  delete dr.archived;
+  delete dr.archivedAt;
+  logActivity("📤 Persoană restaurată din arhivă",dr.name,"");
+  renderAll();renderArchiveList();scheduleSave();
+  toast("✅ "+dr.name+" restaurat din arhivă");
+}
+
+function openArchive(){
+  if(!isAdminOrTania()) return;
+  renderArchiveList();
+  openModal("modalArchive");
+}
+
+function renderArchiveList(){
+  const archived=(state.drivers||[]).filter(dr=>dr.archived).sort((a,b)=>(b.archivedAt||"").localeCompare(a.archivedAt||""));
+  const y=currentDate.getFullYear();
+  const sub=document.getElementById("archiveSub");
+  if(sub) sub.textContent=archived.length+" persoane arhivate";
+  const cont=document.getElementById("archiveContent");
+  if(!cont) return;
+  if(!archived.length){
+    cont.innerHTML='<div style="color:var(--text-dim);padding:20px;text-align:center">Nicio persoană arhivată momentan.</div>';
+    return;
+  }
+  let html=`<div style="max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:6px">
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead style="position:sticky;top:0;background:var(--bg-elev-2);z-index:1"><tr>
+        <th style="text-align:left;padding:5px 8px;border-bottom:1px solid var(--border)">Nume</th>
+        <th style="padding:5px 6px;border-bottom:1px solid var(--border)">Arhivat la</th>
+        <th style="padding:5px 6px;border-bottom:1px solid var(--border)" title="Total disponibil">Disp.</th>
+        <th style="padding:5px 6px;border-bottom:1px solid var(--border);color:#f59e0b">Conc.</th>
+        <th style="padding:5px 6px;border-bottom:1px solid var(--border);color:#ef4444">Krank</th>
+        <th style="padding:5px 6px;border-bottom:1px solid var(--border);color:#3b82f6">S</th>
+        <th style="padding:5px 6px;border-bottom:1px solid var(--border)"></th>
+      </tr></thead><tbody>`;
+  archived.forEach((d,i)=>{
+    const usedConc=usedDaysThisYear(d,"leaves",y);
+    const usedKrank=(d.krankLeaves||[]).reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end)),0);
+    const usedUnpaid=(d.unpaidLeaves||[]).reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end)),0);
+    const carry=getCarryOverForYear(d,y);
+    const total=(d.maxDays||0)+carry;
+    const rowBg=i%2===0?"var(--bg)":"var(--bg-elev)";
+    html+=`<tr style="background:${rowBg}">
+      <td style="padding:4px 8px;font-weight:600">${escapeHtml(d.name)}${d.endDate?`<div style="font-size:10px;color:var(--text-dim)">plecat: ${d.endDate}</div>`:""}</td>
+      <td style="text-align:center;padding:4px 6px;color:var(--text-dim)">${d.archivedAt||"—"}</td>
+      <td style="text-align:center;padding:4px 6px">${total||"—"}</td>
+      <td style="text-align:center;padding:4px 6px;color:#f59e0b">${usedConc||"—"}</td>
+      <td style="text-align:center;padding:4px 6px;color:#ef4444">${usedKrank||"—"}</td>
+      <td style="text-align:center;padding:4px 6px;color:#3b82f6">${usedUnpaid||"—"}</td>
+      <td style="text-align:center;padding:4px 6px"><button class="btn btn-secondary btn-small" onclick="unarchiveDriver('${d.id}')" title="Restaurează în lista activă">↩️ Restaurează</button></td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div>`;
+  cont.innerHTML=html;
+}
+
 function deleteDriver(id){
   if(!isAdmin()){toast("Doar Admin poate șterge persoane",true);return;}
   const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
@@ -3142,25 +3299,34 @@ function downloadBackupNow(){
     ?(Array.isArray(backup.sortatori.drivers)?backup.sortatori.drivers.length:Object.values(backup.sortatori.drivers||{}).reduce((s,a)=>s+(a||[]).length,0))
     :0;
   const prezCount=Object.keys(backup.prezente||{}).length;
-  toast("💾 Backup complet: "+backup.drivers.length+" persoane, "+prezCount+" luni prezențe, "+sortCount+" sortatori");
+  const planCount=backup.planificare?Object.keys(backup.planificare).length:0;
+  toast("💾 Backup complet: "+backup.drivers.length+" persoane, "+prezCount+" luni prezențe, "+sortCount+" sortatori, "+planCount+" săpt. planificare");
 }
 
 // Auto backup zilnic pentru Admin — salvat în Firestore col "daily_backup"
-async function autoSaveDailyBackup(){
+// Backup automat la ore fixe: 06:00, 14:00, 22:00
+// Verifică la fiecare minut; salvează doar dacă nu s-a salvat deja pentru ora respectivă
+// și doar dacă există date (guard în triggerAutoBackup previne backup gol)
+const SCHEDULED_BACKUP_HOURS = [6,14,22];
+let _schedBackupInterval = null;
+function startScheduledBackups(){
   if(!isAdmin()) return;
-  const today = fmtDate(new Date());
-  const lastBackupDay = localStorage.getItem("mtc_last_daily_backup");
-  if(lastBackupDay===today) return; // deja salvat azi
-  try{
-    await db.collection(backupColl()).doc(today).set({
-      data: JSON.parse(JSON.stringify(state)),
-      savedAt: new Date().toISOString(),
-      drivers: state.drivers.length
-    });
-    localStorage.setItem("mtc_last_daily_backup", today);
-    toast("✅ Backup automat salvat pentru "+today);
-    console.log("Daily backup saved:", today);
-  }catch(e){ console.error("Daily backup failed:", e); }
+  if(_schedBackupInterval) clearInterval(_schedBackupInterval);
+  const check=()=>{
+    if(!state.drivers||state.drivers.length===0) return; // nimic de salvat
+    const now=new Date();
+    const today=fmtDate(now);
+    const h=now.getHours();
+    if(!SCHEDULED_BACKUP_HOURS.includes(h)) return;
+    const key="mtc_sched_backup_"+today+"_"+h;
+    if(localStorage.getItem(key)) return; // deja salvat pentru această oră
+    localStorage.setItem(key,"1");
+    const time=String(h).padStart(2,"0")+":00";
+    triggerAutoBackup(time);
+    console.log("Scheduled backup triggered:",today,time);
+  };
+  check(); // verificare imediată — recuperare dacă ora a trecut cât tab-ul era închis
+  _schedBackupInterval = setInterval(check, 60000); // verificare la fiecare minut
 }
 
 function exportBackup(){
@@ -3481,23 +3647,26 @@ function renderTimeline(){
   const ROW_H=34;
   const HEADER_H=42;
 
+  // ── Header sticky separat (deasupra scroll-ului) ──
+  let stickyHtml=`<div class='tl-sticky-header' id='tlStickyHeader'>`;
+  stickyHtml+=`<div class='tl-sticky-header-name'>Persoană</div>`;
+  stickyHtml+=`<div class='tl-sticky-header-days' id='tlStickyDays' style='min-width:${daysInMonth*colWidthPx}px'>`;
+  for(let dn=1;dn<=daysInMonth;dn++){
+    const d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d),isTd=sameDay(d,today);
+    const cls=["tl-day-header"];if(isSun)cls.push("sunday");if(holiday)cls.push("holiday");if(isTd)cls.push("today");
+    stickyHtml+=`<div class='${cls.join(" ")}' style='width:${colWidthPx}px;min-width:${colWidthPx}px'${holiday?` title="${escapeHtml(holiday)}"`:""} ><div class='dnum'>${dn}</div><div class='dow'>${DOW_MIN[(d.getDay()+6)%7]}</div></div>`;
+  }
+  stickyHtml+=`</div></div>`;
+
   let driverHtml="<div class='tl-driver-col'>";
-  driverHtml+=`<div class='tl-driver-header'>Persoană</div>`;
   sortedDrivers.forEach(dr=>{
     driverHtml+=`<div class='tl-driver-row' data-driver-row='${dr.id}' onclick="openLeaveModal('${dr.id}','leaves')">${escapeHtml(dr.name)}</div>`;
   });
   driverHtml+=`<div class='tl-driver-row' style='background:var(--bg-elev-2);font-weight:700;font-size:11px;text-transform:uppercase;color:var(--text-dim);cursor:default'>Total / zi</div>`;
   driverHtml+="</div>";
 
-  // Build grid
+  // Build grid (fără header — e sticky separat)
   let gridHtml="<div class='tl-grid-wrap'>";
-  gridHtml+=`<div class='tl-day-headers' style='grid-template-columns:${gridCols}'>`;
-  for(let dn=1;dn<=daysInMonth;dn++){
-    const d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d),isTd=sameDay(d,today);
-    const cls=["tl-day-header"];if(isSun)cls.push("sunday");if(holiday)cls.push("holiday");if(isTd)cls.push("today");
-    gridHtml+=`<div class='${cls.join(" ")}'${holiday?` title="${escapeHtml(holiday)}"`:""} ><div class='dnum'>${dn}</div><div class='dow'>${DOW_MIN[(d.getDay()+6)%7]}</div></div>`;
-  }
-  gridHtml+="</div>";
 
   const dailyCounts=new Array(daysInMonth+1).fill(0);
   sortedDrivers.forEach(dr=>{
@@ -3563,6 +3732,21 @@ function renderTimeline(){
     gridHtml+=`<div class='${cls.join(" ")}' ${onClick}>${isSun?"—":(c||"·")}</div>`;
   }
   gridHtml+="</div></div>";
+
+  // Punem sticky header ÎNAINTE de timeline în timeline-wrap
+  const wrap = tl.closest(".timeline-wrap");
+  if(wrap){
+    // Scoatem sticky header vechi dacă există
+    const oldSticky=wrap.querySelector(".tl-sticky-header");
+    if(oldSticky) oldSticky.remove();
+    wrap.insertAdjacentHTML("afterbegin", stickyHtml);
+    // Sincronizăm scroll orizontal între header și grid
+    const stickyDays = wrap.querySelector("#tlStickyDays");
+    const gridWrap = tl.querySelector(".tl-grid-wrap");
+    if(stickyDays && gridWrap){
+      gridWrap.addEventListener("scroll", ()=>{ stickyDays.scrollLeft=gridWrap.scrollLeft; });
+    }
+  }
 
   tl.innerHTML=driverHtml+gridHtml;
   tl.onmouseup=()=>tlDragEnd();
@@ -3926,6 +4110,55 @@ document.addEventListener("mouseup", ()=>{ if(_sortDrag.active) sortDragEnd(); }
 document.addEventListener("mousemove", e=>{ if(_sortDrag.active && e.buttons===0) sortDragEnd(); });
 
 // ---- Copiaza din luna precedenta ----
+function updateTodayLeavePanel(){
+  const panel = document.getElementById("todayLeavePanel");
+  const list  = document.getElementById("todayLeaveList");
+  if(!panel||!list) return;
+  const uk = window.activeUserKey||"";
+  if(uk!=="mihaela"){ panel.style.display="none"; return; }
+  panel.style.display="block";
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate()-1);
+  const tomorrow  = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
+
+  // Aceeași listă "Ruhstorf" pe care o vede Raluca în Concedii (visibleTo include "raluca",
+  // cu fallback pe lista hardcodată DRIVERS_RALUCA pentru persoanele vechi)
+  const ruhDrivers = (state.drivers||[]).filter(dr=>{
+    if(dr.visibleTo && dr.visibleTo.length>0) return dr.visibleTo.includes("raluca");
+    return DRIVERS_RALUCA.includes(dr.name);
+  });
+
+  const namesOnDate = (date)=> ruhDrivers
+    .filter(dr=> (dr.leaves||[]).some(l=>dateInLeave(date,l)))
+    .map(dr=>dr.name)
+    .sort((a,b)=>a.localeCompare(b,"ro"));
+
+  const DOW_RO=["Duminică","Luni","Marți","Miercuri","Joi","Vineri","Sâmbătă"];
+  const fmtFull=d=>DOW_RO[d.getDay()]+" · "+d.getDate()+"."+(d.getMonth()+1);
+
+  const cols = [
+    {label:"Ieri",   sub:fmtFull(yesterday), names:namesOnDate(yesterday), color:"#94a3b8"},
+    {label:"Astăzi", sub:fmtFull(today),     names:namesOnDate(today),     color:"#6366f1", highlight:true},
+    {label:"Mâine",  sub:fmtFull(tomorrow),  names:namesOnDate(tomorrow),  color:"#10b981"},
+  ];
+
+  list.innerHTML = cols.map(c=>{
+    const bg = c.highlight ? "rgba(99,102,241,0.07)" : "var(--bg-elev)";
+    const border = c.highlight ? "1px solid rgba(99,102,241,0.3)" : "1px solid var(--border)";
+    const namesHtml = c.names.length
+      ? c.names.map(n=>`<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-weight:600;font-size:12px"><span style="width:6px;height:6px;border-radius:50%;background:${c.color};flex-shrink:0"></span>${escapeHtml(n)}</div>`).join("")
+      : `<div style="color:var(--text-dim);font-size:11px;padding:3px 0">— niciunul —</div>`;
+    return `<div style="background:${bg};border:${border};border-radius:8px;padding:8px 10px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:5px">
+        <span style="font-size:12px;font-weight:800;color:${c.color}">${c.label}</span>
+        <span style="font-size:10px;color:var(--text-dim)">${c.sub}</span>
+      </div>
+      ${namesHtml}
+    </div>`;
+  }).join("");
+}
+
 function copySortatoriFromPrevMonth(){
   if(!isAdminOrTania()){toast("Doar Admin/Tania",true);return;}
   const curMk=getSortKey();
@@ -3954,6 +4187,7 @@ function openAddSortatorCat(group, cat){
   const existingNames = new Set(getMonthDrivers().filter(d=>d.group===group).map(d=>d.name));
   const groupKey = group==="eiselfing"?"madalina":"raluca";
   const avail = (state.drivers||[]).filter(d=>{
+    if(d.archived) return false;
     const vis = d.visibleTo||[];
     return (vis.includes(groupKey)||vis.includes("tania")) && !existingNames.has(d.name);
   }).sort((a,b)=>a.name.localeCompare(b.name,"ro"));
@@ -4072,6 +4306,7 @@ function makeCatHeader(label, color, count, gridCols, canEdit, group, cat, daysI
 }
 
 function renderSortatoriTimeline(){
+  updateTodayLeavePanel();
   // Re-render planificare dacă e activ (sortatorii s-au schimbat)
   if(appMode==="planificare"){ renderPlanificare(); return; }
   const y=sortCurrentDate.getFullYear(), m=sortCurrentDate.getMonth();
@@ -4784,7 +5019,8 @@ function renderBackupList(){
     const ver=bd.version||1;
     const driverCount=bd.driverCount||(bd.drivers?Object.keys(bd.drivers).length:0)||bd.count||0;
     const hasPrezente=!!(bd.prezente&&Object.keys(bd.prezente).length>0);
-    const hasSortatori=!!(bd.sortatori&&bd.sortatori.drivers&&bd.sortatori.drivers.length>0);
+    const hasSortatori=!!(bd.sortatori&&bd.sortatori.drivers&&(Array.isArray(bd.sortatori.drivers)?bd.sortatori.drivers.length>0:Object.values(bd.sortatori.drivers).some(a=>a&&a.length>0)));
+    const hasPlan=!!(bd.planificare&&Object.keys(bd.planificare).length>0);
     const savedAt=bd.savedAt?new Date(bd.savedAt):null;
     const dateStr=savedAt?savedAt.toLocaleDateString("ro-RO",{weekday:"short",day:"2-digit",month:"short",year:"numeric"}):(bd.date||bd.id);
     const timeStr=savedAt?savedAt.toLocaleTimeString("ro-RO",{hour:"2-digit",minute:"2-digit"}):(bd.time||"?");
@@ -4797,6 +5033,7 @@ function renderBackupList(){
             <span>👤 ${driverCount} persoane</span>
             ${hasPrezente?'<span style="color:var(--green)">✓ Prezențe</span>':""}
             ${hasSortatori?'<span style="color:var(--accent)">✓ Sortatori</span>':""}
+            ${hasPlan?'<span style="color:#8b5cf6">✓ Planificare</span>':""}
             <span>v${ver}</span><span>de: ${escapeHtml(bd.savedBy||"?")}</span>
           </div>
         </div>
@@ -4807,31 +5044,252 @@ function renderBackupList(){
   document.getElementById("backupManagerList").innerHTML=html;
 }
 
+function backToBackupList(){
+  document.getElementById("backupManagerPreview").style.display="none";
+  document.getElementById("backupManagerList").style.display="block";
+}
+
+function _diffSection(title, items){
+  if(!items||!items.length) return "";
+  return `<div style="margin-bottom:10px">
+    <div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:4px">${title}</div>
+    <div style="background:var(--bg-elev-2);border-radius:6px;padding:8px 10px;max-height:180px;overflow-y:auto;font-size:12px;line-height:1.7">${items.join("<br>")}</div>
+  </div>`;
+}
+
+// Compară un backup cu starea LIVE curentă (drivers, prezente, sortatori, planificare)
+function computeBackupDiff(bd){
+  const y = bd.year || activeYear;
+  const periodKey = l=>l.start+"→"+l.end;
+
+  const bdDriversArr = Array.isArray(bd.drivers) ? bd.drivers : Object.values(bd.drivers||{});
+  const bdByName={}; bdDriversArr.forEach(d=>{ if(d&&d.name) bdByName[d.name]=d; });
+  const liveByName={}; (state.drivers||[]).forEach(d=>{ liveByName[d.name]=d; });
+
+  const newDrivers=[], removedDrivers=[], leaveChanges=[], otherChanges=[];
+
+  Object.keys(liveByName).forEach(name=>{
+    if(!bdByName[name]){ newDrivers.push(name); return; }
+    const lv=liveByName[name], bk=bdByName[name];
+    ["leaves","krankLeaves","unpaidLeaves"].forEach(field=>{
+      const label = field==="leaves"?"Concediu":field==="krankLeaves"?"Krank":"Fără plată";
+      const liveArr=lv[field]||[], bdArr=bk[field]||[];
+      const liveSet=new Set(liveArr.map(periodKey)), bdSet=new Set(bdArr.map(periodKey));
+      liveArr.forEach(l=>{ if(!bdSet.has(periodKey(l))) leaveChanges.push({type:"add",label,name,period:l}); });
+      bdArr.forEach(l=>{ if(!liveSet.has(periodKey(l))) leaveChanges.push({type:"remove",label,name,period:l}); });
+    });
+    if((lv.maxDays||0)!==(bk.maxDays||0)) otherChanges.push(`<b>${escapeHtml(name)}</b>: zile disponibile/an ${bk.maxDays||0} → ${lv.maxDays||0}`);
+    const lvCarry=getCarryOverForYear(lv,y), bkCarry=getCarryOverForYear(bk,y);
+    if(lvCarry!==bkCarry) otherChanges.push(`<b>${escapeHtml(name)}</b>: zile reportate ${y} ${bkCarry} → ${lvCarry}`);
+    if((lv.startDate||null)!==(bk.startDate||null)) otherChanges.push(`<b>${escapeHtml(name)}</b>: data angajare ${bk.startDate||"—"} → ${lv.startDate||"—"}`);
+    if((lv.endDate||null)!==(bk.endDate||null)) otherChanges.push(`<b>${escapeHtml(name)}</b>: data plecare ${bk.endDate||"—"} → ${lv.endDate||"—"}`);
+  });
+  Object.keys(bdByName).forEach(name=>{ if(!liveByName[name]) removedDrivers.push(name); });
+
+  // Prezențe (timeline concedii)
+  const bdPrez=bd.prezente||{}, livePrez=presState.presence||{};
+  let prezDiff=0;
+  new Set([...Object.keys(bdPrez),...Object.keys(livePrez)]).forEach(mk=>{
+    const bm=bdPrez[mk]||{}, lm=livePrez[mk]||{};
+    new Set([...Object.keys(bm),...Object.keys(lm)]).forEach(name=>{
+      const bdays=bm[name]||{}, ldays=lm[name]||{};
+      new Set([...Object.keys(bdays),...Object.keys(ldays)]).forEach(day=>{
+        if((bdays[day]||null)!==(ldays[day]||null)) prezDiff++;
+      });
+    });
+  });
+
+  // Sortatori — liste de persoane per lună + prezențe
+  const normSort = obj=>{
+    const out={};
+    if(!obj) return out;
+    if(Array.isArray(obj)){ out[getSortKey()]=obj.map(d=>d.name).sort(); return out; }
+    Object.entries(obj).forEach(([mk,arr])=>{ out[mk]=(arr||[]).map(d=>d.name).sort(); });
+    return out;
+  };
+  const bdSortDrivers=normSort(bd.sortatori&&bd.sortatori.drivers);
+  const liveSortDrivers=normSort(sortState.drivers);
+  const sortChanges=[];
+  new Set([...Object.keys(bdSortDrivers),...Object.keys(liveSortDrivers)]).forEach(mk=>{
+    const bset=new Set(bdSortDrivers[mk]||[]), lset=new Set(liveSortDrivers[mk]||[]);
+    const added=[...lset].filter(n=>!bset.has(n));
+    const removed=[...bset].filter(n=>!lset.has(n));
+    if(added.length) sortChanges.push(`<b>${mk}</b>: + ${added.map(escapeHtml).join(", ")}`);
+    if(removed.length) sortChanges.push(`<b>${mk}</b>: − ${removed.map(escapeHtml).join(", ")}`);
+  });
+
+  const bdSortPres=(bd.sortatori&&bd.sortatori.presence)||{};
+  const liveSortPres=sortState.presence||{};
+  let sortPresDiff=0;
+  new Set([...Object.keys(bdSortPres),...Object.keys(liveSortPres)]).forEach(mk=>{
+    const bm=bdSortPres[mk]||{}, lm=liveSortPres[mk]||{};
+    new Set([...Object.keys(bm),...Object.keys(lm)]).forEach(name=>{
+      const bdays=bm[name]||{}, ldays=lm[name]||{};
+      new Set([...Object.keys(bdays),...Object.keys(ldays)]).forEach(day=>{
+        if((bdays[day]||null)!==(ldays[day]||null)) sortPresDiff++;
+      });
+    });
+  });
+
+  // Planificare
+  const bdPlan=bd.planificare||{}, livePlan=planState||{};
+  let planDiff=0;
+  new Set([...Object.keys(bdPlan),...Object.keys(livePlan)]).forEach(wk=>{
+    const bw=bdPlan[wk]||{}, lw=livePlan[wk]||{};
+    new Set([...Object.keys(bw),...Object.keys(lw)]).forEach(name=>{
+      const ba=bw[name]||[0,0,0,0,0,0,0], la=lw[name]||[0,0,0,0,0,0,0];
+      for(let i=0;i<7;i++) if((ba[i]||0)!==(la[i]||0)) planDiff++;
+    });
+  });
+
+  const total = newDrivers.length+removedDrivers.length+leaveChanges.length+otherChanges.length+prezDiff+sortChanges.length+sortPresDiff+planDiff;
+  return {newDrivers,removedDrivers,leaveChanges,otherChanges,prezDiff,sortChanges,sortPresDiff,planDiff,total};
+}
+
+function renderBackupDiff(bd, diff){
+  const savedAt=bd.savedAt?new Date(bd.savedAt):null;
+  document.getElementById("backupPreviewTitle").textContent="📊 Comparație: backup "+(savedAt?savedAt.toLocaleString("ro-RO"):(bd.date||bd.id))+" vs LIVE acum";
+
+  let html="";
+  if(diff.total===0){
+    html=`<div style="text-align:center;padding:30px 10px">
+      <div style="font-size:42px;margin-bottom:8px">✅</div>
+      <div style="font-size:14px;font-weight:800;color:#10b981">Fără diferențe</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:4px">Ultimul backup este identic cu starea curentă (live).</div>
+    </div>`;
+  } else {
+    html+=`<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;font-weight:800;color:#d97706">⚠️ ${diff.total} diferențe față de acest backup</div>`;
+
+    html+=_diffSection("➕ Persoane noi (nu sunt în backup)", diff.newDrivers.map(n=>`<b>${escapeHtml(n)}</b>`));
+    html+=_diffSection("➖ Persoane șterse (sunt în backup, nu mai sunt live)", diff.removedDrivers.map(n=>`<b>${escapeHtml(n)}</b>`));
+
+    if(diff.leaveChanges.length){
+      const items=diff.leaveChanges.slice(0,40).map(c=>{
+        const icon=c.type==="add"?'<span style="color:#10b981">➕</span>':'<span style="color:#ef4444">➖</span>';
+        return `${icon} <b>${escapeHtml(c.name)}</b> — ${c.label}: ${c.period.start} → ${c.period.end}`;
+      });
+      if(diff.leaveChanges.length>40) items.push(`<span style="color:var(--text-dim)">...și încă ${diff.leaveChanges.length-40}</span>`);
+      html+=_diffSection("📅 Concedii / Krank / Fără plată — modificări ("+diff.leaveChanges.length+")", items);
+    }
+
+    html+=_diffSection("⚙️ Alte modificări (zile/an, reportate, contract)", diff.otherChanges);
+    html+=_diffSection("📋 Sortatori — persoane adăugate/șterse pe luni", diff.sortChanges);
+
+    const summaryBits=[];
+    if(diff.prezDiff)     summaryBits.push("📅 Prezențe (timeline): <b>"+diff.prezDiff+"</b> celule diferite");
+    if(diff.sortPresDiff) summaryBits.push("📋 Prezențe sortatori: <b>"+diff.sortPresDiff+"</b> celule diferite");
+    if(diff.planDiff)     summaryBits.push("🗓️ Planificare: <b>"+diff.planDiff+"</b> celule diferite");
+    html+=_diffSection("🔢 Sumar modificări numerice", summaryBits);
+  }
+
+  document.getElementById("backupPreviewContent").innerHTML=html;
+  // Ascundem controalele de restaurare — diff-ul e doar informativ
+  document.getElementById("backupRestoreWarning").style.display="none";
+  document.getElementById("backupRestoreConfirmBtn").style.display="none";
+  document.getElementById("backupManagerList").style.display="none";
+  document.getElementById("backupManagerPreview").style.display="block";
+}
+
+function showBackupDiff(){
+  if(!_backupDocs||!_backupDocs.length){ toast("Nu există backup-uri salvate",true); return; }
+  _selectedBackupIdx=-1; // mod diff — fără restaurare
+  const bd=_backupDocs[0];
+  const diff=computeBackupDiff(bd);
+  renderBackupDiff(bd, diff);
+}
+
+function _bkCard(icon,value,label){
+  return `<div style="background:var(--bg-elev-2);border:1px solid var(--border);border-radius:8px;padding:10px 8px;text-align:center">
+    <div style="font-size:18px;margin-bottom:2px">${icon}</div>
+    <div style="font-size:18px;font-weight:800">${value}</div>
+    <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.3px">${label}</div>
+  </div>`;
+}
+
 function previewBackup(idx){
   _selectedBackupIdx=idx;
+  document.getElementById("backupRestoreWarning").style.display="";
+  document.getElementById("backupRestoreConfirmBtn").style.display="";
   const bd=_backupDocs[idx];
   const savedAt=bd.savedAt?new Date(bd.savedAt):null;
   document.getElementById("backupPreviewTitle").textContent="Backup din: "+(savedAt?savedAt.toLocaleString("ro-RO"):(bd.date||bd.id));
+
   const driversObj=bd.drivers||{};
-  const driversArr=Array.isArray(driversObj)?driversObj:Object.values(driversObj);
-  let html=`<div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:6px">👥 Persoane (${driversArr.length})</div>`;
-  html+=`<div style="background:var(--bg-elev-2);border-radius:6px;padding:8px;max-height:180px;overflow-y:auto;margin-bottom:10px">`;
-  if(driversArr.length===0&&bd.leaves){
-    Object.keys(bd.leaves).forEach(n=>{html+=`<div style="font-size:12px;padding:2px 0">${escapeHtml(n)}</div>`;});
-  } else {
-    driversArr.forEach(d=>{
-      const lv=(d.leaves||[]).length,kr=(d.krankLeaves||[]).length,up=(d.unpaidLeaves||[]).length;
-      const p=[];if(lv)p.push(lv+"U");if(kr)p.push(kr+"K");if(up)p.push(up+"S");
-      html+=`<div style="font-size:12px;padding:2px 0">${escapeHtml(d.name||"?")} <span style="color:var(--text-dim)">${p.length?"("+p.join(", ")+")":""}</span></div>`;
-    });
+  let driversArr=Array.isArray(driversObj)?driversObj:Object.values(driversObj);
+  // Format vechi (v1/v2): bd.leaves = {nume: {leaves,krankLeaves,unpaidLeaves}}
+  if(driversArr.length===0 && bd.leaves){
+    driversArr = Object.entries(bd.leaves).map(([name,v])=>({name,leaves:v.leaves||[],krankLeaves:v.krankLeaves||[],unpaidLeaves:v.unpaidLeaves||[],maxDays:0,carryOverByYear:{}}));
   }
-  html+=`</div>`;
-  if(bd.prezente&&Object.keys(bd.prezente).length>0){
-    html+=`<div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:4px">✓ Prezențe: ${Object.keys(bd.prezente).length} luni</div>`;
+  driversArr = [...driversArr].sort((a,b)=>(a.name||"").localeCompare(b.name||"","ro"));
+
+  // ── Calcule sumare ──
+  const y = bd.year || activeYear;
+  const prezMonths = Object.keys(bd.prezente||{}).length;
+  const sortCount = bd.sortatori&&bd.sortatori.drivers
+    ? (Array.isArray(bd.sortatori.drivers)?bd.sortatori.drivers.length:Object.values(bd.sortatori.drivers).reduce((s,a)=>s+(a||[]).length,0))
+    : 0;
+  const sortMonths = bd.sortatori&&bd.sortatori.drivers&&!Array.isArray(bd.sortatori.drivers)
+    ? Object.keys(bd.sortatori.drivers).length : (sortCount>0?1:0);
+  const planWeeks = bd.planificare ? Object.keys(bd.planificare).length : 0;
+
+  // ── Cards sumar ──
+  let html=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:14px">
+    ${_bkCard("👥",driversArr.length,"persoane")}
+    ${_bkCard("📅",prezMonths,"luni prezențe")}
+    ${_bkCard("📋",sortCount,"sortatori ("+sortMonths+" luni)")}
+    ${_bkCard("🗓️",planWeeks,"săpt. planificare")}
+  </div>`;
+
+  // ── Tabel detaliat persoane: zile concediu/krank/unpaid ──
+  html+=`<div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:6px">👥 Persoane — situație concedii (${y})</div>`;
+  html+=`<div style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:12px">
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead style="position:sticky;top:0;background:var(--bg-elev-2);z-index:1"><tr>
+        <th style="text-align:left;padding:5px 8px;border-bottom:1px solid var(--border)">Nume</th>
+        <th style="padding:5px 6px;border-bottom:1px solid var(--border)" title="Total disponibil (zile/an + reportate)">Disp.</th>
+        <th style="padding:5px 6px;border-bottom:1px solid var(--border);color:#f59e0b" title="Concediu folosit anul curent">Conc.</th>
+        <th style="padding:5px 6px;border-bottom:1px solid var(--border);color:#10b981" title="Zile rămase">Rămas</th>
+        <th style="padding:5px 6px;border-bottom:1px solid var(--border);color:#ef4444" title="Zile Krank (total perioade)">Krank</th>
+        <th style="padding:5px 6px;border-bottom:1px solid var(--border);color:#3b82f6" title="Zile fără plată (Sonderurlaub)">S</th>
+        <th style="padding:5px 6px;border-bottom:1px solid var(--border)" title="Perioade de concediu">Per.</th>
+      </tr></thead><tbody>`;
+
+  driversArr.forEach((d,i)=>{
+    const usedConc = usedDaysThisYear(d,"leaves",y);
+    const usedKrank = (d.krankLeaves||[]).reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end)),0);
+    const usedUnpaid = (d.unpaidLeaves||[]).reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end)),0);
+    const carry = getCarryOverForYear(d,y);
+    const total = (d.maxDays||0)+carry;
+    const rem = total>0 ? Math.max(0,total-usedConc) : "—";
+    const remColor = typeof rem==="number" && rem<3 ? "#ef4444" : typeof rem==="number" && rem<6 ? "#f59e0b" : "#10b981";
+    const rowBg = i%2===0?"var(--bg)":"var(--bg-elev)";
+    const periods=(d.leaves||[]).length;
+    const contractInfo = (d.startDate||d.endDate)
+      ? `<div style="font-size:10px;color:var(--text-dim)">${d.startDate?"de la "+d.startDate:""}${d.endDate?" până la "+d.endDate:""}</div>` : "";
+    html+=`<tr style="background:${rowBg}">
+      <td style="padding:4px 8px;font-weight:600">${escapeHtml(d.name||"?")}${contractInfo}</td>
+      <td style="text-align:center;padding:4px 6px">${total||"—"}</td>
+      <td style="text-align:center;padding:4px 6px;color:#f59e0b;font-weight:700">${usedConc||"—"}</td>
+      <td style="text-align:center;padding:4px 6px;color:${remColor};font-weight:800">${rem}</td>
+      <td style="text-align:center;padding:4px 6px;color:#ef4444">${usedKrank||"—"}</td>
+      <td style="text-align:center;padding:4px 6px;color:#3b82f6">${usedUnpaid||"—"}</td>
+      <td style="text-align:center;padding:4px 6px;color:var(--text-dim)">${periods||"—"}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div>`;
+
+  // ── Detalii suplimentare ──
+  const details=[];
+  if(prezMonths>0) details.push("📅 Prezențe: <b>"+Object.keys(bd.prezente).sort().join(", ")+"</b>");
+  if(bd.sortatori&&bd.sortatori.drivers&&!Array.isArray(bd.sortatori.drivers)){
+    const months=Object.keys(bd.sortatori.drivers).sort();
+    details.push("📋 Sortatori pe luni: <b>"+months.map(m=>m+" ("+(bd.sortatori.drivers[m]||[]).length+")").join(", ")+"</b>");
   }
-  if(bd.sortatori&&bd.sortatori.drivers){
-    html+=`<div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:4px">📋 Sortatori: ${bd.sortatori.drivers.length} persoane</div>`;
+  if(planWeeks>0) details.push("🗓️ Planificare săptămâni: <b>"+Object.keys(bd.planificare).sort().join(", ")+"</b>");
+  if(details.length){
+    html+=`<div style="font-size:11px;color:var(--text-dim);line-height:1.6;background:var(--bg-elev-2);border-radius:6px;padding:8px 10px">${details.join("<br>")}</div>`;
   }
+
   document.getElementById("backupPreviewContent").innerHTML=html;
   document.getElementById("backupManagerList").style.display="none";
   document.getElementById("backupManagerPreview").style.display="block";
@@ -4854,6 +5312,8 @@ async function confirmRestoreBackup(){
           if(bkDr.maxDays!==undefined)dr.maxDays=bkDr.maxDays;
           if(bkDr.carryOverDays!==undefined)dr.carryOverDays=bkDr.carryOverDays;
           if(bkDr.carryOverByYear)dr.carryOverByYear=bkDr.carryOverByYear;
+          if(bkDr.startDate) dr.startDate=bkDr.startDate; else delete dr.startDate;
+          if(bkDr.endDate)   dr.endDate=bkDr.endDate;     else delete dr.endDate;
           restored++;
         }
       });
@@ -4864,9 +5324,17 @@ async function confirmRestoreBackup(){
     }
     if(bd.thresholds)state.thresholds=bd.thresholds;
     if(bd.prezente&&Object.keys(bd.prezente).length>0){Object.assign(presState.presence,bd.prezente);await savePresState();}
-    if(bd.sortatori&&bd.sortatori.drivers&&bd.sortatori.drivers.length>0){sortState.drivers=bd.sortatori.drivers;sortState.presence=bd.sortatori.presence||sortState.presence||{};await saveSortState();}
+    if(bd.sortatori&&bd.sortatori.drivers){
+      const hasSortData=Array.isArray(bd.sortatori.drivers)?bd.sortatori.drivers.length>0:Object.values(bd.sortatori.drivers).some(a=>a&&a.length>0);
+      if(hasSortData){sortState.drivers=bd.sortatori.drivers;sortState.presence=bd.sortatori.presence||sortState.presence||{};await saveSortState();}
+    }
+    if(bd.planificare&&Object.keys(bd.planificare).length>0){
+      planState=JSON.parse(JSON.stringify(bd.planificare));
+      await savePlanState();
+    }
     scheduleSave();renderAll();
     if(document.getElementById("sortatoriTimeline"))renderSortatoriTimeline();
+    if(appMode==="planificare") renderPlanificare();
     logActivity("🔄 Backup restaurat","—","backup din "+(bd.date||bd.savedAt||bd.id)+", "+restored+" persoane");
     toast("✅ Restaurat: "+restored+" persoane");
     closeModal("modalBackupManager");
@@ -5106,7 +5574,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.06.09-05";
+const APP_VERSION = "2026.06.14-03";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -5285,7 +5753,8 @@ function renderPlanificare(){
   // Categorii — fără Camion
   const cats = [
     {label:"Permanenți", key:"permanent", color:"#10b981"},
-    {label:"Rotații",    key:"rotatie",   color:"#f59e0b"},
+    {label:"Rotații",    key:"rotatie",   color:"#7f1d1d"},
+    {label:"Camion",     key:"camion",    color:"#8b5cf6"},
     {label:"Urgențe",    key:"urgenta",   color:"#ef4444"},
   ];
 
@@ -5412,8 +5881,8 @@ function renderPlanificare(){
           else if(val===1){bg="#10b981";color="#fff";label="✓";cursor="pointer";}
           else{bg=isToday?"rgba(251,191,36,0.08)":rowBg;color="";label="";cursor="pointer";}
           const esc=dr.name.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-          const click=(!isBlocked&&!onLeave)?`onclick="togglePlanCell('${esc}','${wkStateKey}',${dow})"` :"";
-          html+=`<td style="width:${dayW}px;min-width:${dayW}px;height:34px;background:${bg};border:1px solid var(--border);text-align:center;vertical-align:middle;font-size:13px;font-weight:900;color:${color};cursor:${cursor};user-select:none" ${click}>${label}</td>`;
+          const click=(!isBlocked&&!onLeave)?`onmousedown="planDragStart('${esc}','${wkStateKey}',${dow})" onmouseenter="planDragEnter('${esc}','${wkStateKey}',${dow})"` :"";
+          html+=`<td class="plan-cell" data-name="${escapeHtml(dr.name)}" data-wk="${wkStateKey}" data-dow="${dow}" style="width:${dayW}px;min-width:${dayW}px;height:34px;background:${bg};border:1px solid var(--border);text-align:center;vertical-align:middle;font-size:13px;font-weight:900;color:${color};cursor:${cursor};user-select:none" ${click}>${label}</td>`;
         });
         if(wi<weeks.length-1) html+=`<td style="width:8px;background:var(--bg);border-bottom:1px solid var(--border);border-left:2px solid var(--border);border-right:2px solid var(--border)"></td>`;
       });
@@ -5447,6 +5916,8 @@ function renderPlanificare(){
     return;
   }
   grid.innerHTML=html;
+  // Actualizăm și panoul de conformitate
+  renderPlanCompliance();
 }
 
   // Zile lunii ca array de Date
@@ -5464,13 +5935,133 @@ function renderPlanificare(){
 
 
 
-function togglePlanCell(driverName, weekKey, dayOfWeek){
-  if(!planState[weekKey]) planState[weekKey] = {};
-  if(!planState[weekKey][driverName]) planState[weekKey][driverName] = [0,0,0,0,0,0,0];
-  planState[weekKey][driverName][dayOfWeek] = planState[weekKey][driverName][dayOfWeek]===1 ? 0 : 1;
-  renderPlanificare();
-  savePlanState();
+function renderPlanCompliance(){
+  const panel = document.getElementById("planCompliancePanel");
+  const content = document.getElementById("planComplianceContent");
+  const period = document.getElementById("planCompliancePeriod");
+  if(!panel||!content) return;
+
+  const y = planCurrentDate.getFullYear();
+  const m = planCurrentDate.getMonth();
+  const mk = y+"-"+String(m+1).padStart(2,"0");
+  const days = Array.from({length:new Date(y,m+1,0).getDate()},(_,i)=>new Date(y,m,i+1));
+  const today = new Date(); today.setHours(0,0,0,0);
+  const pastDays = days.filter(d=>d<=today && d.getDay()!==0 && !getHoliday(d));
+  if(!pastDays.length){ panel.style.display="none"; return; }
+
+  const MONTHS_RO=["Ian","Feb","Mar","Apr","Mai","Iun","Iul","Aug","Sep","Oct","Nov","Dec"];
+  if(period) period.textContent="— "+MONTHS_RO[m]+" "+y+" (zile trecute)";
+
+  const sortDrivers = getMonthDrivers(mk)||[];
+  const ruhDrivers = sortDrivers.filter(d=>d.group==="ruhstorf");
+  if(!ruhDrivers.length){ panel.style.display="none"; return; }
+
+  const report = [];
+  ruhDrivers.forEach(dr=>{
+    const rows = {planned:0, present:0, issues:[], unexpected:0};
+    pastDays.forEach(d=>{
+      const dow=(d.getDay()+6)%7;
+      const wkKey=d.getFullYear()+"-W"+String(getISOWeek(d)).padStart(2,"0");
+      const wkData=(planState[wkKey]&&planState[wkKey][dr.name])||[0,0,0,0,0,0,0];
+      const wasPlanned = wkData[dow]===1;
+      const dayStr = String(d.getDate());
+      const pres = (sortState.presence[mk]&&sortState.presence[mk][dr.name]&&sortState.presence[mk][dr.name][dayStr]);
+      const wasPresent = pres==="prezent";
+      const wasAbsent  = pres==="absent";
+      if(wasPlanned) rows.planned++;
+      if(wasPresent) rows.present++;
+      if(wasPlanned && wasAbsent) rows.issues.push({label:d.getDate()+"."+(d.getMonth()+1),type:"absent"});
+      else if(wasPlanned && !wasPresent && !wasAbsent) rows.issues.push({label:d.getDate()+"."+(d.getMonth()+1),type:"unknown"});
+      if(!wasPlanned && wasPresent) rows.unexpected++;
+    });
+    if(rows.planned>0||rows.present>0) report.push({dr,...rows});
+  });
+
+  if(!report.length){ panel.style.display="none"; return; }
+  panel.style.display="block";
+
+  let html=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="background:var(--bg-elev-2)">
+      <th style="text-align:left;padding:6px 10px;border:1px solid var(--border)">Sortator</th>
+      <th style="padding:6px 8px;border:1px solid var(--border);text-align:center">Planificat</th>
+      <th style="padding:6px 8px;border:1px solid var(--border);text-align:center">Bifat prezent</th>
+      <th style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:#10b981">✓ OK</th>
+      <th style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:#ef4444">✗ Probleme</th>
+      <th style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:#f59e0b">+ Neplanificat</th>
+      <th style="padding:6px 8px;border:1px solid var(--border);text-align:left">Zile cu probleme</th>
+    </tr></thead><tbody>`;
+
+  report.sort((a,b)=>b.issues.length-a.issues.length).forEach((r,i)=>{
+    const rowBg=i%2===0?"var(--bg)":"var(--bg-elev)";
+    const respected=r.planned-r.issues.length;
+    const issueLabels=r.issues.map(x=>`<span style="background:rgba(239,68,68,0.12);border-radius:4px;padding:1px 5px;font-size:11px;color:#ef4444;margin:1px">${x.label}${x.type==="unknown"?" ❓":""}</span>`).join(" ");
+    html+=`<tr style="background:${rowBg}">
+      <td style="padding:5px 10px;border:1px solid var(--border);font-weight:600">${escapeHtml(r.dr.name)}</td>
+      <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">${r.planned}</td>
+      <td style="padding:5px 8px;border:1px solid var(--border);text-align:center">${r.present}</td>
+      <td style="padding:5px 8px;border:1px solid var(--border);text-align:center;font-weight:700;color:#10b981">${respected}</td>
+      <td style="padding:5px 8px;border:1px solid var(--border);text-align:center;font-weight:700;color:${r.issues.length>0?"#ef4444":"var(--text-dim)"}">${r.issues.length||"—"}</td>
+      <td style="padding:5px 8px;border:1px solid var(--border);text-align:center;color:#f59e0b">${r.unexpected||"—"}</td>
+      <td style="padding:5px 8px;border:1px solid var(--border)">${issueLabels||'<span style="color:var(--text-dim);font-size:11px">fără probleme ✓</span>'}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div>`;
+  content.innerHTML=html;
 }
+
+let _planDrag={active:false,mode:null,changed:false};
+
+function planDragStart(name,wkKey,dow){
+  const cur=(planState[wkKey]&&planState[wkKey][name]&&planState[wkKey][name][dow])||0;
+  _planDrag={active:true,mode:cur===1?0:1,changed:false};
+  _setPlanCell(name,wkKey,dow,_planDrag.mode);
+}
+
+function planDragEnter(name,wkKey,dow){
+  if(!_planDrag.active) return;
+  _setPlanCell(name,wkKey,dow,_planDrag.mode);
+}
+
+function _setPlanCell(name,wkKey,dow,val){
+  if(!planState[wkKey]) planState[wkKey]={};
+  if(!planState[wkKey][name]) planState[wkKey][name]=[0,0,0,0,0,0,0];
+  if(planState[wkKey][name][dow]===val) return;
+  planState[wkKey][name][dow]=val;
+  _planDrag.changed=true;
+  // Actualizăm vizual celula direct fără re-render complet
+  const cell=document.querySelector(`.plan-cell[data-name="${CSS.escape(name)}"][data-wk="${wkKey}"][data-dow="${dow}"]`);
+  if(cell){
+    if(val===1){
+      cell.style.background="#10b981";
+      cell.style.color="#fff";
+      cell.textContent="✓";
+    } else {
+      cell.style.background="";
+      cell.style.color="";
+      cell.textContent="";
+    }
+  }
+}
+
+function togglePlanCell(name,wkKey,dow){
+  if(!planState[wkKey]) planState[wkKey]={};
+  if(!planState[wkKey][name]) planState[wkKey][name]=[0,0,0,0,0,0,0];
+  planState[wkKey][name][dow]=planState[wkKey][name][dow]===1?0:1;
+  renderPlanificare(); savePlanState();
+}
+
+document.addEventListener("mouseup",()=>{
+  if(_planDrag.active&&_planDrag.changed){
+    renderPlanificare(); savePlanState();
+  }
+  _planDrag={active:false,mode:null,changed:false};
+});
+document.addEventListener("mouseleave",()=>{
+  if(_planDrag.active&&_planDrag.changed){
+    renderPlanificare(); savePlanState();
+  }
+  _planDrag={active:false,mode:null,changed:false};
+});
 
 function changePlanWeek(delta){
   // Navigare pe luni
@@ -5503,38 +6094,53 @@ function clearPlanWeek(){
 }
 
 function openWhatsAppExport(){
-  // Generăm pentru săptămâna care conține planCurrentDate
   const wkKey = getPlanWeekKey();
   const dates = getPlanWeekDates();
   const weekData = planState[wkKey] || {};
 
   const cats = [
     {label:"Permanenți", key:"permanent", color:"#10b981"},
-    {label:"Rotații",    key:"rotatie",   color:"#f59e0b"},
+    {label:"Rotații",    key:"rotatie",   color:"#7f1d1d"},
+    {label:"Camion",     key:"camion",    color:"#8b5cf6"},
     {label:"Urgențe",    key:"urgenta",   color:"#ef4444"},
   ];
 
   const _planMk=getSortKey();
-  const allRuhDrivers = cats.flatMap(cat=>
-    (getMonthDrivers(_planMk)||[]).filter(d=>d.group==="ruhstorf"&&(cat.key==="permanent"?(!d.category||d.category==="permanent"):d.category===cat.key))
-    .sort((a,b)=>a.name.localeCompare(b.name,"ro"))
-  );
-
   const workDayIdxs = dates.map((d,i)=>({d,i})).filter(({d})=>d.getDay()!==0&&!getHoliday(d)).map(({i})=>i);
 
+  // Permanenți + Rotații + Urgențe (nu Camion)
+  const mainCats = cats.filter(c=>c.key!=="camion");
   const fullWeek=[], partial={};
-  allRuhDrivers.forEach(dr=>{
-    const concDr=state.drivers.find(sd=>sd.name===dr.name);
+  mainCats.forEach(cat=>{
+    (getMonthDrivers(_planMk)||[]).filter(d=>d.group==="ruhstorf"&&(cat.key==="permanent"?(!d.category||d.category==="permanent"):d.category===cat.key))
+    .sort((a,b)=>a.name.localeCompare(b.name,"ro"))
+    .forEach(dr=>{
+      const concDr=state.drivers.find(sd=>sd.name===dr.name);
+      const dw=weekData[dr.name]||[0,0,0,0,0,0,0];
+      const pz=workDayIdxs.filter(i=>{
+        const d=dates[i];
+        const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)));
+        return dw[i]===1&&!onLeave;
+      });
+      if(!pz.length) return;
+      if(pz.length===workDayIdxs.length) fullWeek.push(dr.name);
+      else partial[dr.name]=pz;
+    });
+  });
+
+  // Camion — o singură persoană
+  let camionName=null;
+  const camionDrivers=(getMonthDrivers(_planMk)||[]).filter(d=>d.group==="ruhstorf"&&d.category==="camion");
+  for(const dr of camionDrivers){
     const dw=weekData[dr.name]||[0,0,0,0,0,0,0];
-    const prezZile=workDayIdxs.filter(i=>{
+    const hasAny=workDayIdxs.some(i=>{
       const d=dates[i];
+      const concDr=state.drivers.find(sd=>sd.name===dr.name);
       const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)));
       return dw[i]===1&&!onLeave;
     });
-    if(!prezZile.length) return;
-    if(prezZile.length===workDayIdxs.length) fullWeek.push(dr.name);
-    else partial[dr.name]=prezZile;
-  });
+    if(hasAny){camionName=dr.name;break;}
+  }
 
   const holidays=dates.filter(d=>getHoliday(d)&&d.getDay()!==0);
   const mon=dates[0], sun=dates[6];
@@ -5542,34 +6148,44 @@ function openWhatsAppExport(){
   const fmtFull=d=>PLAN_DAYS_FULL[(d.getDay()+6)%7]+" "+d.getDate()+"."+(d.getMonth()+1)+"."+d.getFullYear();
   const wkNum=getISOWeek(mon);
 
-  let msg="Bună ziua, colegi! 👋\n\n";
-  msg+="Postez programul sortatorilor pentru săptămâna "+fmt(mon)+" – "+fmt(sun)+".\n\n";
+  // Salut dinamic în funcție de ora trimiterii
+  const _hour = new Date().getHours();
+  const _salut = _hour>=6&&_hour<12 ? "Bună dimineața" : _hour>=12&&_hour<18 ? "Bună ziua" : _hour>=18 ? "Bună seara" : "Bună ziua";
+
+  let msg=_salut+", colegi! 👋\n\n";
+  msg+="Postez programul sortatorilor Ruhstorf pentru săptămâna *"+fmt(mon)+" – "+fmt(sun)+"."+sun.getFullYear()+"* (W"+wkNum+").\n\n";
+
   if(fullWeek.length>0){
     let hNote="";
     if(holidays.length>0){
       const hlDays=holidays.map(d=>"*"+PLAN_DAYS_FULL[(d.getDay()+6)%7]+" "+d.getDate()+"."+(d.getMonth()+1)+"*").join(", ");
-      hNote=" (exceptând "+hlDays+" când suntem cu toții liberi)";
+      hNote=" (cu excepția "+hlDays+")";
     }
-    msg+="🟢 *Prezenți întreaga săptămână"+hNote+":*\n"+fullWeek.map(n=>"• "+n).join("\n")+"\n\n";
+    msg+="🟢 *Prezenți toată săptămâna"+hNote+":*\n"+fullWeek.map(n=>"  • "+n).join("\n")+"\n\n";
   }
   if(Object.keys(partial).length>0){
     msg+="🟡 *Prezenți parțial:*\n";
-    Object.entries(partial).forEach(([name,idxs])=>{ msg+="• *"+name+"* — "+idxs.map(i=>PLAN_DAYS_FULL[i].toLowerCase()).join(", ")+"\n"; });
+    Object.entries(partial).forEach(([name,idxs])=>{
+      msg+="  • *"+name+"* — "+idxs.map(i=>PLAN_DAYS_FULL[i].toLowerCase()).join(", ")+"\n";
+    });
     msg+="\n";
+  }
+  if(camionName){
+    msg+="🚚 *Ajutor camion săptămâna viitoare:*\n  • *"+camionName+"*\n\n";
   }
   if(holidays.length>0){
     msg+="🔴 *Zile libere:*\n";
-    holidays.forEach(d=>{ const h=getHoliday(d); msg+="• "+fmtFull(d)+(h?" ("+h.split("(")[0].trim()+")"  :"")+"\n"; });
+    holidays.forEach(d=>{ const h=getHoliday(d); msg+="  • "+fmtFull(d)+(h?" ("+h.split("(")[0].trim()+")" :"")+"\n"; });
     msg+="\n";
+  }
+  if(fullWeek.length===0&&Object.keys(partial).length===0&&!camionName){
+    msg+="⚠️ Nicio persoană planificată pentru această săptămână.\n\n";
   }
   msg+="Dacă aveți nelămuriri, vă rog să mi le adresați fără probleme. 🙏";
 
   document.getElementById("waSubtitle").textContent="Săptămâna "+wkKey+" · "+fmt(mon)+" – "+fmt(sun)+"."+sun.getFullYear();
   document.getElementById("waText").value=msg;
-
-  // Generăm imaginea
   generatePlanImage(wkKey, dates, weekData, cats, wkNum);
-
   openModal("modalWhatsApp");
 }
 function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
@@ -5588,10 +6204,10 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
         const dw=weekData[dr.name]||[0,0,0,0,0,0,0];
         const concDr=state.drivers.find(sd=>sd.name===dr.name);
         const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)));
-        if(dw[dow]===1&&!onLeave) list.push(dr.name);
+        if(dw[dow]===1&&!onLeave) list.push({name:dr.name, cat:cat.key});
       });
     });
-    list.sort((a,b)=>a.localeCompare(b,"ro"));
+    list.sort((a,b)=>a.name.localeCompare(b.name,"ro"));
     return list;
   }
 
@@ -5659,9 +6275,11 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
     workDays.forEach((d,di)=>{
       const x=padL+slotW+di*colW;
       const {list,hol}=perDay[di];
-      const name=list[s]||null;
+      const entry=list[s]||null;
+      const name=entry?entry.name:null;
+      const cat=entry?entry.cat:null;
       if(hol) ctx.fillStyle="#f3e0ff";
-      else if(name) ctx.fillStyle="#27ae60";
+      else if(name) ctx.fillStyle=cat==="rotatie"?"#7f1d1d":cat==="urgenta"?"#7f1111":"#27ae60";
       else ctx.fillStyle=rowBg;
       ctx.fillRect(x,y,colW,rowH);
       if(name){
@@ -6048,7 +6666,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.09-05</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.14-03</div>
 
 </body>
 </html>
