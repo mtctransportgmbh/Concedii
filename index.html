@@ -4582,11 +4582,15 @@ function processExcelWorkbook(wb, fileName){
     for(let row=6; row<=36; row++){
       const bCell = ws["B"+row]; // Tag (ziua ca număr)
       const dCell = ws["D"+row]; // Kommt (ora sosirii)
-      const hCell = ws["H"+row]; // Abwesenheit (Urlaub/Krank/X/Feiertag)
+      const hCell = ws["H"+row]; // Abwesenheit (Urlaub/Krank/X/Feiertag) — coloana principală
+      const iCell = ws["I"+row]; // Abwesenheit alternativ — unele fișiere scriu statusul aici
       if(!bCell || bCell.v===null || bCell.v===undefined) continue;
       const dayNum = parseInt(bCell.v);
       if(isNaN(dayNum) || dayNum<1 || dayNum>31) continue;
-      const status = hCell ? String(hCell.v||hCell.w||"").trim() : "";
+      const statusH = hCell ? String(hCell.v||hCell.w||"").trim() : "";
+      const statusI = iCell ? String(iCell.v||iCell.w||"").trim() : "";
+      // Folosim H dacă are conținut, altfel I
+      const status = statusH || statusI;
       const hasArrival = dCell && dCell.v !== null && dCell.v !== undefined && dCell.v !== "";
       excelData[dayNum] = { hasArrival, status };
     }
@@ -5458,22 +5462,22 @@ function parseExcelForImport(wb,fileName){
       const bCell=ws["B"+row]; if(!bCell||bCell.v===null||bCell.v===undefined) continue;
       const dayNum=parseInt(bCell.v); if(isNaN(dayNum)||dayNum<1||dayNum>31) continue;
       const d=new Date(yearVal,monthNum-1,dayNum); if(d.getMonth()!==monthNum-1) continue;
-      const dCell=ws["D"+row],hCell=ws["H"+row],jCell=ws["J"+row];
+      const dCell=ws["D"+row],hCell=ws["H"+row],iCell=ws["I"+row];
       const rawH=hCell?String(hCell.v||hCell.w||"").trim():"";
-      const rawJ=jCell?String(jCell.v||jCell.w||"").trim():"";
-      const status=rawH.toLowerCase(),statusJ=rawJ.toLowerCase();
+      const rawI=iCell?String(iCell.v||iCell.w||"").trim():"";
+      const status=rawH.toLowerCase(),statusI=rawI.toLowerCase();
       const hasArrival=dCell&&dCell.v!==null&&dCell.v!==undefined&&dCell.v!=="";
-      let dayType=null;
-      if(status==="urlaub"||status==="u") dayType="urlaub";
-      else if(status==="krank"||status==="krankenstand"||status==="k") dayType="krank";
-      else if(status.includes("sonder")||status==="sonderurlaub"||status==="unbezahlterurlaub") dayType="unpaid";
-      else if(status==="feiertag"||status==="f") dayType="feiertag";
-      else if(status==="x") dayType="prezent";
-      else if(status==="ps"||status==="p.s."||status==="p.s"||status==="p s"||status==="prezent"||status==="p. s."||status==="p.s ") dayType="prezent";
-      if(!dayType||(dayType!=="prezent"&&dayType!=="feiertag"&&dayType!=="urlaub"&&dayType!=="krank"&&dayType!=="unpaid")){
-        const sj=statusJ.replace(/\s+/g,"").replace(/\./g,"");
-        if(sj==="ps"||statusJ==="x"||statusJ==="prezent") dayType="prezent";
-      }
+      // Determină tipul zilei dintr-un text de status (folosit pentru ambele coloane H și I)
+      const typeFromStatus=(s)=>{
+        const sn=s.replace(/\s+/g,"").replace(/\./g,""); // normalizat: fără spații/puncte
+        if(s==="urlaub"||s==="u") return "urlaub";
+        if(s==="krank"||s==="krankenstand"||s==="k") return "krank";
+        if(s.includes("sonder")||s==="sonderurlaub"||s==="unbezahlterurlaub"||sn==="su") return "unpaid";
+        if(s==="feiertag"||s==="f") return "feiertag";
+        if(s==="x"||sn==="ps"||s==="prezent") return "prezent";
+        return null;
+      };
+      let dayType = typeFromStatus(status) || typeFromStatus(statusI);
       if(!dayType&&hasArrival) dayType="prezent";
       if(dayType==="urlaub"||dayType==="krank"||dayType==="unpaid"){
         if(runType===dayType){}
@@ -5672,7 +5676,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.06.18-04";
+const APP_VERSION = "2026.06.18-05";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -6772,7 +6776,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.18-04</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.18-05</div>
 
 </body>
 </html>
