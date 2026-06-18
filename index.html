@@ -5484,11 +5484,44 @@ function parseExcelForImport(wb,fileName){
       if(dayType==="prezent") changes.prezente.push(dayNum);
     }
     if(runType)flush(runType,runStart,new Date(yearVal,monthNum,0).getDate());
+
     const existing={leaves:(dr.leaves||[]),krank:(dr.krankLeaves||[]),unpaid:(dr.unpaidLeaves||[])};
-    const isNew=(l,arr)=>!arr.some(e=>e.start===l.start&&e.end===l.end);
-    const newLeaves=changes.leaves.filter(l=>isNew(l,existing.leaves));
-    const newKrank=changes.krank.filter(l=>isNew(l,existing.krank));
-    const newUnpaid=changes.unpaid.filter(l=>isNew(l,existing.unpaid));
+    // Verificăm la nivel de ZI dacă e deja acoperită de orice tip de absență existentă —
+    // nu doar dacă perioada exactă (start/end) se potrivește. Asta previne duplicarea
+    // când Excel-ul produce un interval cu alte limite decât cel deja salvat (ex: deja
+    // există 01.06→10.06 ca un singur bloc, iar fișierul curent acoperă doar 01.06→07.06).
+    const isDayCovered = (dateStr) => {
+      return existing.leaves.some(l=>dateStr>=l.start&&dateStr<=l.end)
+          || existing.krank.some(l=>dateStr>=l.start&&dateStr<=l.end)
+          || existing.unpaid.some(l=>dateStr>=l.start&&dateStr<=l.end);
+    };
+    // Pentru fiecare interval propus de Excel, păstrăm doar zilele necoperite,
+    // apoi le regrupăm în sub-intervale consecutive (ca să nu se piardă unirea firească).
+    const filterUncoveredDays = (periods) => {
+      const uncoveredDates=[];
+      periods.forEach(p=>{
+        const s=parseDate(p.start), e=parseDate(p.end);
+        for(let d=new Date(s); d<=e; d.setDate(d.getDate()+1)){
+          const ds=fmtDate(d);
+          if(!isDayCovered(ds)) uncoveredDates.push(ds);
+        }
+      });
+      uncoveredDates.sort();
+      const segments=[];
+      let segStart=null, segEnd=null;
+      uncoveredDates.forEach(ds=>{
+        if(segStart===null){ segStart=ds; segEnd=ds; return; }
+        const prevDay=fmtDate(new Date(parseDate(segEnd).getTime()+86400000));
+        if(prevDay===ds){ segEnd=ds; }
+        else { segments.push({start:segStart,end:segEnd}); segStart=ds; segEnd=ds; }
+      });
+      if(segStart!==null) segments.push({start:segStart,end:segEnd});
+      return segments;
+    };
+
+    const newLeaves=filterUncoveredDays(changes.leaves);
+    const newKrank=filterUncoveredDays(changes.krank);
+    const newUnpaid=filterUncoveredDays(changes.unpaid);
     const mk=yearVal+"-"+String(monthNum).padStart(2,"0");
     const existingPres=(presState.presence&&presState.presence[mk]&&presState.presence[mk][dr.name])||{};
     const newPrezente=changes.prezente.filter(d=>existingPres[String(d)]!=="prezent");
@@ -5544,6 +5577,10 @@ async function confirmImportExcel(){
       r.newPrezente.forEach(d=>{presState.presence[mk][dr.name][String(d)]="prezent";});
       logActivity("📥 Import prezențe",dr.name,r.newPrezente.length+"z ("+MRO[r.monthNum]+" "+r.yearVal+")");
     }
+    // Unim perioadele consecutive și scoatem sărbătorile
+    if(r.newLeaves.length) dr.leaves = cleanLeavesFromHolidays(dr.leaves);
+    if(r.newKrank.length)  dr.krankLeaves = cleanLeavesFromHolidays(dr.krankLeaves);
+    if(r.newUnpaid.length) dr.unpaidLeaves = cleanLeavesFromHolidays(dr.unpaidLeaves);
     count++;
   });
   renderAll(); scheduleSave(); await savePresState();
@@ -5635,7 +5672,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.06.18-03";
+const APP_VERSION = "2026.06.18-04";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -6735,7 +6772,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.18-03</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.18-04</div>
 
 </body>
 </html>
