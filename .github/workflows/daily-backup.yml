@@ -9,7 +9,18 @@ on:
     - cron: '0 11 * * *'
     # 22:00 RO (vară) = 19:00 UTC — backup complet cu email
     - cron: '0 19 * * *'
-  workflow_dispatch: {}   # permite rulare manuală din tab-ul Actions
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: 'Slot de forțat la rulare manuală (auto = după ora UTC reală)'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - '07'
+          - '14'
+          - '22'
 
 permissions:
   contents: read
@@ -31,27 +42,40 @@ jobs:
       - name: Install dependencies
         run: npm install firebase-admin nodemailer
 
-      - name: Determine current UTC hour
-        id: hour
-        run: echo "h=$(date -u +%H)" >> "$GITHUB_OUTPUT"
+      - name: Determine which slot to run
+        id: slot
+        run: |
+          INPUT_SLOT="${{ github.event.inputs.slot }}"
+          if [ -n "$INPUT_SLOT" ] && [ "$INPUT_SLOT" != "auto" ]; then
+            echo "h=$INPUT_SLOT" >> "$GITHUB_OUTPUT"
+            echo "Manual override: forcing slot $INPUT_SLOT"
+          else
+            CURRENT_H=$(date -u +%H)
+            echo "h=$CURRENT_H" >> "$GITHUB_OUTPUT"
+            echo "Auto-detected UTC hour: $CURRENT_H"
+          fi
 
       - name: Silent backup (07:00 RO)
-        if: steps.hour.outputs.h == '04'
+        if: steps.slot.outputs.h == '04' || steps.slot.outputs.h == '07'
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: node scripts/backup-silent.js 7
 
       - name: Silent backup (14:00 RO)
-        if: steps.hour.outputs.h == '11'
+        if: steps.slot.outputs.h == '11' || steps.slot.outputs.h == '14'
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: node scripts/backup-silent.js 14
 
       - name: Full backup + email (22:00 RO)
-        if: steps.hour.outputs.h == '19'
+        if: steps.slot.outputs.h == '19' || steps.slot.outputs.h == '22'
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
         run: node scripts/backup.js
+
+      - name: No matching slot
+        if: steps.slot.outputs.h != '04' && steps.slot.outputs.h != '07' && steps.slot.outputs.h != '11' && steps.slot.outputs.h != '14' && steps.slot.outputs.h != '19' && steps.slot.outputs.h != '22'
+        run: echo "⚠️ Ora curentă (${{ steps.slot.outputs.h }} UTC) nu corespunde niciunui slot de backup (04/07, 11/14, 19/22). Niciun script nu a rulat. Pentru test manual, folosește input-ul 'slot' din Run workflow."
