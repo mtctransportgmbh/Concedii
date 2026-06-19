@@ -1,9 +1,18 @@
-name: Daily Firestore Backup - 22:00
+name: MTC Daily Backup
 
 on:
   schedule:
-    - cron: '0 20 * * *'
-  workflow_dispatch:
+    # Orele sunt în UTC. România = UTC+3 vara (DST), UTC+2 iarna.
+    # 07:00 RO (vară) = 04:00 UTC
+    - cron: '0 4 * * *'
+    # 14:00 RO (vară) = 11:00 UTC
+    - cron: '0 11 * * *'
+    # 22:00 RO (vară) = 19:00 UTC — backup complet cu email
+    - cron: '0 19 * * *'
+  workflow_dispatch: {}   # permite rulare manuală din tab-ul Actions
+
+permissions:
+  contents: read
 
 jobs:
   backup:
@@ -11,23 +20,38 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '24'
 
       - name: Install dependencies
         run: npm install firebase-admin nodemailer
-        working-directory: scripts
 
-      - name: Run backup script
+      - name: Determine current UTC hour
+        id: hour
+        run: echo "h=$(date -u +%H)" >> "$GITHUB_OUTPUT"
+
+      - name: Silent backup (07:00 RO)
+        if: steps.hour.outputs.h == '04'
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node scripts/backup-silent.js 7
+
+      - name: Silent backup (14:00 RO)
+        if: steps.hour.outputs.h == '11'
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node scripts/backup-silent.js 14
+
+      - name: Full backup + email (22:00 RO)
+        if: steps.hour.outputs.h == '19'
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
-        run: node backup.js
-        working-directory: scripts
+        run: node scripts/backup.js
