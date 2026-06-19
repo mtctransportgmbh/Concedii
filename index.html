@@ -725,6 +725,17 @@
   .tl-driver-col { position: sticky; left: 0; background: var(--bg-elev); z-index: 2; border-right: 2px solid var(--border); display: flex; flex-direction: column; }
   .tl-driver-header { padding: 0 12px; height: 42px; display: flex; align-items: center; font-size: 11px; text-transform: uppercase; color: var(--text-dim); border-bottom: 1px solid var(--border); font-weight: 600; letter-spacing: 0.5px; position: sticky; top: 0; background: var(--bg-elev); z-index: 3; flex-shrink: 0; }
   .tl-driver-row { padding: 0 12px; height: 34px; min-height: 34px; display: flex; align-items: center; border-bottom: 1px solid var(--border); font-size: 12px; cursor: pointer; flex-shrink: 0; box-sizing: border-box; }
+  .sort-cat-drop.drag-over {
+    outline: 2px dashed currentColor;
+    outline-offset: -3px;
+    background: rgba(99,102,241,0.18) !important;
+  }
+  .plan-cat-drop.drag-over td {
+    outline: 2px dashed #6366f1;
+    outline-offset: -3px;
+    background: rgba(99,102,241,0.18) !important;
+  }
+  .tl-driver-row[draggable="true"]:active { cursor: grabbing; }
   .tl-driver-row:hover { background: var(--bg-elev-2); }
   .tl-grid-wrap { overflow: visible; }
   .tl-sticky-header { position: sticky; top: 0; z-index: 10; background: var(--bg-elev); display: flex; min-width: 100%; border-bottom: 2px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
@@ -1815,7 +1826,7 @@ function restoreCompleteBackup(bk){
   return restored;
 }
 
-async function triggerAutoBackup(time){
+async function triggerAutoBackup(time, customDocId){
   const snapshotYear = activeYear;
   const snapshotUser = window.activeUserKey||"unknown";
   try{
@@ -1825,7 +1836,7 @@ async function triggerAutoBackup(time){
     const now = new Date();
     const today = fmtDate(now);
     const slot = now.getHours()<8?"A":now.getHours()<16?"B":"C";
-    const docId = today+"_"+slot;
+    const docId = customDocId || (today+"_"+slot);
 
     const driversData={};
     (state.drivers||[]).forEach(dr=>{
@@ -3342,26 +3353,32 @@ function downloadBackupNow(){
 }
 
 // Auto backup zilnic pentru Admin — salvat în Firestore col "daily_backup"
-// Backup automat la ore fixe: 06:00, 14:00, 22:00
-// Verifică la fiecare minut; salvează doar dacă nu s-a salvat deja pentru ora respectivă
+// Backup automat la ore fixe: 07:00, 14:00, 20:00
+// Verifică la fiecare minut; salvează doar dacă nu există deja un backup
+// pentru acel slot orar (verificat din Firestore, nu localStorage, ca să
+// funcționeze indiferent de pe ce dispozitiv e deschis admin-ul)
 // și doar dacă există date (guard în triggerAutoBackup previne backup gol)
-const SCHEDULED_BACKUP_HOURS = [6,14,22];
+const SCHEDULED_BACKUP_HOURS = [7,14,20];
 let _schedBackupInterval = null;
 function startScheduledBackups(){
   if(!isAdmin()) return;
   if(_schedBackupInterval) clearInterval(_schedBackupInterval);
-  const check=()=>{
+  const check=async ()=>{
     if(!state.drivers||state.drivers.length===0) return; // nimic de salvat
     const now=new Date();
     const today=fmtDate(now);
     const h=now.getHours();
+    // Fereastră de recuperare: dacă tab-ul nu era deschis exact la ora fixă,
+    // tot încercăm să recuperăm până la +59 min după oră (slot-ul orei respective)
     if(!SCHEDULED_BACKUP_HOURS.includes(h)) return;
-    const key="mtc_sched_backup_"+today+"_"+h;
-    if(localStorage.getItem(key)) return; // deja salvat pentru această oră
-    localStorage.setItem(key,"1");
-    const time=String(h).padStart(2,"0")+":00";
-    triggerAutoBackup(time);
-    console.log("Scheduled backup triggered:",today,time);
+    const slotTime=String(h).padStart(2,"0")+":00";
+    const docId=today+"_sched"+h; // separat de sloturile A/B/C din triggerAutoBackup
+    try{
+      const existing=await db.collection(backupColl()).doc(docId).get();
+      if(existing.exists) return; // deja salvat pentru acest slot din Firestore — sigur, indiferent de device
+      await triggerAutoBackup(slotTime, docId);
+      console.log("Scheduled backup triggered:",today,slotTime);
+    }catch(e){ console.warn("scheduled backup check failed",e); }
   };
   check(); // verificare imediată — recuperare dacă ora a trecut cât tab-ul era închis
   _schedBackupInterval = setInterval(check, 60000); // verificare la fiecare minut
@@ -4221,6 +4238,80 @@ function copySortatoriFromPrevMonth(){
 // ---- Adaugare sortatori ----
 let _pickAvail=[], _pickGroup="", _pickCat="";
 
+// ---- Drag & drop: mutare sortator între categorii (Permanenți/Rotații/Camion/Urgențe) ----
+let _sortRowDrag = {driverId:null};
+let _dragAutoScrollTimer = null;
+
+// Auto-scroll generic în timpul drag-ului, pe orice container cu overflow
+function _startDragAutoScroll(getContainer){
+  _stopDragAutoScroll();
+  const EDGE=60, SPEED=14;
+  const onDragOver=(ev)=>{
+    const container=getContainer();
+    if(!container) return;
+    const rect=container.getBoundingClientRect();
+    const y=ev.clientY;
+    if(y - rect.top < EDGE && y - rect.top > -20){
+      container.scrollTop -= SPEED;
+    } else if(rect.bottom - y < EDGE && rect.bottom - y > -20){
+      container.scrollTop += SPEED;
+    }
+  };
+  document.addEventListener("dragover", onDragOver);
+  _dragAutoScrollTimer = onDragOver; // stocăm referința ca să o putem elimina
+}
+function _stopDragAutoScroll(){
+  if(_dragAutoScrollTimer){ document.removeEventListener("dragover", _dragAutoScrollTimer); _dragAutoScrollTimer=null; }
+}
+
+function sortRowDragStart(ev, driverId){
+  _sortRowDrag.driverId = driverId;
+  ev.dataTransfer.effectAllowed = "move";
+  try{ ev.dataTransfer.setData("text/plain", driverId); }catch(e){}
+  ev.currentTarget.style.opacity = "0.4";
+  _startDragAutoScroll(()=>document.querySelector("#sortatoriModule .timeline-wrap"));
+}
+
+function sortRowDragEnd(ev){
+  ev.currentTarget.style.opacity = "";
+  document.querySelectorAll(".sort-cat-drop.drag-over").forEach(el=>el.classList.remove("drag-over"));
+  _stopDragAutoScroll();
+}
+
+function sortCatDragOver(ev){
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = "move";
+  ev.currentTarget.classList.add("drag-over");
+}
+
+function sortCatDragLeave(ev){
+  ev.currentTarget.classList.remove("drag-over");
+}
+
+function sortCatDrop(ev, newCat){
+  ev.preventDefault();
+  ev.currentTarget.classList.remove("drag-over");
+  _stopDragAutoScroll();
+  const driverId = _sortRowDrag.driverId;
+  _sortRowDrag.driverId = null;
+  if(!driverId) return;
+  const mk = getSortKey();
+  const drivers = getMonthDrivers(mk);
+  const dr = drivers.find(d=>d.id===driverId);
+  if(!dr) return;
+  const oldCat = dr.category||"permanent";
+  if(oldCat===newCat) return;
+  dr.category = newCat;
+  setMonthDrivers(drivers, mk);
+  // Prezența rămâne legată de NUME, deci zilele bifate pentru această persoană
+  // rămân intacte automat — nu trebuie mutate separat.
+  saveSortState();
+  renderSortatoriTimeline();
+  const CAT_LABELS={permanent:"Permanenți",rotatie:"Rotații",camion:"Camion",urgenta:"Urgențe"};
+  logActivity("🔀 Sortator mutat categorie", dr.name, (CAT_LABELS[oldCat]||oldCat)+" → "+(CAT_LABELS[newCat]||newCat)+" ("+mk+")");
+  toast("✓ "+dr.name+" mutat în "+(CAT_LABELS[newCat]||newCat));
+}
+
 function openAddSortatorCat(group, cat){
   // Colecteaza driveri disponibili din modulul concedii
   const existingNames = new Set(getMonthDrivers().filter(d=>d.group===group).map(d=>d.name));
@@ -4298,7 +4389,7 @@ function makeSortRow(dr, presence, daysInMonth, y, m, gridCols, canAdd, canEdit)
         : `<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:1px solid var(--border);border-radius:4px;margin-right:5px;vertical-align:middle"></span>`)
     : "";
 
-  let dRow = `<div class='tl-driver-row' style='font-size:12px'>${badge}${escapeHtml(dr.name)}${delBtn}</div>`;
+  let dRow = `<div class='tl-driver-row' draggable="${canAdd}" data-drag-name="${dr.name.replace(/"/g,"&quot;")}" data-drag-cat="${dr.category||"permanent"}" ${canAdd?`ondragstart="sortRowDragStart(event,'${dr.id}')" ondragend="sortRowDragEnd(event)"`:""} style='font-size:12px;${canAdd?"cursor:grab":""}'>${badge}${escapeHtml(dr.name)}${delBtn}</div>`;
   let gRow = `<div class='tl-row' style='grid-template-columns:${gridCols}'>`;
 
   // Găsim persoana în modulul concedii pentru a prelua zilele de concediu
@@ -4340,7 +4431,10 @@ function makeSortRow(dr, presence, daysInMonth, y, m, gridCols, canAdd, canEdit)
 
 function makeCatHeader(label, color, count, gridCols, canEdit, group, cat, daysInMonth){
   const addBtn = canEdit?`<span onclick="openAddSortatorCat('${group}','${cat}')" style="color:${color};cursor:pointer;font-weight:400;font-size:11px;margin-left:6px">+ Adaugă</span>`:"";
-  const dRow=`<div class='tl-driver-row' style="background:${color}22;color:${color};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;cursor:default">${label} (${count})${addBtn}</div>`;
+  const dropAttrs = canEdit
+    ? `data-drop-cat="${cat}" ondragover="sortCatDragOver(event)" ondragleave="sortCatDragLeave(event)" ondrop="sortCatDrop(event,'${cat}')"`
+    : "";
+  const dRow=`<div class='tl-driver-row sort-cat-drop' ${dropAttrs} style="background:${color}22;color:${color};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;cursor:default">${label} (${count})${addBtn}</div>`;
   const gRow=`<div class='tl-row' style='grid-template-columns:${gridCols};background:${color}0a'></div>`;
   return {dRow,gRow};
 }
@@ -5676,7 +5770,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.06.18-05";
+const APP_VERSION = "2026.06.19-03";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -5842,6 +5936,56 @@ async function savePlanState(){
   }catch(e){ console.error("plan save",e); }
 }
 
+// ---- Drag & drop în Planificare: mutare sortator între categorii ----
+let _planRowDrag = {driverId:null};
+
+function planRowDragStart(ev, driverId){
+  _planRowDrag.driverId = driverId;
+  ev.dataTransfer.effectAllowed = "move";
+  try{ ev.dataTransfer.setData("text/plain", driverId); }catch(e){}
+  ev.currentTarget.style.opacity = "0.4";
+  _startDragAutoScroll(()=>document.querySelector(".main"));
+}
+
+function planRowDragEnd(ev){
+  ev.currentTarget.style.opacity = "";
+  document.querySelectorAll(".plan-cat-drop.drag-over").forEach(el=>el.classList.remove("drag-over"));
+  _stopDragAutoScroll();
+}
+
+function planCatDragOver(ev){
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = "move";
+  ev.currentTarget.classList.add("drag-over");
+}
+
+function planCatDragLeave(ev){
+  ev.currentTarget.classList.remove("drag-over");
+}
+
+function planCatDrop(ev, newCat){
+  ev.preventDefault();
+  ev.currentTarget.classList.remove("drag-over");
+  _stopDragAutoScroll();
+  const driverId = _planRowDrag.driverId;
+  _planRowDrag.driverId = null;
+  if(!driverId) return;
+  const planKey = planCurrentDate.getFullYear()+"-"+String(planCurrentDate.getMonth()+1).padStart(2,"0");
+  const drivers = getMonthDrivers(planKey);
+  const dr = drivers.find(d=>d.id===driverId);
+  if(!dr) return;
+  const oldCat = dr.category||"permanent";
+  if(oldCat===newCat) return;
+  dr.category = newCat;
+  setMonthDrivers(drivers, planKey);
+  // Zilele bifate în planificare sunt legate de NUME (nu de categorie), deci rămân automat.
+  saveSortState();
+  renderPlanificare();
+  const CAT_LABELS={permanent:"Permanenți",rotatie:"Rotații",camion:"Camion",urgenta:"Urgențe"};
+  logActivity("🔀 Sortator mutat categorie (planificare)", dr.name, (CAT_LABELS[oldCat]||oldCat)+" → "+(CAT_LABELS[newCat]||newCat)+" ("+planKey+")");
+  toast("✓ "+dr.name+" mutat în "+(CAT_LABELS[newCat]||newCat));
+}
+
 function renderPlanificare(){
   const grid = document.getElementById("planificareGrid");
   if(!grid) return;
@@ -5938,7 +6082,10 @@ function renderPlanificare(){
     isFirstCat=false;
 
     // Category header
-    html+=`<tr>`;
+    const planDropAttrs = isAdminOrTania()
+      ? `data-plan-drop-cat="${cat.key}" ondragover="planCatDragOver(event)" ondragleave="planCatDragLeave(event)" ondrop="planCatDrop(event,'${cat.key}')"`
+      : "";
+    html+=`<tr class="plan-cat-drop" ${planDropAttrs}>`;
     html+=`<td style="background:var(--bg-elev-2);border-left:3px solid ${cat.color};border-bottom:1px solid var(--border)"></td>`;
     html+=`<td colspan="${daysInMonth+weeks.length}" style="background:var(--bg-elev-2);border-bottom:1px solid var(--border);padding:5px 8px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:${cat.color}">${cat.label} <span style="color:var(--text-dim);font-weight:400;font-size:9px">(${catDrivers.length})</span></td>`;
     html+=`</tr>`;
@@ -5961,7 +6108,7 @@ function renderPlanificare(){
 
       html+=`<tr>`;
       html+=`<td style="width:26px;background:${rowBg};border-bottom:1px solid var(--border);text-align:center;padding:2px">${badge}</td>`;
-      html+=`<td style="background:${rowBg};border-bottom:1px solid var(--border);padding:4px 8px;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:158px">${escapeHtml(dr.name)}</td>`;
+      html+=`<td draggable="${isAdminOrTania()}" data-plan-drag-id="${dr.id}" ${isAdminOrTania()?`ondragstart="planRowDragStart(event,'${dr.id}')" ondragend="planRowDragEnd(event)"`:""} style="background:${rowBg};border-bottom:1px solid var(--border);padding:4px 8px;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:158px;${isAdminOrTania()?"cursor:grab":""}">${escapeHtml(dr.name)}</td>`;
 
       weeks.forEach((wkDays,wi)=>{
         const wkStateKey=wkDays[0].getFullYear()+"-W"+String(getISOWeek(wkDays[0])).padStart(2,"0");
@@ -6776,7 +6923,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.18-05</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.19-03</div>
 
 </body>
 </html>
