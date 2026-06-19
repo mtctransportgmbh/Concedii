@@ -40,7 +40,7 @@ jobs:
           node-version: '24'
 
       - name: Install dependencies
-        run: npm install firebase-admin nodemailer
+        run: npm install firebase-admin@12 nodemailer
 
       - name: Determine which slot to run
         id: slot
