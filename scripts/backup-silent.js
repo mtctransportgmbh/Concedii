@@ -1,8 +1,28 @@
+// === MARCAJ VERSIUNE: v2 — 2026-06-19 — dacă NU vezi acest comentariu pe GitHub.com, fișierul nu s-a actualizat ===
 // Backup silențios — doar salvează în Firestore (colecția daily_backup), FĂRĂ email.
 // Folosit pentru sloturile 07:00 și 14:00. Cel de 22:00 (backup.js) trimite și email.
 const admin = require('firebase-admin');
 
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+console.log('=== backup-silent.js v2 pornit ===');
+console.log('FIREBASE_SERVICE_ACCOUNT setat:', !!process.env.FIREBASE_SERVICE_ACCOUNT);
+console.log('Lungime FIREBASE_SERVICE_ACCOUNT:', (process.env.FIREBASE_SERVICE_ACCOUNT||'').length);
+
+if(!process.env.FIREBASE_SERVICE_ACCOUNT){
+  console.error('❌ Secretul FIREBASE_SERVICE_ACCOUNT lipsește sau e gol.');
+  console.error('   Verifică în repo: Settings → Secrets and variables → Actions → FIREBASE_SERVICE_ACCOUNT');
+  console.error('   Trebuie să conțină JSON-ul complet al Service Account-ului din Firebase Console');
+  console.error('   (Project Settings → Service Accounts → Generate new private key).');
+  process.exit(1);
+}
+let serviceAccount;
+try{
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  console.log('JSON parsat cu succes. project_id:', serviceAccount.project_id || '(lipsă)');
+}catch(e){
+  console.error('❌ FIREBASE_SERVICE_ACCOUNT nu este JSON valid:', e.message);
+  console.error('   Asigură-te că ai copiat exact tot conținutul fișierului .json, fără modificări.');
+  process.exit(1);
+}
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
@@ -24,7 +44,6 @@ async function fetchAll(){
   const concedii = {};
   concSnap.forEach(doc=>{ concedii[doc.id]=doc.data(); });
 
-  // Deduplicare după NUME — tania are lista completă
   const seenNames=new Set(), allDrivers=[];
   const priority=['tania','raluca','madalina','corina'];
   priority.forEach(dk=>{
@@ -44,7 +63,7 @@ async function fetchAll(){
 
   if(allDrivers.length===0){
     console.warn('⚠️ Niciun șofer găsit — ABANDONEZ backup-ul ca să nu salvez date goale.');
-    process.exit(0); // ieșire normală, nu eroare — pur și simplu nu salvăm nimic
+    process.exit(0);
   }
 
   let sortatori=null;
@@ -89,7 +108,6 @@ async function fetchAll(){
 
 async function saveToFirestore(backup){
   const docId = `${backup.date}_sched${SLOT_HOUR}`;
-  // Verificăm dacă există deja — evităm suprascrierea inutilă dacă rulează de 2 ori
   const existing = await db.collection(collName('daily_backup')).doc(docId).get();
   if(existing.exists){
     console.log(`ℹ️ Backup ${docId} există deja — nu suprascriu.`);
