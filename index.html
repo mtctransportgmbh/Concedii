@@ -5869,7 +5869,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.06.20-09";
+const APP_VERSION = "2026.06.20-10";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -6539,7 +6539,7 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
   const workDays = dates.filter(d=>d.getDay()!==0);
   const DOW=["","LUNI","MARȚI","MIERCURI","JOI","VINERI","SÂMBĂTĂ","DUM"];
 
-  const MAX_SLOTS = 14;
+  const MAX_PERM_SLOTS = 13;
 
   // Funcție de prezență pe zile pentru o persoană oarecare (independent de listă)
   function presentDaysFor(name){
@@ -6557,7 +6557,7 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
     .filter(dr=>dr.group==="ruhstorf"&&(!dr.category||dr.category==="permanent"))
     .map(dr=>({name:dr.name, cat:"permanent"}))
     .sort((a,b)=>a.name.localeCompare(b.name,"ro"))
-    .slice(0, MAX_SLOTS);
+    .slice(0, MAX_PERM_SLOTS);
 
   permDrivers.forEach(p=>{ p.days = presentDaysFor(p.name); });
 
@@ -6618,6 +6618,24 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
       return null;
     })};
   });
+
+  // 4) Al 14-lea slot — dedicat exclusiv ROTAȚIEI. Mereu cineva din
+  // Rotații/Urgențe (diferit, posibil, zi de zi), independent de cele 13
+  // sloturi fixe de mai sus. Preferăm pe cineva neutilizat deja ca
+  // înlocuitor în acea zi pe alt slot, dar dacă nu există altă opțiune,
+  // refolosim din candidați (mai bine cineva decât gol).
+  const rotationSlot = {
+    label:"Rotație", baseCat:"rotatie",
+    perDay: workDays.map((d,di)=>{
+      const allCandidates = otherDrivers.filter(s=>s.days[di]);
+      let pick = allCandidates.find(s=>!usedPartialByDay[di].has(s.name)&&!usedFullWeek.has(s.name));
+      if(!pick) pick = allCandidates[0]||null;
+      if(!pick) return null;
+      usedPartialByDay[di].add(pick.name);
+      return {name:pick.name, cat:pick.cat, isSub:false};
+    })
+  };
+  slots.push(rotationSlot);
 
   function getCamionZi(d){
     const dow=(d.getDay()+6)%7;
@@ -7098,7 +7116,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.20-09</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.20-10</div>
 
 </body>
 </html>
