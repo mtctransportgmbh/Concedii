@@ -66,6 +66,26 @@ async function fetchAll(){
     process.exit(0);
   }
 
+  // Mapăm explicit fiecare câmp relevant — garantăm că startDate/endDate
+  // (data angajare/plecare) sunt mereu prezente în backup, chiar și null.
+  const allDriversFull = allDrivers.map(d=>({
+    id: d.id || null,
+    name: d.name || '',
+    visibleTo: d.visibleTo || [],
+    maxDays: d.maxDays || 0,
+    carryOverDays: d.carryOverDays || 0,
+    carryOverByYear: d.carryOverByYear || {},
+    startDate: d.startDate || null,
+    endDate: d.endDate || null,
+    archived: d.archived || false,
+    archivedAt: d.archivedAt || null,
+    leaves: d.leaves || [],
+    krankLeaves: d.krankLeaves || [],
+    unpaidLeaves: d.unpaidLeaves || []
+  }));
+  const withContract = allDriversFull.filter(d=>d.startDate||d.endDate).length;
+  console.log(`Persoane cu dată angajare/plecare setată: ${withContract}`);
+
   let sortatori=null;
   try{
     const s=await db.collection(collName('sortatori')).doc('state').get();
@@ -90,14 +110,14 @@ async function fetchAll(){
   }catch(e){console.warn('planificare:',e.message);}
 
   const driversObj={};
-  allDrivers.forEach(d=>{ driversObj[d.id||d.name]=d; });
+  allDriversFull.forEach(d=>{ driversObj[d.id||d.name]=d; });
 
   return {
     version:4, year:YEAR,
     savedAt:now.toISOString(), date:dateStr, time:timeStr,
     slot:'sched'+SLOT_HOUR,
     savedBy:'github-actions-silent',
-    driverCount:allDrivers.length,
+    driverCount:allDriversFull.length,
     thresholds:concedii['tania']?.thresholds||{warn:3,crit:5},
     drivers:driversObj,
     ...(sortatori?{sortatori}:{}),
