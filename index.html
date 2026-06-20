@@ -1548,7 +1548,7 @@
 // ============================================================
 // CONFIGURARE — schimbă doar USE_TEST pentru a comuta între medii
 // ============================================================
-const USE_TEST = false; // true = test | false = producție
+const USE_TEST = true; // true = test | false = producție
 
 const FIREBASE_CONFIGS = {
   production: {
@@ -1996,6 +1996,12 @@ function fullReset(){
   if(autoLogoutTimer){ clearTimeout(autoLogoutTimer); autoLogoutTimer=null; }
   if(adminLockTimer){ clearTimeout(adminLockTimer); adminLockTimer=null; }
   if(saveTimer){ clearTimeout(saveTimer); saveTimer=null; }
+  window._pendingLoginNotif = null; // anulăm orice notificare de login în curs de procesare
+  // Resetăm orice stare de drag rămasă blocată + stiluri globale forțate de drag
+  try{ if(typeof _finishPlanMouseDrag==="function") _finishPlanMouseDrag(); }catch(e){}
+  try{ if(typeof _finishSortMouseDrag==="function") _finishSortMouseDrag(); }catch(e){}
+  document.body.style.cursor = "";
+  document.body.style.userSelect = "";
   try{
     const tl=document.getElementById("timeline"); if(tl) tl.innerHTML="";
     const st=document.getElementById("sortatoriTimeline"); if(st) st.innerHTML="";
@@ -4509,6 +4515,8 @@ function makeCatHeader(label, color, count, gridCols, canEdit, group, cat, daysI
 }
 
 function renderSortatoriTimeline(){
+  // Plasă de siguranță: resetăm orice stare de drag rămasă blocată
+  if(typeof _finishSortMouseDrag==="function") _finishSortMouseDrag();
   updateTodayLeavePanel();
   // Re-render planificare dacă e activ (sortatorii s-au schimbat)
   if(appMode==="planificare"){ renderPlanificare(); return; }
@@ -5029,7 +5037,6 @@ function buildPrintHTML(group){
     <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#e3f2fd!important;font-weight:800">Zile la START ${MONTHS[m]}</th>
     <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fffde7!important">Concediu folosit în ${MONTHS[m]}</th>
     <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#e3f2fd!important;font-weight:800">Zile la FINAL ${MONTHS[m]}</th>
-    <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fffde7!important">Concediu folosit total (${y})</th>
     <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#c8e6c9!important;font-weight:800">Zile rămase actual</th>
     <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#ffcdd2!important">Krank în ${MONTHS[m]}</th>
     <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#ffcdd2!important">Krank total (${y})</th>
@@ -5090,7 +5097,6 @@ function buildPrintHTML(group){
       <td style="font-weight:800;color:${startCol};background:#e3f2fd!important;-webkit-print-color-adjust:exact;print-color-adjust:exact">${startMonth}</td>
       <td style="background:#fffde7!important;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact">${usedMonth||"-"}</td>
       <td style="font-weight:800;color:${endCol};background:#e3f2fd!important;-webkit-print-color-adjust:exact;print-color-adjust:exact">${endMonth}</td>
-      <td style="background:#fffde7!important;-webkit-print-color-adjust:exact;print-color-adjust:exact">${usedYearly}</td>
       <td style="font-weight:800;color:${remCol};background:#c8e6c9!important;-webkit-print-color-adjust:exact;print-color-adjust:exact">${rem}</td>
       <td style="background:#ffcdd2!important;-webkit-print-color-adjust:exact;print-color-adjust:exact">${kMonth||"-"}</td>
       <td style="background:#ffcdd2!important;-webkit-print-color-adjust:exact;print-color-adjust:exact">${kYearly||"-"}</td>
@@ -5846,7 +5852,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.06.20-01";
+const APP_VERSION = "2026.06.20-04";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -5957,6 +5963,10 @@ const _planNextWeek = new Date();
 _planNextWeek.setDate(_planNextWeek.getDate() + 7);
 let planCurrentDate = _planNextWeek;
 let planState = {}; // { "2026-W23": { "NumeDriver": [0,1,0,1,1,1,0] } } (7 zile Lu-Du)
+// Stare drag pentru bifarea zilelor în planificare — declarată devreme ca să
+// fie mereu disponibilă, indiferent de ordinea în care browserul declanșează
+// evenimente mouse pe elementele generate de randări anterioare.
+let _planDrag={active:false,mode:null,changed:false};
 let _planUnsub = null;
 
 const PLAN_DAYS = ["Lun","Mar","Mie","Joi","Vin","Sâm","Dum"];
@@ -6067,6 +6077,9 @@ document.addEventListener("mouseup", ()=>{ if(_planMouseDrag.active) _finishPlan
 function renderPlanificare(){
   const grid = document.getElementById("planificareGrid");
   if(!grid) return;
+  // Plasă de siguranță: resetăm orice stare de drag rămasă blocată (ex: dacă
+  // mouse-up s-a întâmplat în afara unei zone cu listener, sau după un refresh)
+  if(typeof _finishPlanMouseDrag==="function") _finishPlanMouseDrag();
 
   const y = planCurrentDate.getFullYear();
   const m = planCurrentDate.getMonth();
@@ -6339,8 +6352,6 @@ function renderPlanCompliance(){
   html+=`</tbody></table></div>`;
   content.innerHTML=html;
 }
-
-let _planDrag={active:false,mode:null,changed:false};
 
 function planDragStart(name,wkKey,dow){
   const cur=(planState[wkKey]&&planState[wkKey][name]&&planState[wkKey][name][dow])||0;
@@ -6672,6 +6683,16 @@ function copyWaText(){
 // LOGIN NOTIFICATION
 // ============================================================
 function showLoginNotification(userKey){
+  // Nu afișăm dacă userul nu mai e logat sau s-a schimbat între timp
+  // (ex: refresh rapid, delogare automată, sau revenire la ecranul de
+  // selectare useri chiar în fereastra de timp în care notificarea
+  // era în curs de procesare din finishInit)
+  if(window.activeUserKey!==userKey) return;
+  const authScreen=document.getElementById("authScreen");
+  if(authScreen && authScreen.style.display!=="none") return;
+  const appRoot=document.getElementById("appRoot");
+  if(!appRoot || appRoot.style.display==="none") return;
+
   const today = new Date();
   const dayNames = ["Duminică","Luni","Marți","Miercuri","Joi","Vineri","Sâmbătă"];
   const monthNames = ["Ianuarie","Februarie","Martie","Aprilie","Mai","Iunie","Iulie","August","Septembrie","Octombrie","Noiembrie","Decembrie"];
@@ -7001,7 +7022,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.20-01</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.20-04</div>
 
 </body>
 </html>
