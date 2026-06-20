@@ -1548,7 +1548,7 @@
 // ============================================================
 // CONFIGURARE — schimbă doar USE_TEST pentru a comuta între medii
 // ============================================================
-const USE_TEST = false; // true = test | false = producție
+const USE_TEST = true; // true = test | false = producție
 
 const FIREBASE_CONFIGS = {
   production: {
@@ -5869,7 +5869,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.06.20-06";
+const APP_VERSION = "2026.06.20-07";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -6539,21 +6539,51 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
   const workDays = dates.filter(d=>d.getDay()!==0);
   const DOW=["","LUNI","MARȚI","MIERCURI","JOI","VINERI","SÂMBĂTĂ","DUM"];
 
-  function getMainPrezentiZi(d){
-    const dow=(d.getDay()+6)%7;
-    const list=[];
-    cats.filter(c=>c.key!=="camion").forEach(cat=>{
-      (getMonthDrivers()||[]).filter(dr=>dr.group==="ruhstorf"&&(cat.key==="permanent"?(!dr.category||dr.category==="permanent"):dr.category===cat.key))
-      .forEach(dr=>{
-        const dw=weekData[dr.name]||[0,0,0,0,0,0,0];
+  // Lista fixă de persoane "principale" — aceleași poziții (rânduri) toată
+  // săptămâna, ca să nu sară numele de la o zi la alta. Sunt cei din
+  // Permanenți + Rotații + Urgențe planificați cel puțin o zi lucrătoare,
+  // sortați alfabetic O SINGURĂ DATĂ (nu per-zi).
+  const allMainDrivers = [];
+  cats.filter(c=>c.key!=="camion").forEach(cat=>{
+    (getMonthDrivers()||[]).filter(dr=>dr.group==="ruhstorf"&&(cat.key==="permanent"?(!dr.category||dr.category==="permanent"):dr.category===cat.key))
+    .forEach(dr=>{
+      const dw=weekData[dr.name]||[0,0,0,0,0,0,0];
+      const hasAnyDay = workDays.some((d,i)=>{
+        const dow=(d.getDay()+6)%7;
         const concDr=state.drivers.find(sd=>sd.name===dr.name);
         const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)));
-        if(dw[dow]===1&&!onLeave) list.push({name:dr.name, cat:cat.key});
+        return dw[dow]===1&&!onLeave;
       });
+      if(hasAnyDay) allMainDrivers.push({name:dr.name, cat:cat.key});
     });
-    list.sort((a,b)=>a.name.localeCompare(b.name,"ro"));
-    return list;
-  }
+  });
+  allMainDrivers.sort((a,b)=>a.name.localeCompare(b.name,"ro"));
+
+  // Pentru fiecare persoană din lista fixă, aflăm exact în care zile (index)
+  // e prezentă conform planificării
+  const presentDaysOf = {};
+  allMainDrivers.forEach(p=>{
+    const dr = (getMonthDrivers()||[]).find(d=>d.name===p.name);
+    const dw = weekData[p.name]||[0,0,0,0,0,0,0];
+    presentDaysOf[p.name] = workDays.map((d,i)=>{
+      const dow=(d.getDay()+6)%7;
+      const concDr=state.drivers.find(sd=>sd.name===p.name);
+      const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)));
+      return dw[dow]===1&&!onLeave;
+    });
+  });
+
+  // Înlocuitori disponibili: persoane din Rotații/Urgențe care NU sunt
+  // prezente toată săptămâna lucrătoare (altfel ar ocupa deja un loc fix)
+  // — adică exact cei care "sar" dintr-o zi în alta și pot acoperi golurile
+  // lăsate de absențele celor cu loc fix.
+  const substitutes = allMainDrivers.filter(p=>{
+    if(p.cat==="permanent") return false; // doar rotații/urgențe pot înlocui
+    const days = presentDaysOf[p.name];
+    const allPresent = days.every(Boolean);
+    return !allPresent; // nu e prezent toată săptămâna => poate fi înlocuitor
+  });
+  const usedAsSubstitute = new Set(); // ca să nu folosim aceeași persoană de 2 ori în aceeași zi pe sloturi diferite
 
   function getCamionZi(d){
     const dow=(d.getDay()+6)%7;
@@ -6567,7 +6597,7 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
     return null;
   }
 
-  const MAIN_SLOTS=14;
+  const MAIN_SLOTS=Math.max(allMainDrivers.length, 1);
   const nCols=workDays.length;
   const padL=10,padT=10,titleH=36,dayHdrH=28,rowH=26,camionHdrH=30,camionRowH=28;
   const slotW=32,colW=Math.max(120, Math.floor((900-padL*2-slotW)/nCols));
@@ -6606,7 +6636,29 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
   });
   ctx.strokeStyle="#555555"; ctx.lineWidth=1; ctx.strokeRect(padL,hdrY,slotW,dayHdrH);
 
-  const perDay=workDays.map(d=>({list:getMainPrezentiZi(d),hol:!!getHoliday(d)}));
+  // Construim grila pe SLOTURI FIXE: fiecare persoană din allMainDrivers
+  // are un rând fix (indexul ei în listă), identic în toate cele 6 zile.
+  // Dacă lipsește o zi, încercăm să umplem locul cu un înlocuitor
+  // disponibil (din substitutes, care nu e deja folosit în acea zi pe alt
+  // slot și nu e el însuși prezent în ziua respectivă pe propriul lui slot).
+  const usedSubstituteByDay = workDays.map(()=>new Set());
+  const grid = allMainDrivers.map((p,slotIdx)=>{
+    return workDays.map((d,dayIdx)=>{
+      if(presentDaysOf[p.name][dayIdx]) return {name:p.name, cat:p.cat, isSub:false};
+      // Persoana lipsește în ziua dayIdx — căutăm un înlocuitor:
+      // cineva din substitutes, prezent chiar el în acea zi, care nu e
+      // deja folosit ca înlocuitor azi și nu are deja propriul lui slot fix activ azi
+      for(const sub of substitutes){
+        if(sub.name===p.name) continue;
+        if(!presentDaysOf[sub.name][dayIdx]) continue; // nu e prezent azi, nu poate înlocui
+        if(usedSubstituteByDay[dayIdx].has(sub.name)) continue; // deja folosit azi pe alt gol
+        usedSubstituteByDay[dayIdx].add(sub.name);
+        return {name:sub.name, cat:sub.cat, isSub:true};
+      }
+      return null; // niciun înlocuitor disponibil — slot gol azi
+    });
+  });
+  const perDay = workDays.map((d,di)=>({hol:!!getHoliday(d)}));
   const bodyY=hdrY+dayHdrH;
 
   for(let s=0;s<MAIN_SLOTS;s++){
@@ -6618,10 +6670,11 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
     ctx.strokeStyle="#cccccc"; ctx.lineWidth=0.5; ctx.strokeRect(padL,y,slotW,rowH);
     workDays.forEach((d,di)=>{
       const x=padL+slotW+di*colW;
-      const {list,hol}=perDay[di];
-      const entry=list[s]||null;
+      const {hol}=perDay[di];
+      const entry=grid[s][di];
       const name=entry?entry.name:null;
       const cat=entry?entry.cat:null;
+      const isSub=entry?entry.isSub:false;
       if(hol) ctx.fillStyle="#f3e0ff";
       else if(name) ctx.fillStyle=cat==="rotatie"?"#7f1d1d":cat==="urgenta"?"#7f1111":"#27ae60";
       else ctx.fillStyle=rowBg;
@@ -6632,6 +6685,12 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
         while(ctx.measureText(nm).width>colW-6&&nm.length>4) nm=nm.slice(0,-1);
         if(nm!==name) nm=nm.trim()+"…";
         ctx.fillText(nm,x+colW/2,y+rowH/2+4);
+        // Punct discret pentru a marca vizual că e un înlocuitor (cineva
+        // diferit de persoana fixă pe acest rând), util la verificare rapidă
+        if(isSub){
+          ctx.fillStyle="#ffd700";
+          ctx.beginPath(); ctx.arc(x+colW-7,y+6,2.5,0,Math.PI*2); ctx.fill();
+        }
       }
       ctx.strokeStyle="#bbbbbb"; ctx.lineWidth=0.5; ctx.strokeRect(x,y,colW,rowH);
     });
@@ -7024,7 +7083,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.20-06</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.20-07</div>
 
 </body>
 </html>
