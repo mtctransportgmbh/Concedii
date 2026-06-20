@@ -5869,7 +5869,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.06.20-08";
+const APP_VERSION = "2026.06.20-09";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -6582,8 +6582,18 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
   // 3) Construim sloturile finale (max 14): pentru fiecare Permanent,
   // decidem dacă rămâne el, sau e înlocuit toată săptămâna, sau e
   // înlocuit doar în zilele lui de absență.
+  // Excepție: această persoană nu trebuie înlocuită NICIODATĂ — fie apare
+  // ea în căsuță (zilele ei reale), fie căsuța rămâne goală, indiferent
+  // dacă lipsește o zi sau toată săptămâna.
+  const NEVER_REPLACE = new Set(["Birliba Mihaela"]);
+
   const slots = permDrivers.map(p=>{
     const allWeekAbsent = p.days.every(d=>!d);
+    if(NEVER_REPLACE.has(p.name)){
+      return {label:p.name, baseCat:p.cat, perDay: workDays.map((d,di)=>
+        p.days[di] ? {name:p.name, cat:p.cat, isSub:false} : null
+      )};
+    }
     if(allWeekAbsent){
       // Lipsește toată săptămâna lucrătoare — căutăm un înlocuitor FIX
       // (prezent el însuși toată săptămâna) care să-i preia complet slotul.
@@ -7088,7 +7098,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.20-08</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.20-09</div>
 
 </body>
 </html>
