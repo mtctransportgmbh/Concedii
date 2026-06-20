@@ -1571,6 +1571,11 @@ const FIREBASE_CONFIGS = {
 const firebaseConfig = USE_TEST ? FIREBASE_CONFIGS.test : FIREBASE_CONFIGS.production;
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
+// IMPORTANT: implicit Firebase folosește persistență LOCAL (supraviețuiește
+// la închiderea browserului/tab-ului) — exact opusul comportamentului dorit
+// pentru Admin. Setăm SESSION: sesiunea de autentificare ține doar cât tab-ul
+// curent e deschis și dispare garantat la închiderea lui reală.
+auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(e=>console.warn("auth persistence err",e));
 const db   = firebase.firestore();
 
 const ADMIN_EMAIL = "paulandreimacarie@yahoo.com";
@@ -1899,9 +1904,12 @@ function loadBackupInfoFromStorage(){
 // ============================================================
 // PIN SYSTEM — stored in Firestore doc "pins"
 // ============================================================
-const PIN_SESSION_MINS = 1; // 1 minut inactivitate = deconectare automată
+const PIN_SESSION_MINS = 1; // 1 minut inactivitate = deconectare automată (useri normali)
+const ADMIN_LOCK_SECONDS = 10; // 10 secunde inactivitate = lock screen pentru Admin
+const ADMIN_LOCK_PIN = "060823"; // PIN dedicat pentru deblocarea ecranului Admin (diferit de parola de login)
 let pinState = {userKey:null, mode:"enter", entered:"", firstPin:"", attempts:0};
 let autoLogoutTimer = null;
+let adminLockTimer = null;
 
 function hashPin(pin){
   let h=5381;
@@ -1918,6 +1926,62 @@ function clearSession(uk){ sessionStorage.removeItem("mtc_s_"+uk); localStorage.
 // La orice încărcare a paginii — curăță toate sesiunile (tab închis = logout complet)
 ["raluca","tania","madalina","corina","mihaela","admin"].forEach(uk=>clearSession(uk));
 
+// ============================================================
+// DETECȚIE ROBUSTĂ "TAB ÎNCHIS" — independentă de comportamentul
+// inconsistent al sessionStorage în Chrome/Edge cu "Continue where
+// you left off" (acea funcție PĂSTREAZĂ sessionStorage la redeschidere,
+// ceea ce ar lăsa admin logat). Folosim un heartbeat în localStorage:
+// cât timp tab-ul e deschis, scriem timestamp-ul curent la fiecare 2s.
+// Dacă la încărcare găsim un heartbeat mai vechi de 5s, înseamnă că
+// tab-ul anterior chiar s-a închis (browser-ul nu a mai putut scrie),
+// deci forțăm ștergerea completă a oricărei sesiuni reziduale.
+// ============================================================
+const HEARTBEAT_KEY = "mtc_tab_heartbeat";
+const HEARTBEAT_STALE_MS = 5000;
+
+(function enforceRealTabClose(){
+  try{
+    const lastBeat = parseInt(localStorage.getItem(HEARTBEAT_KEY) || "0");
+    const isStale = !lastBeat || (Date.now() - lastBeat) > HEARTBEAT_STALE_MS;
+    // Detectăm și restaurare din bfcache (Back-Forward Cache) — evenimentul
+    // pageshow cu persisted=true înseamnă pagina a fost reanimată, nu reîncărcată curat
+    if(isStale){
+      // Tab anterior chiar a fost închis (sau prima deschidere) — curățăm orice rest
+      ["raluca","tania","madalina","corina","mihaela","admin"].forEach(uk=>clearSession(uk));
+      try{ localStorage.removeItem("mtc_admin_was_active"); }catch(e){}
+      // Forțăm și delogarea din Firebase Auth — cu persistență SESSION ar trebui
+      // să fie deja delogat automat, dar verificăm explicit ca plasă de siguranță
+      try{ auth.signOut().catch(()=>{}); }catch(e){}
+    }
+  }catch(e){}
+})();
+
+// Heartbeat continuu cât tab-ul e deschis și activ
+setInterval(()=>{ try{ localStorage.setItem(HEARTBEAT_KEY, Date.now().toString()); }catch(e){} }, 2000);
+try{ localStorage.setItem(HEARTBEAT_KEY, Date.now().toString()); }catch(e){}
+
+// Dacă pagina e restaurată din bfcache (navigare back/forward sau unele
+// cazuri de "session restore"), forțăm un logout complet al Admin-ului
+// din siguranță, indiferent de heartbeat.
+window.addEventListener("pageshow", function(ev){
+  if(ev.persisted && window.activeUserKey==="admin"){
+    clearSession("admin");
+    window.activeUserKey = null;
+    try{ auth.signOut(); }catch(e){}
+    fullReset();
+    const appRoot=document.getElementById("appRoot"), authScreen=document.getElementById("authScreen");
+    if(appRoot) appRoot.style.display="none";
+    if(authScreen) authScreen.style.display="flex";
+  }
+});
+
+// La închiderea reală a tab-ului — ștergem explicit heartbeat-ul ca
+// semnal suplimentar (best-effort; nu toate browserele garantează
+// execuția completă, de-asta heartbeat-ul de mai sus e mecanismul principal)
+window.addEventListener("pagehide", function(){
+  try{ localStorage.removeItem(HEARTBEAT_KEY); }catch(e){}
+});
+
 // Reset complet al memoriei — apelat la logout, auto-logout, switch user, switch year
 function fullReset(){
   unsubAll();
@@ -1929,6 +1993,7 @@ function fullReset(){
   // Resetăm luna curentă pentru sortatori — fiecare login începe pe luna curentă reală
   sortCurrentDate = new Date();
   if(autoLogoutTimer){ clearTimeout(autoLogoutTimer); autoLogoutTimer=null; }
+  if(adminLockTimer){ clearTimeout(adminLockTimer); adminLockTimer=null; }
   if(saveTimer){ clearTimeout(saveTimer); saveTimer=null; }
   try{
     const tl=document.getElementById("timeline"); if(tl) tl.innerHTML="";
@@ -1946,7 +2011,7 @@ let _lockScreenActive = false;
 function showLockScreen(){
   if(_lockScreenActive) return;
   const uk = window.activeUserKey;
-  if(!uk || uk==="admin") return;
+  if(!uk) return;
   _lockScreenActive = true;
 
   // Blur pe aplicație
@@ -1960,6 +2025,7 @@ function showLockScreen(){
     corina:   ["Bine ai revenit, Corina! 👋🌟", "Introdu PIN-ul pentru a continua."],
     tania:    ["Bine ai revenit, Tania! 👋💼", "Introdu PIN-ul pentru a continua."],
     mihaela:  ["Bine ai revenit, Mihaela! 👋🎯", "Introdu PIN-ul pentru a continua."],
+    admin:    ["Sesiune blocată — Admin 🔒", "Introdu PIN-ul de deblocare pentru a continua."],
   };
   const [title, sub] = greetings[uk] || ["Bine ai revenit! 👋", "Introdu PIN-ul pentru a continua."];
 
@@ -1969,7 +2035,7 @@ function showLockScreen(){
   overlay.style.cssText = "position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;animation:fadeIn 0.3s ease";
   overlay.innerHTML = `
     <div style="background:var(--bg-elev);border:1px solid var(--border);border-radius:20px;padding:36px 32px;max-width:380px;width:92%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,0.5)">
-      <div style="font-size:52px;margin-bottom:10px">${uk==="raluca"?"😊":uk==="madalina"?"✨":uk==="corina"?"🌟":uk==="tania"?"💼":"🎯"}</div>
+      <div style="font-size:52px;margin-bottom:10px">${uk==="raluca"?"😊":uk==="madalina"?"✨":uk==="corina"?"🌟":uk==="tania"?"💼":uk==="admin"?"🔒":"🎯"}</div>
       <div style="font-size:20px;font-weight:800;color:var(--accent);margin-bottom:6px">${title}</div>
       <div style="font-size:13px;color:var(--text-dim);margin-bottom:24px">${sub}</div>
       <!-- PIN dots -->
@@ -2010,17 +2076,23 @@ window.lockPinKey = async function(k){
   window._lockPin=(window._lockPin||"")+k;
   updateLockDots();
   if(window._lockPin.length===6){
-    // Verificăm PIN-ul
     const uk=window.activeUserKey;
-    const storedHash=await getPinFromFirestore(uk);
     const entered=window._lockPin;
     window._lockPin="";
     updateLockDots();
-    if(storedHash && hashPin(entered)===storedHash){
+    let pinCorrect=false;
+    if(uk==="admin"){
+      // Admin folosește un PIN dedicat de deblocare (diferit de parola de login Firebase)
+      pinCorrect = (entered===ADMIN_LOCK_PIN);
+    } else {
+      const storedHash=await getPinFromFirestore(uk);
+      pinCorrect = !!(storedHash && hashPin(entered)===storedHash);
+    }
+    if(pinCorrect){
       // PIN corect — deblocăm
       unlockScreen();
-      setSession(uk);
-      resetAutoLogout();
+      if(uk==="admin") resetAdminAutoLock();
+      else { setSession(uk); resetAutoLogout(); }
       toast("✓ Bine ai revenit, "+(USERS[uk]?.name||uk)+"! 😊");
     } else {
       // PIN greșit
@@ -2071,8 +2143,21 @@ function resetAutoLogout(){
     if(uk && uk!=="admin") showLockScreen();
   }, PIN_SESSION_MINS*60*1000);
 }
+
+function resetAdminAutoLock(){
+  if(adminLockTimer) clearTimeout(adminLockTimer);
+  adminLockTimer = setTimeout(()=>{
+    if(window.activeUserKey==="admin") showLockScreen();
+  }, ADMIN_LOCK_SECONDS*1000);
+}
+
 ["click","keydown","touchstart","mousemove","scroll"].forEach(ev=>
-  document.addEventListener(ev,()=>{ if(window.activeUserKey&&window.activeUserKey!=="admin") resetAutoLogout(); },{passive:true})
+  document.addEventListener(ev,()=>{
+    const uk = window.activeUserKey;
+    if(!uk) return;
+    if(uk==="admin") resetAdminAutoLock();
+    else resetAutoLogout();
+  },{passive:true})
 );
 
 async function getPinFromFirestore(uk){
@@ -2313,6 +2398,10 @@ function enterApp(userKey){
   const isAdm = userKey==="admin";
   const isTaniaAdm = userKey==="tania"||isAdm;
   const isMihaela = userKey==="mihaela";
+
+  // Pornim timer-ul de auto-lock corespunzător (10s pentru Admin, 1 min pentru ceilalți)
+  if(isAdm) resetAdminAutoLock();
+  else resetAutoLogout();
 
   // Mihaela — doar sortatori, fără concedii
   const concediiModule = document.getElementById("concediiModule");
@@ -5770,7 +5859,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.06.19-03";
+const APP_VERSION = "2026.06.19-06";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -6923,7 +7012,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.19-03</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.19-06</div>
 
 </body>
 </html>
