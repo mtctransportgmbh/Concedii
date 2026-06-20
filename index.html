@@ -5869,7 +5869,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.06.20-05";
+const APP_VERSION = "2026.06.20-06";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -6280,21 +6280,6 @@ function renderPlanificare(){
   // Actualizăm și panoul de conformitate
   renderPlanCompliance();
 }
-
-  // Zile lunii ca array de Date
-  const days = Array.from({length:daysInMonth},(_,i)=>new Date(y,m,i+1));
-
-  // Împarte zilele în săptămâni (Lu-Du)
-  const weeks = [];
-  let week = [];
-  days.forEach(d=>{
-    const dow = (d.getDay()+6)%7; // 0=luni
-    if(dow===0 && week.length) { weeks.push(week); week=[]; }
-    week.push(d);
-  });
-  if(week.length) weeks.push(week);
-
-
 
 function renderPlanCompliance(){
   const panel = document.getElementById("planCompliancePanel");
@@ -7039,7 +7024,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.20-05</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.20-06</div>
 
 </body>
 </html>
