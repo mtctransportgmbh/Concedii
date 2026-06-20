@@ -735,7 +735,7 @@
     outline-offset: -3px;
     background: rgba(99,102,241,0.18) !important;
   }
-  .tl-driver-row[draggable="true"]:active { cursor: grabbing; }
+  .tl-driver-row:active { cursor: grabbing; }
   .tl-driver-row:hover { background: var(--bg-elev-2); }
   .tl-grid-wrap { overflow: visible; }
   .tl-sticky-header { position: sticky; top: 0; z-index: 10; background: var(--bg-elev); display: flex; min-width: 100%; border-bottom: 2px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
@@ -1506,6 +1506,7 @@
           <option value="total">🌐 Total</option>
           <option value="eiselfing">📍 Eiselfing</option>
           <option value="ruhstorf">📍 Ruhstorf</option>
+          <option value="eiselfing_ruhstorf">📍 Eiselfing + Ruhstorf</option>
           <option value="camion">🚚 Camion</option>
         </select>
         <button onclick="doPrint()" style="padding:6px 16px;background:var(--accent);color:#000;font-weight:700;border:none;border-radius:5px;cursor:pointer;font-size:13px">🖨️ Printează / PDF</button>
@@ -4327,62 +4328,32 @@ function copySortatoriFromPrevMonth(){
 // ---- Adaugare sortatori ----
 let _pickAvail=[], _pickGroup="", _pickCat="";
 
-// ---- Drag & drop: mutare sortator între categorii (Permanenți/Rotații/Camion/Urgențe) ----
-let _sortRowDrag = {driverId:null};
-let _dragAutoScrollTimer = null;
+// ---- Drag & drop: mutare sortator între categorii (mouse-based, nu HTML5 DnD) ----
+let _sortMouseDrag = {active:false, driverId:null};
+let _sortDraggedRowEl = null;
 
-// Auto-scroll generic în timpul drag-ului, pe orice container cu overflow
-function _startDragAutoScroll(getContainer){
-  _stopDragAutoScroll();
-  const EDGE=60, SPEED=14;
-  const onDragOver=(ev)=>{
-    const container=getContainer();
-    if(!container) return;
-    const rect=container.getBoundingClientRect();
-    const y=ev.clientY;
-    if(y - rect.top < EDGE && y - rect.top > -20){
-      container.scrollTop -= SPEED;
-    } else if(rect.bottom - y < EDGE && rect.bottom - y > -20){
-      container.scrollTop += SPEED;
-    }
-  };
-  document.addEventListener("dragover", onDragOver);
-  _dragAutoScrollTimer = onDragOver; // stocăm referința ca să o putem elimina
-}
-function _stopDragAutoScroll(){
-  if(_dragAutoScrollTimer){ document.removeEventListener("dragover", _dragAutoScrollTimer); _dragAutoScrollTimer=null; }
-}
-
-function sortRowDragStart(ev, driverId){
-  _sortRowDrag.driverId = driverId;
-  ev.dataTransfer.effectAllowed = "move";
-  try{ ev.dataTransfer.setData("text/plain", driverId); }catch(e){}
-  ev.currentTarget.style.opacity = "0.4";
-  _startDragAutoScroll(()=>document.querySelector("#sortatoriModule .timeline-wrap"));
-}
-
-function sortRowDragEnd(ev){
-  ev.currentTarget.style.opacity = "";
-  document.querySelectorAll(".sort-cat-drop.drag-over").forEach(el=>el.classList.remove("drag-over"));
-  _stopDragAutoScroll();
-}
-
-function sortCatDragOver(ev){
+function sortRowMouseDown(ev, driverId){
   ev.preventDefault();
-  ev.dataTransfer.dropEffect = "move";
+  _sortMouseDrag = {active:true, driverId};
+  document.body.style.cursor = "grabbing";
+  document.body.style.userSelect = "none";
+  const row = ev.currentTarget;
+  row.style.opacity = "0.4";
+  _sortDraggedRowEl = row;
+}
+
+function sortCatMouseEnter(ev){
+  if(!_sortMouseDrag.active) return;
   ev.currentTarget.classList.add("drag-over");
 }
-
-function sortCatDragLeave(ev){
+function sortCatMouseLeave(ev){
   ev.currentTarget.classList.remove("drag-over");
 }
-
-function sortCatDrop(ev, newCat){
-  ev.preventDefault();
+function sortCatMouseUp(ev, newCat){
+  if(!_sortMouseDrag.active) return;
   ev.currentTarget.classList.remove("drag-over");
-  _stopDragAutoScroll();
-  const driverId = _sortRowDrag.driverId;
-  _sortRowDrag.driverId = null;
+  const driverId = _sortMouseDrag.driverId;
+  _finishSortMouseDrag();
   if(!driverId) return;
   const mk = getSortKey();
   const drivers = getMonthDrivers(mk);
@@ -4400,6 +4371,15 @@ function sortCatDrop(ev, newCat){
   logActivity("🔀 Sortator mutat categorie", dr.name, (CAT_LABELS[oldCat]||oldCat)+" → "+(CAT_LABELS[newCat]||newCat)+" ("+mk+")");
   toast("✓ "+dr.name+" mutat în "+(CAT_LABELS[newCat]||newCat));
 }
+
+function _finishSortMouseDrag(){
+  document.body.style.cursor = "";
+  document.body.style.userSelect = "";
+  if(_sortDraggedRowEl){ _sortDraggedRowEl.style.opacity = ""; _sortDraggedRowEl=null; }
+  document.querySelectorAll(".sort-cat-drop.drag-over").forEach(el=>el.classList.remove("drag-over"));
+  _sortMouseDrag = {active:false, driverId:null};
+}
+document.addEventListener("mouseup", ()=>{ if(_sortMouseDrag.active) _finishSortMouseDrag(); });
 
 function openAddSortatorCat(group, cat){
   // Colecteaza driveri disponibili din modulul concedii
@@ -4466,7 +4446,7 @@ function deleteSortator(id){
 function makeSortRow(dr, presence, daysInMonth, y, m, gridCols, canAdd, canEdit){
   if(canEdit===undefined) canEdit=canAdd;
   const dp = presence[dr.name]||{};
-  const delBtn = canAdd ? `<span onclick="deleteSortator('${dr.id}')" style="color:var(--red);cursor:pointer;font-size:10px;margin-left:4px" title="Șterge">✕</span>` : "";
+  const delBtn = canAdd ? `<span onclick="event.stopPropagation();deleteSortator('${dr.id}')" onmousedown="event.stopPropagation()" style="color:var(--red);cursor:pointer;font-size:10px;margin-left:4px" title="Șterge">✕</span>` : "";
 
   // Badge zile prezente — vizibil pentru Admin, Tania, Mădălina
   const uk = window.activeUserKey||"";
@@ -4478,7 +4458,7 @@ function makeSortRow(dr, presence, daysInMonth, y, m, gridCols, canAdd, canEdit)
         : `<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:1px solid var(--border);border-radius:4px;margin-right:5px;vertical-align:middle"></span>`)
     : "";
 
-  let dRow = `<div class='tl-driver-row' draggable="${canAdd}" data-drag-name="${dr.name.replace(/"/g,"&quot;")}" data-drag-cat="${dr.category||"permanent"}" ${canAdd?`ondragstart="sortRowDragStart(event,'${dr.id}')" ondragend="sortRowDragEnd(event)"`:""} style='font-size:12px;${canAdd?"cursor:grab":""}'>${badge}${escapeHtml(dr.name)}${delBtn}</div>`;
+  let dRow = `<div class='tl-driver-row' data-drag-name="${dr.name.replace(/"/g,"&quot;")}" data-drag-cat="${dr.category||"permanent"}" ${canAdd?`onmousedown="sortRowMouseDown(event,'${dr.id}')"`:""} style='font-size:12px;${canAdd?"cursor:grab":""}'>${badge}${escapeHtml(dr.name)}${delBtn}</div>`;
   let gRow = `<div class='tl-row' style='grid-template-columns:${gridCols}'>`;
 
   // Găsim persoana în modulul concedii pentru a prelua zilele de concediu
@@ -4519,9 +4499,9 @@ function makeSortRow(dr, presence, daysInMonth, y, m, gridCols, canAdd, canEdit)
 }
 
 function makeCatHeader(label, color, count, gridCols, canEdit, group, cat, daysInMonth){
-  const addBtn = canEdit?`<span onclick="openAddSortatorCat('${group}','${cat}')" style="color:${color};cursor:pointer;font-weight:400;font-size:11px;margin-left:6px">+ Adaugă</span>`:"";
+  const addBtn = canEdit?`<span onclick="event.stopPropagation();openAddSortatorCat('${group}','${cat}')" onmousedown="event.stopPropagation()" style="color:${color};cursor:pointer;font-weight:400;font-size:11px;margin-left:6px">+ Adaugă</span>`:"";
   const dropAttrs = canEdit
-    ? `data-drop-cat="${cat}" ondragover="sortCatDragOver(event)" ondragleave="sortCatDragLeave(event)" ondrop="sortCatDrop(event,'${cat}')"`
+    ? `data-drop-cat="${cat}" onmouseenter="sortCatMouseEnter(event)" onmouseleave="sortCatMouseLeave(event)" onmouseup="sortCatMouseUp(event,'${cat}')"`
     : "";
   const dRow=`<div class='tl-driver-row sort-cat-drop' ${dropAttrs} style="background:${color}22;color:${color};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;cursor:default">${label} (${count})${addBtn}</div>`;
   const gRow=`<div class='tl-row' style='grid-template-columns:${gridCols};background:${color}0a'></div>`;
@@ -4934,7 +4914,14 @@ function getPrintDrivers(group){
   let drivers = state.drivers||[];
   if(group==="eiselfing") drivers=drivers.filter(d=>(d.visibleTo||[]).includes("madalina"));
   else if(group==="ruhstorf") drivers=drivers.filter(d=>(d.visibleTo||[]).includes("raluca"));
+  else if(group==="eiselfing_ruhstorf") drivers=drivers.filter(d=>{
+    const vis=d.visibleTo||[];
+    return vis.includes("madalina")||vis.includes("raluca");
+  });
   else if(group==="camion") drivers=drivers.filter(d=>(d.visibleTo||[]).includes("corina"));
+  // Excludem persoanele care nu erau active (contract) în luna selectată pentru print
+  const y=currentDate.getFullYear(), m=currentDate.getMonth();
+  drivers = drivers.filter(d=>isDriverActiveInMonth(d,y,m));
   return [...drivers].sort((a,b)=>a.name.localeCompare(b.name,"ro"));
 }
 
@@ -4945,7 +4932,7 @@ function buildPrintHTML(group){
   const monthKey=y+"-"+String(m+1).padStart(2,"0");
   const drivers=getPrintDrivers(group);
   const presence=(presState.presence&&presState.presence[monthKey])||{};
-  const groupLabel={total:"Total",eiselfing:"Eiselfing",ruhstorf:"Ruhstorf",camion:"Camion"}[group];
+  const groupLabel={total:"Total",eiselfing:"Eiselfing",ruhstorf:"Ruhstorf",eiselfing_ruhstorf:"Eiselfing + Ruhstorf",camion:"Camion"}[group];
   const DOW_RO=["D","L","M","M","J","V","S"];
   const ROWS_PER_PAGE=28;
 
@@ -5118,7 +5105,7 @@ function buildPrintHTML(group){
 function renderPrintPreview(){
   const group=document.getElementById("printGroupSel").value;
   const y=currentDate.getFullYear(),m=currentDate.getMonth();
-  const groupLabel={total:"Total",eiselfing:"Eiselfing",ruhstorf:"Ruhstorf",camion:"Camion"}[group];
+  const groupLabel={total:"Total",eiselfing:"Eiselfing",ruhstorf:"Ruhstorf",eiselfing_ruhstorf:"Eiselfing + Ruhstorf",camion:"Camion"}[group];
   document.getElementById("printModalTitle").textContent="Print — "+MONTHS[m]+" "+y+" ("+groupLabel+")";
   const drivers=getPrintDrivers(group);
   document.getElementById("printPreviewArea").innerHTML=`<div style="color:#555;font-size:13px;padding:24px;text-align:center">
@@ -5133,7 +5120,7 @@ function doPrint(){
   const group=document.getElementById("printGroupSel").value;
   const html=buildPrintHTML(group);
   const y=currentDate.getFullYear(),m=currentDate.getMonth();
-  const groupLabel={total:"Total",eiselfing:"Eiselfing",ruhstorf:"Ruhstorf",camion:"Camion"}[group];
+  const groupLabel={total:"Total",eiselfing:"Eiselfing",ruhstorf:"Ruhstorf",eiselfing_ruhstorf:"Eiselfing + Ruhstorf",camion:"Camion"}[group];
   const w=window.open("","_blank","width=1400,height=900");
   w.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>MTC "+MONTHS[m]+" "+y+" "+groupLabel+"</title></head><body>"+html+"</body></html>");
   w.document.close();
@@ -5859,7 +5846,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.06.19-06";
+const APP_VERSION = "2026.06.20-01";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -6025,39 +6012,33 @@ async function savePlanState(){
   }catch(e){ console.error("plan save",e); }
 }
 
-// ---- Drag & drop în Planificare: mutare sortator între categorii ----
-let _planRowDrag = {driverId:null};
+// ---- Drag & drop în Planificare: mutare sortator între categorii (mouse-based, nu HTML5 DnD) ----
+let _planMouseDrag = {active:false, driverId:null};
+let _planDraggedRowEl = null;
 
-function planRowDragStart(ev, driverId){
-  _planRowDrag.driverId = driverId;
-  ev.dataTransfer.effectAllowed = "move";
-  try{ ev.dataTransfer.setData("text/plain", driverId); }catch(e){}
-  ev.currentTarget.style.opacity = "0.4";
-  _startDragAutoScroll(()=>document.querySelector(".main"));
-}
-
-function planRowDragEnd(ev){
-  ev.currentTarget.style.opacity = "";
-  document.querySelectorAll(".plan-cat-drop.drag-over").forEach(el=>el.classList.remove("drag-over"));
-  _stopDragAutoScroll();
-}
-
-function planCatDragOver(ev){
+function planRowMouseDown(ev, driverId){
+  if(!isAdminOrTania()) return;
   ev.preventDefault();
-  ev.dataTransfer.dropEffect = "move";
+  _planMouseDrag = {active:true, driverId};
+  document.body.style.cursor = "grabbing";
+  document.body.style.userSelect = "none";
+  const row = ev.currentTarget.closest("tr");
+  if(row) row.style.opacity = "0.45";
+  _planDraggedRowEl = row;
+}
+
+function planCatMouseEnter(ev){
+  if(!_planMouseDrag.active) return;
   ev.currentTarget.classList.add("drag-over");
 }
-
-function planCatDragLeave(ev){
+function planCatMouseLeave(ev){
   ev.currentTarget.classList.remove("drag-over");
 }
-
-function planCatDrop(ev, newCat){
-  ev.preventDefault();
+function planCatMouseUp(ev, newCat){
+  if(!_planMouseDrag.active) return;
   ev.currentTarget.classList.remove("drag-over");
-  _stopDragAutoScroll();
-  const driverId = _planRowDrag.driverId;
-  _planRowDrag.driverId = null;
+  const driverId = _planMouseDrag.driverId;
+  _finishPlanMouseDrag();
   if(!driverId) return;
   const planKey = planCurrentDate.getFullYear()+"-"+String(planCurrentDate.getMonth()+1).padStart(2,"0");
   const drivers = getMonthDrivers(planKey);
@@ -6067,13 +6048,21 @@ function planCatDrop(ev, newCat){
   if(oldCat===newCat) return;
   dr.category = newCat;
   setMonthDrivers(drivers, planKey);
-  // Zilele bifate în planificare sunt legate de NUME (nu de categorie), deci rămân automat.
   saveSortState();
   renderPlanificare();
   const CAT_LABELS={permanent:"Permanenți",rotatie:"Rotații",camion:"Camion",urgenta:"Urgențe"};
   logActivity("🔀 Sortator mutat categorie (planificare)", dr.name, (CAT_LABELS[oldCat]||oldCat)+" → "+(CAT_LABELS[newCat]||newCat)+" ("+planKey+")");
   toast("✓ "+dr.name+" mutat în "+(CAT_LABELS[newCat]||newCat));
 }
+
+function _finishPlanMouseDrag(){
+  document.body.style.cursor = "";
+  document.body.style.userSelect = "";
+  if(_planDraggedRowEl){ _planDraggedRowEl.style.opacity = ""; _planDraggedRowEl=null; }
+  document.querySelectorAll(".plan-cat-drop.drag-over").forEach(el=>el.classList.remove("drag-over"));
+  _planMouseDrag = {active:false, driverId:null};
+}
+document.addEventListener("mouseup", ()=>{ if(_planMouseDrag.active) _finishPlanMouseDrag(); });
 
 function renderPlanificare(){
   const grid = document.getElementById("planificareGrid");
@@ -6172,7 +6161,7 @@ function renderPlanificare(){
 
     // Category header
     const planDropAttrs = isAdminOrTania()
-      ? `data-plan-drop-cat="${cat.key}" ondragover="planCatDragOver(event)" ondragleave="planCatDragLeave(event)" ondrop="planCatDrop(event,'${cat.key}')"`
+      ? `data-plan-drop-cat="${cat.key}" onmouseenter="planCatMouseEnter(event)" onmouseleave="planCatMouseLeave(event)" onmouseup="planCatMouseUp(event,'${cat.key}')"`
       : "";
     html+=`<tr class="plan-cat-drop" ${planDropAttrs}>`;
     html+=`<td style="background:var(--bg-elev-2);border-left:3px solid ${cat.color};border-bottom:1px solid var(--border)"></td>`;
@@ -6197,7 +6186,7 @@ function renderPlanificare(){
 
       html+=`<tr>`;
       html+=`<td style="width:26px;background:${rowBg};border-bottom:1px solid var(--border);text-align:center;padding:2px">${badge}</td>`;
-      html+=`<td draggable="${isAdminOrTania()}" data-plan-drag-id="${dr.id}" ${isAdminOrTania()?`ondragstart="planRowDragStart(event,'${dr.id}')" ondragend="planRowDragEnd(event)"`:""} style="background:${rowBg};border-bottom:1px solid var(--border);padding:4px 8px;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:158px;${isAdminOrTania()?"cursor:grab":""}">${escapeHtml(dr.name)}</td>`;
+      html+=`<td data-plan-drag-id="${dr.id}" ${isAdminOrTania()?`onmousedown="planRowMouseDown(event,'${dr.id}')"`:""} style="background:${rowBg};border-bottom:1px solid var(--border);padding:4px 8px;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:158px;${isAdminOrTania()?"cursor:grab":""}">${escapeHtml(dr.name)}</td>`;
 
       weeks.forEach((wkDays,wi)=>{
         const wkStateKey=wkDays[0].getFullYear()+"-W"+String(getISOWeek(wkDays[0])).padStart(2,"0");
@@ -7012,7 +7001,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.19-06</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.20-01</div>
 
 </body>
 </html>
