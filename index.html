@@ -4239,7 +4239,19 @@ function sortDragApply(driverName, day){
   }
   if(_sortDrag.mode==="clear") delete sortState.presence[mk][driverName][String(day)];
   else sortState.presence[mk][driverName][String(day)] = _sortDrag.mode;
-  renderSortatoriTimeline();
+  // NU reconstruim tot DOM-ul aici (renderSortatoriTimeline complet) — pe
+  // calculatoare mai lente, randarea repetată în mijlocul unui drag poate
+  // face browser-ul să "piardă" tranziția mouseup/mousedown chiar sub
+  // cursor, lăsând _sortDrag.active blocat pe true permanent. Actualizăm
+  // direct celula afectată; randarea completă se face o singură dată la
+  // sortDragEnd (mouseup), unde e sigur.
+  const cell = document.querySelector(`.sort-cell[data-n="${CSS.escape(driverName)}"][data-d="${day}"]`);
+  if(cell){
+    cell.classList.remove("sort-p","sort-a");
+    cell.textContent = "";
+    if(_sortDrag.mode==="prezent"){ cell.classList.add("sort-p"); cell.textContent="✓"; }
+    else if(_sortDrag.mode==="absent"){ cell.classList.add("sort-a"); cell.textContent="✗"; }
+  }
 }
 
 function sortDragEnd(){
@@ -4260,6 +4272,11 @@ function sortDragEnd(){
 }
 document.addEventListener("mouseup", ()=>{ if(_sortDrag.active) sortDragEnd(); });
 document.addEventListener("mousemove", e=>{ if(_sortDrag.active && e.buttons===0) sortDragEnd(); });
+// Plasă suplimentară: dacă fereastra pierde focusul (alt-tab, click în altă
+// aplicație) cât un drag de prezență e activ, îl încheiem ca să nu rămână
+// blocat la revenire.
+window.addEventListener("blur", ()=>{ if(_sortDrag.active) sortDragEnd(); });
+document.addEventListener("visibilitychange", ()=>{ if(document.hidden && _sortDrag.active) sortDragEnd(); });
 
 // ---- Copiaza din luna precedenta ----
 function updateTodayLeavePanel(){
@@ -5852,7 +5869,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.06.20-04";
+const APP_VERSION = "2026.06.20-05";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -7022,7 +7039,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.20-04</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.20-05</div>
 
 </body>
 </html>
