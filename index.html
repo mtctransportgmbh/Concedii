@@ -5095,11 +5095,15 @@ function buildPrintHTML(group){
     },0);
 
     // Zile la start lună = total - zile folosite ÎNAINTE de această lună
+    // (inclusiv porțiunea dintr-un concediu care traversează granița lunii,
+    // ex: 26 Ian -> 7 Feb trebuie să conteze zilele din Ianuarie pentru
+    // calculul lunii Februarie, nu să fie ignorat complet)
     const usedBeforeMonth=(dr.leaves||[]).reduce((sum,l)=>{
       const ls=parseDate(l.start),le=parseDate(l.end);
       const ms=new Date(y,m,1);
-      if(le>=ms) return sum; // nu include luni curente sau viitoare
-      return sum+countWorkdays(ls,le);
+      if(ls>=ms) return sum; // perioada începe deja în luna curentă sau mai târziu — nimic de numărat înainte
+      const to = le<ms ? le : new Date(ms.getTime()-86400000); // limităm la ultima zi dinaintea lunii curente
+      return sum+countWorkdays(ls,to);
     },0);
     const startMonth = total>0 ? Math.max(0, total-usedBeforeMonth) : "-";
     const endMonth   = total>0 ? Math.max(0, total-usedBeforeMonth-usedMonth) : "-";
@@ -5869,7 +5873,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.06.20-10";
+const APP_VERSION = "2026.06.21-01";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -7116,7 +7120,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.20-10</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.06.21-01</div>
 
 </body>
 </html>
