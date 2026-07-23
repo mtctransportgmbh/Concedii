@@ -82,12 +82,21 @@ async function fetchAll(){
     if(pl.exists && pl.data() && Object.keys(pl.data()).length>0) planificare=pl.data();
   }catch(e){console.warn('planificare:',e.message);}
 
+  let libere=null;
+  try{
+    const lb=await db.collection('libere').doc('state').get();
+    if(lb.exists && lb.data() && lb.data().persons && Object.keys(lb.data().persons).length>0){
+      libere = {persons: lb.data().persons, days: lb.data().days||{}};
+    }
+  }catch(e){console.warn('libere:',e.message);}
+
   const sortCount=sortatori?(Array.isArray(sortatori.drivers)?sortatori.drivers.length:Object.values(sortatori.drivers||{}).reduce((s,a)=>s+(a||[]).length,0)):0;
   const prezCount=Object.keys(prezente||{}).length;
   const planCount=Object.keys(planificare||{}).length;
-  console.log(`Sortatori: ${sortCount}, Prezente luni: ${prezCount}, Planificare saptamani: ${planCount}`);
+  const libCount=libere?Object.keys(libere.persons||{}).length:0;
+  console.log(`Sortatori: ${sortCount}, Prezente luni: ${prezCount}, Planificare saptamani: ${planCount}, Libere luni: ${libCount}`);
 
-  return {version:4,year:YEAR,savedAt:now.toISOString(),date:dateStr,time:timeStr,savedBy:'github-actions',driverCount:allDriversFull.length,thresholds:concedii['tania']?.thresholds||{warn:3,crit:5},drivers:allDriversFull,prezente:prezente||{},sortatori,planificare,_raw_concedii:concedii};
+  return {version:4,year:YEAR,savedAt:now.toISOString(),date:dateStr,time:timeStr,savedBy:'github-actions',driverCount:allDriversFull.length,thresholds:concedii['tania']?.thresholds||{warn:3,crit:5},drivers:allDriversFull,prezente:prezente||{},sortatori,planificare,libere,_raw_concedii:concedii};
 }
 
 // ── Ultimul backup salvat (din app, la 06/14/22 sau la modificari) ──

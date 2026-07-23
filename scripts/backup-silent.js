@@ -109,6 +109,14 @@ async function fetchAll(){
     if(pl.exists && pl.data() && Object.keys(pl.data()).length>0) planificare=pl.data();
   }catch(e){console.warn('planificare:',e.message);}
 
+  let libere=null;
+  try{
+    const lb=await db.collection('libere').doc('state').get();
+    if(lb.exists && lb.data() && lb.data().persons && Object.keys(lb.data().persons).length>0){
+      libere = {persons: lb.data().persons, days: lb.data().days||{}};
+    }
+  }catch(e){console.warn('libere:',e.message);}
+
   const driversObj={};
   allDriversFull.forEach(d=>{ driversObj[d.id||d.name]=d; });
 
@@ -122,7 +130,8 @@ async function fetchAll(){
     drivers:driversObj,
     ...(sortatori?{sortatori}:{}),
     ...(prezente?{prezente}:{}),
-    ...(planificare?{planificare}:{})
+    ...(planificare?{planificare}:{}),
+    ...(libere?{libere}:{})
   };
 }
 
