@@ -2656,7 +2656,7 @@ function enterApp(userKey){
   if(modLibere2)     modLibere2.style.display     = canLibere?"block":"none";
 
   if(quickAction)    quickAction.style.display = (canConcedii && canEdit()) ? "" : "none";
-  if(groupFilterBar) groupFilterBar.style.display = isAdm?"flex":"none";
+  updateGroupFilterBar(userKey, isAdm, canConcedii);
   if(statsBar)       statsBar.style.display = canConcedii?"":"none";
   if(holidayBanner)  holidayBanner.style.display = canConcedii?"":"none";
   if(legend)         legend.style.display = canConcedii?"":"none";
@@ -2968,7 +2968,12 @@ function getVisibleDrivers(){
   // Toți ceilalți (inclusiv Tania) — acces STRICT pe baza permisiunilor acordate de Admin.
   // Fără nicio excepție hardcodată: dacă Admin nu a acordat acces la Concedii, nu vede nimic.
   if(!hasModuleView(uk,"concedii")) return [];
-  const grantedGroups = permFor(uk,"concedii").groups||[];
+  let grantedGroups = permFor(uk,"concedii").groups||[];
+  // Dacă userul a selectat un grup specific din bara de filtre (nu "Total"),
+  // restrângem la DOAR acel grup — dar numai dacă chiar îl are acordat.
+  if(activeGroup && activeGroup!=="total" && grantedGroups.includes(activeGroup)){
+    grantedGroups = [activeGroup];
+  }
   const GROUP_TO_KEY = {eiselfing:"madalina", ruhstorf:"raluca", camion:"corina", paketshop:"raluca", sortat:"raluca"};
   const allowedIdentityKeys = grantedGroups.map(g=>GROUP_TO_KEY[g]).filter(Boolean);
 
@@ -3887,6 +3892,33 @@ function setStatLevel(id,count){const el=document.getElementById(id);el.classLis
 // ============================================================
 // GROUP FILTER (Tania/Admin)
 // ============================================================
+const GROUP_LABELS = {eiselfing:"📍 Eiselfing", ruhstorf:"📍 Ruhstorf", camion:"🚚 Camion", paketshop:"📦 Paketshop", sortat:"🗂️ Sortat"};
+
+function updateGroupFilterBar(userKey, isAdm, canConcedii){
+  const bar = document.getElementById("groupFilterBar");
+  if(!bar) return;
+  if(!canConcedii){ bar.style.display="none"; return; }
+
+  const allGroups = ["eiselfing","ruhstorf","camion","paketshop","sortat"];
+  let myGroups = isAdm ? allGroups : (permFor(userKey,"concedii").groups||[]).filter(g=>allGroups.includes(g));
+
+  if(myGroups.length===0){ bar.style.display="none"; return; }
+
+  // "Total" apare doar dacă are sens (admin, sau non-admin cu 2+ grupuri acordate)
+  const showTotal = isAdm || myGroups.length>1;
+  let html="";
+  if(showTotal) html += `<button class="group-tab" data-group="total" onclick="setGroup('total')">🌐 Total</button>`;
+  myGroups.forEach(g=>{
+    html += `<button class="group-tab" data-group="${g}" onclick="setGroup('${g}')">${GROUP_LABELS[g]}</button>`;
+  });
+  bar.innerHTML = html;
+  bar.style.display = "flex";
+
+  // Setăm grupul activ implicit: Total dacă disponibil, altfel primul grup acordat
+  activeGroup = showTotal ? "total" : myGroups[0];
+  bar.querySelectorAll(".group-tab").forEach(t=>t.classList.toggle("active", t.dataset.group===activeGroup));
+}
+
 function setGroup(g){
   activeGroup=g;
   document.querySelectorAll(".group-tab").forEach(t=>t.classList.toggle("active",t.dataset.group===g));
@@ -7233,7 +7265,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.07.25-01";
+const APP_VERSION = "2026.07.25-02";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -8495,7 +8527,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.07.25-01</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.07.25-02</div>
 
 </body>
 </html>
