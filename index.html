@@ -1191,6 +1191,8 @@
       <button class="group-tab"        data-group="eiselfing" onclick="setGroup('eiselfing')">📍 Eiselfing</button>
       <button class="group-tab"        data-group="ruhstorf"  onclick="setGroup('ruhstorf')">📍 Ruhstorf</button>
       <button class="group-tab"        data-group="camion"    onclick="setGroup('camion')">🚚 Camion</button>
+      <button class="group-tab"        data-group="paketshop" onclick="setGroup('paketshop')">📦 Paketshop</button>
+      <button class="group-tab"        data-group="sortat"    onclick="setGroup('sortat')">🗂️ Sortat</button>
     </div>
     
     <div class="stats">
@@ -1454,6 +1456,8 @@
       <option value="eiselfing">📍 Eiselfing</option>
       <option value="ruhstorf">📍 Ruhstorf</option>
       <option value="camion">🚚 Camion</option>
+      <option value="paketshop">📦 Paketshop</option>
+      <option value="sortat">🗂️ Sortat</option>
     </select>
     <label>Vizibil pentru</label>
     <div id="driverVisibility" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px">
@@ -1651,6 +1655,8 @@
           <option value="ruhstorf">📍 Ruhstorf</option>
           <option value="eiselfing_ruhstorf">📍 Eiselfing + Ruhstorf</option>
           <option value="camion">🚚 Camion</option>
+          <option value="paketshop">📦 Paketshop</option>
+          <option value="sortat">🗂️ Sortat</option>
         </select>
         <button onclick="doPrint()" style="padding:6px 16px;background:var(--accent);color:#000;font-weight:700;border:none;border-radius:5px;cursor:pointer;font-size:13px">🖨️ Printează / PDF</button>
         <button class="btn btn-secondary btn-small" onclick="closeModal('modalPrint')">✕ Închide</button>
@@ -2945,7 +2951,7 @@ function getVisibleDrivers(){
   if(isAdmin()){
     let drivers = state.drivers.filter(dr=>!dr.archived);
     if(activeGroup!=="total"){
-      const groupUserKey = activeGroup==="eiselfing"?"madalina":activeGroup==="ruhstorf"?"raluca":activeGroup==="camion"?"corina":null;
+      const groupUserKey = activeGroup==="eiselfing"?"madalina":(activeGroup==="ruhstorf"||activeGroup==="paketshop"||activeGroup==="sortat")?"raluca":activeGroup==="camion"?"corina":null;
       if(groupUserKey){
         const nameSet = new Set((GROUPS[activeGroup]||[]).map(n=>n.toLowerCase()));
         drivers = drivers.filter(dr=>{
@@ -2963,7 +2969,7 @@ function getVisibleDrivers(){
   // Fără nicio excepție hardcodată: dacă Admin nu a acordat acces la Concedii, nu vede nimic.
   if(!hasModuleView(uk,"concedii")) return [];
   const grantedGroups = permFor(uk,"concedii").groups||[];
-  const GROUP_TO_KEY = {eiselfing:"madalina", ruhstorf:"raluca", camion:"corina"};
+  const GROUP_TO_KEY = {eiselfing:"madalina", ruhstorf:"raluca", camion:"corina", paketshop:"raluca", sortat:"raluca"};
   const allowedIdentityKeys = grantedGroups.map(g=>GROUP_TO_KEY[g]).filter(Boolean);
 
   drivers = state.drivers.filter(dr=>{
@@ -3155,7 +3161,7 @@ function getFutureLeaveAfterDeparture(dr, endDateStr){
 // (compatibilitate) — grupul rămâne totuși sursa PRINCIPALĂ, salvată explicit
 function syncDriverGroupToVisibility(){
   const g = document.getElementById("driverGroup").value;
-  const map = {eiselfing:"visMadalina", ruhstorf:"visRaluca", camion:"visCorina"};
+  const map = {eiselfing:"visMadalina", ruhstorf:"visRaluca", camion:"visCorina", paketshop:"visRaluca", sortat:"visRaluca"};
   ["visRaluca","visMadalina","visCorina"].forEach(id=>{ document.getElementById(id).checked=false; });
   if(map[g]) document.getElementById(map[g]).checked=true;
 }
@@ -4890,7 +4896,7 @@ const PERM_USERS = [
   {key:"tania",    name:"Tania",     initial:"T", color:"#2563eb"},
 ];
 const PERM_MODULES = [
-  {key:"concedii",    label:"📅 Concedii",     groups:["eiselfing","ruhstorf","camion"]},
+  {key:"concedii",    label:"📅 Concedii",     groups:["eiselfing","ruhstorf","camion","paketshop","sortat"]},
   {key:"sortatori",   label:"📦 Sortatori",   groups:["eiselfing","ruhstorf"]},
   {key:"planificare", label:"🗓️ Planificare", groups:null},
   {key:"libere",      label:"🏠 Libere",       groups:["eiselfing","ruhstorf"]},
@@ -4905,7 +4911,7 @@ function openPermissionsPanel(){
       const p = permFor(u.key, mod.key);
       const groupsHtml = mod.groups ? mod.groups.map(g=>{
         const checked = (p.groups||[]).includes(g);
-        const gLabel = g==="eiselfing"?"Eiselfing":g==="ruhstorf"?"Ruhstorf":"Camion";
+        const gLabel = g==="eiselfing"?"Eiselfing":g==="ruhstorf"?"Ruhstorf":g==="camion"?"Camion":g==="paketshop"?"Paketshop":"Sortat";
         return `<label style="display:inline-flex;align-items:center;gap:4px;font-size:11px;margin-right:10px;cursor:pointer">
           <input type="checkbox" class="perm-group-cb" data-user="${u.key}" data-module="${mod.key}" data-group="${g}" ${checked?"checked":""} style="width:14px;height:14px"> ${gLabel}
         </label>`;
@@ -6184,11 +6190,14 @@ function openPrintModal(){
 
 function getPrintDrivers(group){
   let drivers = state.drivers||[];
-  const matches = (d,g) => d.group ? d.group===g : (d.visibleTo||[]).includes(g==="eiselfing"?"madalina":g==="ruhstorf"?"raluca":"corina");
+  const VIS_MAP = {eiselfing:"madalina", ruhstorf:"raluca", camion:"corina"};
+  const matches = (d,g) => d.group ? d.group===g : (VIS_MAP[g] ? (d.visibleTo||[]).includes(VIS_MAP[g]) : false);
   if(group==="eiselfing") drivers=drivers.filter(d=>matches(d,"eiselfing"));
   else if(group==="ruhstorf") drivers=drivers.filter(d=>matches(d,"ruhstorf"));
   else if(group==="eiselfing_ruhstorf") drivers=drivers.filter(d=>matches(d,"eiselfing")||matches(d,"ruhstorf"));
   else if(group==="camion") drivers=drivers.filter(d=>matches(d,"camion"));
+  else if(group==="paketshop") drivers=drivers.filter(d=>matches(d,"paketshop"));
+  else if(group==="sortat") drivers=drivers.filter(d=>matches(d,"sortat"));
   // Excludem persoanele care nu erau active (contract) în luna selectată pentru print
   const y=currentDate.getFullYear(), m=currentDate.getMonth();
   drivers = drivers.filter(d=>isDriverActiveInMonth(d,y,m));
@@ -6202,7 +6211,7 @@ function buildPrintHTML(group){
   const monthKey=y+"-"+String(m+1).padStart(2,"0");
   const drivers=getPrintDrivers(group);
   const presence=(presState.presence&&presState.presence[monthKey])||{};
-  const groupLabel={total:"Total",eiselfing:"Eiselfing",ruhstorf:"Ruhstorf",eiselfing_ruhstorf:"Eiselfing + Ruhstorf",camion:"Camion"}[group];
+  const groupLabel={total:"Total",eiselfing:"Eiselfing",ruhstorf:"Ruhstorf",eiselfing_ruhstorf:"Eiselfing + Ruhstorf",camion:"Camion",paketshop:"Paketshop",sortat:"Sortat"}[group];
   const DOW_RO=["D","L","M","M","J","V","S"];
   const ROWS_PER_PAGE=28;
 
@@ -6377,7 +6386,7 @@ function buildPrintHTML(group){
 function renderPrintPreview(){
   const group=document.getElementById("printGroupSel").value;
   const y=currentDate.getFullYear(),m=currentDate.getMonth();
-  const groupLabel={total:"Total",eiselfing:"Eiselfing",ruhstorf:"Ruhstorf",eiselfing_ruhstorf:"Eiselfing + Ruhstorf",camion:"Camion"}[group];
+  const groupLabel={total:"Total",eiselfing:"Eiselfing",ruhstorf:"Ruhstorf",eiselfing_ruhstorf:"Eiselfing + Ruhstorf",camion:"Camion",paketshop:"Paketshop",sortat:"Sortat"}[group];
   document.getElementById("printModalTitle").textContent="Print — "+MONTHS[m]+" "+y+" ("+groupLabel+")";
   const drivers=getPrintDrivers(group);
   document.getElementById("printPreviewArea").innerHTML=`<div style="color:#555;font-size:13px;padding:24px;text-align:center">
@@ -6392,7 +6401,7 @@ function doPrint(){
   const group=document.getElementById("printGroupSel").value;
   const html=buildPrintHTML(group);
   const y=currentDate.getFullYear(),m=currentDate.getMonth();
-  const groupLabel={total:"Total",eiselfing:"Eiselfing",ruhstorf:"Ruhstorf",eiselfing_ruhstorf:"Eiselfing + Ruhstorf",camion:"Camion"}[group];
+  const groupLabel={total:"Total",eiselfing:"Eiselfing",ruhstorf:"Ruhstorf",eiselfing_ruhstorf:"Eiselfing + Ruhstorf",camion:"Camion",paketshop:"Paketshop",sortat:"Sortat"}[group];
   const w=window.open("","_blank","width=1400,height=900");
   w.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>MTC "+MONTHS[m]+" "+y+" "+groupLabel+"</title></head><body>"+html+"</body></html>");
   w.document.close();
@@ -7224,7 +7233,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.07.23-05";
+const APP_VERSION = "2026.07.25-01";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -8156,7 +8165,7 @@ function showLoginNotification(userKey){
 
   // Lista de persoane vizibilă — STRICT din grupurile Concedii acordate prin permisiuni
   const grantedGroups = isAdmin() ? ["eiselfing","ruhstorf","camion"] : (permFor(userKey,"concedii").groups||[]);
-  const GROUP_TO_KEY2 = {eiselfing:"madalina", ruhstorf:"raluca", camion:"corina"};
+  const GROUP_TO_KEY2 = {eiselfing:"madalina", ruhstorf:"raluca", camion:"corina", paketshop:"raluca", sortat:"raluca"};
   const allowedIdentityKeys2 = grantedGroups.map(g=>GROUP_TO_KEY2[g]).filter(Boolean);
   const visibleDrivers = (state.drivers||[]).filter(d=>{
     if(d.group) return grantedGroups.includes(d.group); // sursă principală
@@ -8486,7 +8495,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.07.23-05</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.07.25-01</div>
 
 </body>
 </html>
