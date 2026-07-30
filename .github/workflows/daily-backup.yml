@@ -3,27 +3,31 @@ name: MTC Daily Backup
 on:
   schedule:
     # Orele sunt în UTC. România = UTC+3 vara (DST), UTC+2 iarna.
-    # 07:00 RO (vară) = 04:00 UTC
-    - cron: '0 4 * * *'
-    # 14:00 RO (vară) = 11:00 UTC
-    - cron: '0 11 * * *'
-    # 22:00 RO (vară) = 19:00 UTC — backup complet cu email
-    - cron: '0 19 * * *'
+    # Rulăm la fiecare 4 ore (6x/zi) — mai frecvent decât înainte (3x/zi),
+    # ca protecție suplimentară în lipsa unui trigger sigur "la fiecare login"
+    # (declanșarea directă din browser ar necesita expunerea unui token
+    # GitHub cu drepturi de scriere în codul public al site-ului, ceea ce
+    # ar fi un risc de securitate serios — oricine ar putea folosi acel
+    # token pentru orice, inclusiv ștergerea codului din repo).
+    - cron: '0 3 * * *'   # 06:00 RO (vară) / 05:00 RO (iarnă)
+    - cron: '0 7 * * *'   # 10:00 RO / 09:00 RO
+    - cron: '0 11 * * *'  # 14:00 RO / 13:00 RO
+    - cron: '0 15 * * *'  # 18:00 RO / 17:00 RO
+    - cron: '0 19 * * *'  # 22:00 RO / 21:00 RO — rularea "completă", cu email
+    - cron: '0 23 * * *'  # 02:00 RO / 01:00 RO
   workflow_dispatch:
     inputs:
       slot:
-        description: 'Slot de forțat la rulare manuală (auto = după ora UTC reală)'
+        description: 'Forțează rularea completă (cu email) indiferent de oră'
         required: false
         default: 'auto'
         type: choice
         options:
           - auto
-          - '07'
-          - '14'
-          - '22'
+          - 'full'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   backup:
@@ -42,33 +46,27 @@ jobs:
       - name: Install dependencies
         run: npm install firebase-admin@12 nodemailer
 
-      - name: Determine which slot to run
+      - name: Determine run type
         id: slot
         run: |
           INPUT_SLOT="${{ github.event.inputs.slot }}"
-          if [ -n "$INPUT_SLOT" ] && [ "$INPUT_SLOT" != "auto" ]; then
-            echo "h=$INPUT_SLOT" >> "$GITHUB_OUTPUT"
-            echo "Manual override: forcing slot $INPUT_SLOT"
+          CURRENT_H=$(date -u +%H)
+          if [ "$INPUT_SLOT" = "full" ] || [ "$CURRENT_H" = "19" ]; then
+            echo "type=full" >> "$GITHUB_OUTPUT"
+            echo "Rulare COMPLETĂ (Firestore + fișier local + email)"
           else
-            CURRENT_H=$(date -u +%H)
-            echo "h=$CURRENT_H" >> "$GITHUB_OUTPUT"
-            echo "Auto-detected UTC hour: $CURRENT_H"
+            echo "type=silent" >> "$GITHUB_OUTPUT"
+            echo "Rulare silențioasă (Firestore + fișier local, fără email) — ora UTC: $CURRENT_H"
           fi
 
-      - name: Silent backup (07:00 RO)
-        if: steps.slot.outputs.h == '04' || steps.slot.outputs.h == '07'
+      - name: Silent backup (Firestore + fișier local)
+        if: steps.slot.outputs.type == 'silent'
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: node scripts/backup-silent.js 7
+        run: node scripts/backup-silent.js $(date -u +%H)
 
-      - name: Silent backup (14:00 RO)
-        if: steps.slot.outputs.h == '11' || steps.slot.outputs.h == '14'
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: node scripts/backup-silent.js 14
-
-      - name: Full backup + email (22:00 RO)
-        if: steps.slot.outputs.h == '19' || steps.slot.outputs.h == '22'
+      - name: Full backup (Firestore + fișier local + email)
+        if: steps.slot.outputs.type == 'full'
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
@@ -76,6 +74,21 @@ jobs:
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
         run: node scripts/backup.js
 
-      - name: No matching slot
-        if: steps.slot.outputs.h != '04' && steps.slot.outputs.h != '07' && steps.slot.outputs.h != '11' && steps.slot.outputs.h != '14' && steps.slot.outputs.h != '19' && steps.slot.outputs.h != '22'
-        run: echo "⚠️ Ora curentă (${{ steps.slot.outputs.h }} UTC) nu corespunde niciunui slot de backup (04/07, 11/14, 19/22). Niciun script nu a rulat. Pentru test manual, folosește input-ul 'slot' din Run workflow."
+      # Pas critic pentru siguranța datelor: comitem fișierele de backup
+      # DIRECT în repository-ul GitHub — o infrastructură complet separată
+      # de Firebase. Dacă proiectul Firebase ar dispărea vreodată complet
+      # (cont compromis, ștergere accidentală, problemă de facturare),
+      # istoricul COMPLET al tuturor backup-urilor rămâne intact în git,
+      # recuperabil oricând, pentru totdeauna (git nu uită nimic).
+      - name: Commit backup files to repo
+        run: |
+          git config user.name "MTC Backup Bot"
+          git config user.email "actions@github.com"
+          git add backups/
+          if git diff --staged --quiet; then
+            echo "Niciun fișier de backup nou de comis."
+          else
+            git commit -m "🔒 Backup automat $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+            echo "✅ Backup comis în repository."
+          fi
