@@ -79,6 +79,7 @@ async function fetchAll(){
     endDate: d.endDate || null,
     archived: d.archived || false,
     archivedAt: d.archivedAt || null,
+    group: d.group || null,
     leaves: d.leaves || [],
     krankLeaves: d.krankLeaves || [],
     unpaidLeaves: d.unpaidLeaves || []
@@ -146,10 +147,31 @@ async function saveToFirestore(backup){
   console.log(`✅ Backup salvat: ${docId} (${backup.driverCount} persoane)`);
 }
 
+// Salvăm backup-ul și ca fișier LOCAL, complet separat de Firestore. Un pas
+// ulterior din workflow-ul GitHub Actions va face commit la aceste fișiere
+// direct în repository — infrastructură total independentă de Firebase.
+// Dacă Firebase ar dispărea complet, istoricul complet din git rămâne intact.
+function saveToRepoFiles(backup){
+  const fs = require('fs');
+  const path = require('path');
+  const dir = path.join(__dirname, '..', 'backups');
+  const histDir = path.join(dir, 'history');
+  fs.mkdirSync(histDir, { recursive: true });
+
+  const json = JSON.stringify(backup, null, 2);
+  fs.writeFileSync(path.join(dir, 'latest.json'), json);
+  const histName = `${backup.date}_${backup.slot||('sched'+SLOT_HOUR)}.json`;
+  fs.writeFileSync(path.join(histDir, histName), json);
+  console.log(`✅ Backup scris local: backups/latest.json + backups/history/${histName}`);
+}
+
 (async()=>{
   try{
     const backup = await fetchAll();
-    if(backup) await saveToFirestore(backup);
+    if(backup){
+      await saveToFirestore(backup);
+      saveToRepoFiles(backup);
+    }
     console.log('✅ Done (silent)');
     process.exit(0);
   }catch(e){

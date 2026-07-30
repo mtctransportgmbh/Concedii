@@ -52,6 +52,7 @@ async function fetchAll(){
     endDate: d.endDate || null,
     archived: d.archived || false,
     archivedAt: d.archivedAt || null,
+    group: d.group || null,
     leaves: d.leaves || [],
     krankLeaves: d.krankLeaves || [],
     unpaidLeaves: d.unpaidLeaves || []
@@ -275,13 +276,54 @@ async function sendEmail(backup, diffHtml){
   console.log(`✅ Email sent`);
 }
 
+async function saveToFirestore(backup){
+  const docId = `${backup.date}_sched22`;
+  const existing = await db.collection(collName('daily_backup')).doc(docId).get();
+  if(existing.exists){
+    console.log(`ℹ️ Backup ${docId} există deja — nu suprascriu.`);
+    return;
+  }
+  await db.collection(collName('daily_backup')).doc(docId).set(backup);
+  console.log(`✅ Backup salvat în Firestore: ${docId} (${backup.driverCount} persoane)`);
+}
+
+// Salvăm backup-ul și ca fișier LOCAL, complet separat de Firestore ȘI de
+// email. Un pas ulterior din workflow va face commit la aceste fișiere
+// direct în repository — infrastructură total independentă. Chiar dacă
+// email-ul eșuează, datele tot se salvează sigur, în 2 locuri diferite.
+function saveToRepoFiles(backup){
+  const fs = require('fs');
+  const path = require('path');
+  const dir = path.join(__dirname, '..', 'backups');
+  const histDir = path.join(dir, 'history');
+  fs.mkdirSync(histDir, { recursive: true });
+
+  const json = JSON.stringify(backup, null, 2);
+  fs.writeFileSync(path.join(dir, 'latest.json'), json);
+  const histName = `${backup.date}_2200.json`;
+  fs.writeFileSync(path.join(histDir, histName), json);
+  console.log(`✅ Backup scris local: backups/latest.json + backups/history/${histName}`);
+}
+
 (async()=>{
   try{
     const [live, prevBackup] = await Promise.all([fetchAll(), fetchLatestSavedBackup()]);
+
+    // Salvăm datele MAI ÎNTÂI, indiferent dacă email-ul va funcționa sau nu —
+    // asta e partea critică (nu se pierd date), email-ul e doar o notificare.
+    await saveToFirestore(live);
+    saveToRepoFiles(live);
+
     const diff = computeDiff(prevBackup, live);
     const diffHtml = renderDiffHtml(diff);
     console.log(prevBackup ? `Diff vs last backup: ${diff.total} changes` : 'No previous backup found — first run');
-    await sendEmail(live, diffHtml);
+
+    try{
+      await sendEmail(live, diffHtml);
+    }catch(emailErr){
+      console.error('⚠️ Email eșuat (datele SUNT deja salvate în siguranță, doar notificarea a eșuat):', emailErr.message);
+    }
+
     console.log('✅ Done');
     process.exit(0);
   }catch(e){
