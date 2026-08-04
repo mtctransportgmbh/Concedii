@@ -1724,7 +1724,7 @@
 // ============================================================
 // CONFIGURARE — schimbă doar USE_TEST pentru a comuta între medii
 // ============================================================
-const USE_TEST = false; // true = test | false = producție
+const USE_TEST = true; // true = test | false = producție
 
 const FIREBASE_CONFIGS = {
   production: {
@@ -3052,7 +3052,7 @@ function getCarryOverForYear(dr, year){
 
 function getLevel(count){const{warn,crit}=state.thresholds;if(count===0)return 0;if(count>=crit)return 4;if(count>=warn)return 3;if(count>=Math.ceil(warn/2)+1)return 2;return 1;}
 
-function getVisibleDrivers(){
+function getVisibleDrivers(ignoreMonthFilter){
   const uk = window.activeUserKey||"";
   const y = currentDate.getFullYear(), m = currentDate.getMonth();
   let drivers;
@@ -3069,7 +3069,10 @@ function getVisibleDrivers(){
         });
       }
     }
-    // Filtrează după data angajare/plecare
+    // Filtrează după data angajare/plecare — DOAR dacă nu e cerut explicit
+    // să sărim peste (ex: lista din sidebar trebuie să arate PE TOȚI cei
+    // nearhivați, indiferent de luna curent navigată în calendar).
+    if(ignoreMonthFilter) return drivers;
     return drivers.filter(dr=>isDriverActiveInMonth(dr,y,m));
   }
 
@@ -3098,7 +3101,8 @@ function getVisibleDrivers(){
     }
     return allowedIdentityKeys.some(k=>dr.visibleTo.includes(k));
   });
-  // Filtrează după data angajare/plecare
+  // Filtrează după data angajare/plecare — la fel, sărim peste dacă e cerut explicit
+  if(ignoreMonthFilter) return drivers;
   return drivers.filter(dr=>isDriverActiveInMonth(dr,y,m));
 }
 
@@ -3926,7 +3930,7 @@ function onComboFocus(){comboSelectedId=null;filterCombo(document.getElementById
 function onComboInput(){comboSelectedId=null;filterCombo(document.getElementById("comboInput").value);}
 function filterCombo(q){
   const norm=normalizeForSearch(q.trim()),list=document.getElementById("comboList");
-  const visible=getVisibleDrivers();
+  const visible=getVisibleDrivers(true);
   if(!norm){comboFiltered=[...visible].sort((a,b)=>a.name.localeCompare(b.name,"ro"));}
   else{comboFiltered=visible.filter(d=>normalizeForSearch(d.name).includes(norm)).sort((a,b)=>{const as=normalizeForSearch(a.name).startsWith(norm)?0:1,bs=normalizeForSearch(b.name).startsWith(norm)?0:1;if(as!==bs)return as-bs;return a.name.localeCompare(b.name,"ro");});}
   comboHighlightIdx=0;renderComboList(q.trim());list.classList.add("show");
@@ -4022,7 +4026,7 @@ function renderDrivers(){
   const canAdmin=isAdmin();
   const isTaniaAdm=isAdmin()||hasModuleView(uk,"concedii");
   const q=normalizeForSearch((document.getElementById("searchDriver").value||"").trim());
-  const visible=getVisibleDrivers();
+  const visible=getVisibleDrivers(true);
   const filtered=q?visible.filter(d=>normalizeForSearch(d.name).includes(q)):[...visible];
   filtered.sort((a,b)=>a.name.localeCompare(b.name,"ro"));
   document.getElementById("driverCount").textContent=filtered.length;
@@ -7793,7 +7797,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.08.04-01";
+const APP_VERSION = "2026.08.04-02";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -9054,7 +9058,7 @@ function toggleSidebar(){
   const btn=document.getElementById("sidebarToggleBtn");
   if(!c||!btn)return;
   const open=c.classList.toggle("open");
-  const cnt=getVisibleDrivers().length;
+  const cnt=getVisibleDrivers(true).length;
   btn.textContent=open?"▲ Ascunde persoanele ("+cnt+")":"▼ Arată persoanele ("+cnt+")";
 }
 
@@ -9075,7 +9079,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.04-01</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.04-02</div>
 
 </body>
 </html>
