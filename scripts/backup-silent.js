@@ -118,6 +118,23 @@ async function fetchAll(){
     }
   }catch(e){console.warn('libere:',e.message);}
 
+  // Coduri PIN (login) — critice, fără ele niciun user non-admin nu se poate loga
+  let pins=null;
+  try{
+    const pinKeys=['raluca','madalina','corina','mihaela','tania'];
+    const pinSnaps=await Promise.all(pinKeys.map(pk=>db.collection('pins').doc(pk).get()));
+    const pinsObj={};
+    pinKeys.forEach((pk,i)=>{ if(pinSnaps[i].exists) pinsObj[pk]=pinSnaps[i].data(); });
+    if(Object.keys(pinsObj).length>0) pins=pinsObj;
+  }catch(e){console.warn('pins:',e.message);}
+
+  // Permisiuni acordate (panoul de Permisiuni) — fără ele, tot accesul non-admin dispare
+  let permissions=null;
+  try{
+    const permSnap=await db.collection('permissions').doc('overrides').get();
+    if(permSnap.exists && permSnap.data()) permissions=permSnap.data();
+  }catch(e){console.warn('permissions:',e.message);}
+
   const driversObj={};
   allDriversFull.forEach(d=>{ driversObj[d.id||d.name]=d; });
 
@@ -132,7 +149,9 @@ async function fetchAll(){
     ...(sortatori?{sortatori}:{}),
     ...(prezente?{prezente}:{}),
     ...(planificare?{planificare}:{}),
-    ...(libere?{libere}:{})
+    ...(libere?{libere}:{}),
+    ...(pins?{pins}:{}),
+    ...(permissions?{permissions}:{})
   };
 }
 
@@ -143,6 +162,20 @@ async function saveToFirestore(backup){
     console.log(`ℹ️ Backup ${docId} există deja — nu suprascriu.`);
     return;
   }
+
+  // Alertă preventivă: scădere bruscă a numărului de persoane față de
+  // ultimul backup salvat — poate fi o ștergere accidentală.
+  try{
+    const prevSnap = await db.collection(collName('daily_backup')).orderBy('savedAt','desc').limit(1).get();
+    if(!prevSnap.empty){
+      const prevCount = prevSnap.docs[0].data().driverCount||0;
+      const drop = prevCount - backup.driverCount;
+      if(drop>=5){
+        console.warn(`⚠️⚠️⚠️ ATENȚIE: numărul de persoane a scăzut cu ${drop} (de la ${prevCount} la ${backup.driverCount}) față de ultimul backup! Verifică dacă e intenționat.`);
+      }
+    }
+  }catch(e){ console.warn('drop-check err', e.message); }
+
   await db.collection(collName('daily_backup')).doc(docId).set(backup);
   console.log(`✅ Backup salvat: ${docId} (${backup.driverCount} persoane)`);
 }
