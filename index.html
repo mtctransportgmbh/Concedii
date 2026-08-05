@@ -1131,6 +1131,7 @@
     <button class="btn btn-secondary btn-small" id="importExcelBtn" onclick="document.getElementById('importExcelFile').click()" style="width:100%; margin-bottom:6px; display:none; border-color:#34d399; color:#34d399">📥 Import Excel → HTML</button>
     <input type="file" id="importExcelFile" accept=".xlsx,.xlsm,.xls" style="display:none" multiple onchange="importExcelFile(event)">
     <button class="btn btn-secondary btn-small" id="actLogBtn" onclick="openActivityLog()" style="width:100%; margin-bottom:6px; display:none; border-color:#818cf8; color:#818cf8">📋 Istoric activitate</button>
+    <button class="btn btn-secondary btn-small" id="excelStatusBtn" onclick="openExcelImportStatusPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📊 Status Import Excel</button>
     <button class="btn btn-secondary btn-small" id="verifyExcelBtn" onclick="document.getElementById('verifyExcelFile').click()" style="width:100%; margin-bottom:6px; display:none; border-color:#a78bfa; color:#a78bfa">📊 Verifică Excel vs HTML</button>
     <input type="file" id="verifyExcelFile" accept=".xlsx,.xlsm,.xls" style="display:none" onchange="verifyExcelFile(event)">
     <button class="btn btn-secondary btn-small" id="downloadBackupBtn" onclick="downloadBackupNow()" style="width:100%; margin-bottom:6px; display:none">💾 Descarcă backup acum</button>
@@ -1214,6 +1215,7 @@
       </div>
     </div>
     <div id="holidayBanner" class="holiday-banner" style="display:none"></div>
+    <div id="excelImportReminderBanner" style="display:none;background:#f59e0b;color:#000;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px"></div>
     
     <div class="legend">
       <div class="legend-item"><div class="legend-dot" style="background:var(--bg-elev-2);border:1px solid var(--border)"></div>0 persoane</div>
@@ -1625,6 +1627,22 @@
 </div>
 
 <!-- ACTIVITY LOG MODAL -->
+<div class="modal-bg" id="modalExcelImportStatus">
+  <div class="modal" style="max-width:560px;max-height:88vh;overflow-y:auto">
+    <h3>📊 Status Import Excel</h3>
+    <div class="modal-sub" id="excelStatusMonthLabel"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin:10px 0">
+      <button onclick="changeExcelStatusMonth(-1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--text-dim)">◀</button>
+      <span id="excelStatusMonthNav" style="font-weight:700;flex:1;text-align:center"></span>
+      <button onclick="changeExcelStatusMonth(1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--text-dim)">▶</button>
+    </div>
+    <div id="excelStatusList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalExcelImportStatus')">Închide</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modalActivityLog">
   <div class="modal" style="max-width:900px;max-height:92vh;overflow-y:auto">
     <h3>📋 Manager Istoric Activitate</h3>
@@ -1643,6 +1661,14 @@
       <div>
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-dim);margin-bottom:5px">Modul</div>
         <div id="actFilterModule" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+      </div>
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-dim);margin-bottom:5px">🔍 Caută persoană</div>
+        <div style="position:relative">
+          <input type="text" id="actPersonSearch" placeholder="ex: Popescu Ion..." oninput="setActPersonSearch(this.value)" style="width:100%;padding:6px 28px 6px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);box-sizing:border-box">
+          <span id="actPersonSearchClear" onclick="clearActPersonSearch()" style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-dim);font-size:14px">✕</span>
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:3px">Caută în ultimele 600 de acțiuni încărcate — dacă nu găsești, extinde Perioada la "Tot"</div>
       </div>
     </div>
 
@@ -1791,6 +1817,7 @@ const GROUPS = {
 // ============================================================
 let state = {drivers:[], thresholds:{warn:3,crit:5}};
 let activeGroup = "total"; // for tania/admin filter
+let excelImportStatus = {}; // {monthKey: {personName: "imported"|"ignored"}}
 let view = "calendar";
 let currentDate = new Date();
 let activeYear = currentDate.getFullYear();
@@ -1874,6 +1901,108 @@ function initApp(userKey){
   }
 }
 
+// ============================================================
+// AVERTIZARE IMPORT EXCEL LIPSĂ — doar pentru Admin, începând cu data de
+// 5 a fiecărei luni, verifică dacă luna precedentă a fost deja importată
+// (sau marcată explicit "ignoră") pentru toate persoanele active.
+// ============================================================
+async function checkExcelImportReminder(){
+  const banner = document.getElementById("excelImportReminderBanner");
+  if(!banner) return;
+  if(!isAdmin()){ banner.style.display="none"; return; }
+
+  const now = new Date();
+  if(now.getDate() < 5){ banner.style.display="none"; return; }
+
+  // Luna precedentă (cea care ar trebui deja încărcată din Excel)
+  const prevMonthDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const py = prevMonthDate.getFullYear(), pm = prevMonthDate.getMonth();
+  const mk = py+"-"+String(pm+1).padStart(2,"0");
+
+  await loadExcelImportStatus(mk);
+  const status = excelImportStatus[mk]||{};
+
+  // Toate persoanele active (nearhivate) care erau active în luna precedentă
+  const activePersons = state.drivers.filter(dr=>!dr.archived && isDriverActiveInMonth(dr,py,pm));
+  const missing = activePersons.filter(dr=>!status[dr.name]).map(dr=>dr.name).sort((a,b)=>a.localeCompare(b,"ro"));
+
+  if(missing.length===0){ banner.style.display="none"; return; }
+
+  const MRO=["","Ianuarie","Februarie","Martie","Aprilie","Mai","Iunie","Iulie","August","Septembrie","Octombrie","Noiembrie","Decembrie"];
+  banner.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:18px">⚠️</span>
+      <span style="flex:1;min-width:200px">
+        <b>Import Excel lipsă pentru ${MRO[pm+1]} ${py}</b> — ${missing.length} persoane fără date încărcate sau marcate ca ignorate:
+        <span style="opacity:0.85">${escapeHtml(missing.slice(0,6).join(", "))}${missing.length>6?" +"+(missing.length-6)+" altele":""}</span>
+      </span>
+      <button onclick="document.getElementById('importExcelBtn').click()" style="background:#000;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:800;font-size:12px;white-space:nowrap">📥 Importă acum</button>
+      <button onclick="openExcelImportStatusPanel('${mk}')" style="background:transparent;color:#000;border:1px solid #000;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px;white-space:nowrap">📊 Vezi status</button>
+    </div>`;
+  banner.style.display="block";
+}
+
+// ============================================================
+// PANOU STATUS IMPORT EXCEL — vizualizare/gestionare per persoană, per lună
+// ============================================================
+let _excelStatusMonth = null; // {y, m}
+
+async function openExcelImportStatusPanel(monthKey){
+  if(!isAdmin()) return;
+  if(monthKey){
+    const [y,m] = monthKey.split("-").map(Number);
+    _excelStatusMonth = {y, m: m-1};
+  } else if(!_excelStatusMonth){
+    const now=new Date();
+    _excelStatusMonth = {y: now.getFullYear(), m: now.getMonth()-1};
+    if(_excelStatusMonth.m<0){ _excelStatusMonth.m=11; _excelStatusMonth.y--; }
+  }
+  openModal("modalExcelImportStatus");
+  await renderExcelImportStatusPanel();
+}
+
+function changeExcelStatusMonth(delta){
+  const d = new Date(_excelStatusMonth.y, _excelStatusMonth.m+delta, 1);
+  _excelStatusMonth = {y:d.getFullYear(), m:d.getMonth()};
+  renderExcelImportStatusPanel();
+}
+
+async function renderExcelImportStatusPanel(){
+  const {y, m} = _excelStatusMonth;
+  const mk = y+"-"+String(m+1).padStart(2,"0");
+  const MRO=["","Ianuarie","Februarie","Martie","Aprilie","Mai","Iunie","Iulie","August","Septembrie","Octombrie","Noiembrie","Decembrie"];
+  document.getElementById("excelStatusMonthNav").textContent = MRO[m+1]+" "+y;
+  document.getElementById("excelStatusMonthLabel").textContent = "Cine are datele din Excel încărcate pentru luna selectată";
+
+  await loadExcelImportStatus(mk);
+  const status = excelImportStatus[mk]||{};
+  const activePersons = state.drivers.filter(dr=>!dr.archived && isDriverActiveInMonth(dr,y,m)).sort((a,b)=>a.name.localeCompare(b.name,"ro"));
+
+  if(!activePersons.length){
+    document.getElementById("excelStatusList").innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:20px">Nicio persoană activă în această lună.</div>';
+    return;
+  }
+
+  let html = '<div style="display:flex;flex-direction:column;gap:6px">';
+  activePersons.forEach(dr=>{
+    const st = status[dr.name];
+    const badge = st==="imported"
+      ? '<span style="color:#10b981;font-weight:700;font-size:11px">✅ Importat</span>'
+      : st==="ignored"
+      ? '<span style="color:var(--text-dim);font-weight:700;font-size:11px">➖ Ignorat</span>'
+      : '<span style="color:#ef4444;font-weight:700;font-size:11px">⛔ Lipsă</span>';
+    html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg-elev-2);border-radius:6px">
+      <span style="font-weight:600;font-size:13px">${escapeHtml(dr.name)}</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        ${badge}
+        <button class="btn btn-secondary btn-small" onclick="toggleExcelIgnore('${dr.name.replace(/'/g,"\\'")}','${mk}')" style="font-size:11px">${st==="ignored"?"Anulează ignorare":"Ignoră luna"}</button>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  document.getElementById("excelStatusList").innerHTML = html;
+}
+
 function finishInit(){
   state.thresholds = {warn:3,crit:5};
   // Ensure all drivers have krankLeaves and unpaidLeaves arrays
@@ -1902,6 +2031,7 @@ function finishInit(){
   }
   updateThresholdLegend();
   renderAll();
+  if(isAdmin()) checkExcelImportReminder();
   lastSavedAt = new Date();
   saveLocalBackup();
   setSaveStatus("ok","Date încărcate ✓");
@@ -2808,6 +2938,8 @@ function enterApp(userKey){
   if(sortEditBtn) sortEditBtn.style.display = canEditSort?"inline-flex":"none";
   const actLogBtn2 = document.getElementById("actLogBtn");
   if(actLogBtn2) actLogBtn2.style.display = isAdm?"block":"none";
+  const excelStatusBtn2 = document.getElementById("excelStatusBtn");
+  if(excelStatusBtn2) excelStatusBtn2.style.display = isAdm?"block":"none";
   const verifyExcelBtn2 = document.getElementById("verifyExcelBtn");
   if(verifyExcelBtn2) verifyExcelBtn2.style.display = isAdm?"block":"none";
   const uploadBackupBtn = document.getElementById("uploadBackupBtn");
@@ -5089,6 +5221,44 @@ let _permUnsub = null;
 
 function permColl(){ return "permissions"; }
 
+// ============================================================
+// STATUS IMPORT EXCEL — urmărește, per lună și per persoană, dacă
+// datele din Excel au fost deja încărcate ("imported") sau dacă Admin a
+// ales explicit să sară peste acea lună pentru persoana respectivă
+// ("ignored"). Folosit pentru avertizarea automată de la începutul lunii.
+// ============================================================
+function excelImportColl(){ return "excel_import_status"; }
+
+async function loadExcelImportStatus(monthKey){
+  try{
+    const snap = await db.collection(excelImportColl()).doc(monthKey).get();
+    excelImportStatus[monthKey] = snap.exists ? (snap.data()||{}) : {};
+  }catch(e){ console.warn("loadExcelImportStatus err",e); excelImportStatus[monthKey]={}; }
+  return excelImportStatus[monthKey];
+}
+
+async function saveExcelImportStatusMonth(monthKey){
+  try{
+    await db.collection(excelImportColl()).doc(monthKey).set(excelImportStatus[monthKey]||{});
+  }catch(e){ console.warn("saveExcelImportStatusMonth err",e); }
+}
+
+function markExcelImported(name, monthKey){
+  if(!excelImportStatus[monthKey]) excelImportStatus[monthKey]={};
+  excelImportStatus[monthKey][name] = "imported";
+}
+
+async function toggleExcelIgnore(name, monthKey){
+  if(!isAdmin()) return;
+  if(!excelImportStatus[monthKey]) excelImportStatus[monthKey]={};
+  const cur = excelImportStatus[monthKey][name];
+  excelImportStatus[monthKey][name] = cur==="ignored" ? undefined : "ignored";
+  if(excelImportStatus[monthKey][name]===undefined) delete excelImportStatus[monthKey][name];
+  await saveExcelImportStatusMonth(monthKey);
+  logActivity("📊 Status import Excel modificat", name, monthKey+": "+(excelImportStatus[monthKey][name]||"neconfirmat"), "concedii");
+  renderExcelImportStatusPanel();
+}
+
 let _permOverridesLoaded = false;
 let _permOverridesPromise = null;
 async function loadPermOverrides(){
@@ -6187,7 +6357,7 @@ async function logActivity(action, person, details, module){
 // statistici sumare, grupare pe zi → user → acțiuni
 // ============================================================
 let _actLogAll = [];
-let _actFilters = { period:3, user:"toti", module:"toate" };
+let _actFilters = { period:3, user:"toti", module:"toate", personSearch:"" };
 
 const ACT_USERS = [
   {key:"toti",     label:"Toți",     color:"var(--text-dim)"},
@@ -6217,6 +6387,11 @@ async function openActivityLog(){
   if(!isAdmin()) return;
   openModal("modalActivityLog");
   document.getElementById("actLogContent").innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:20px">⏳ Se încarcă...</div>';
+  _actFilters.personSearch = "";
+  const searchInput = document.getElementById("actPersonSearch");
+  if(searchInput) searchInput.value = "";
+  const clearBtn = document.getElementById("actPersonSearchClear");
+  if(clearBtn) clearBtn.style.display = "none";
   renderActivityFilterChips();
   try{
     const snap = await db.collection(activityColl())
@@ -6252,6 +6427,22 @@ function setActFilter(type, value){
   renderActivityLog();
 }
 
+function setActPersonSearch(value){
+  _actFilters.personSearch = value;
+  const clearBtn = document.getElementById("actPersonSearchClear");
+  if(clearBtn) clearBtn.style.display = value ? "block" : "none";
+  renderActivityLog(); // NU re-randăm chip-urile — ar pierde focusul din input în timp ce tastezi
+}
+
+function clearActPersonSearch(){
+  _actFilters.personSearch = "";
+  const input = document.getElementById("actPersonSearch");
+  if(input) input.value = "";
+  const clearBtn = document.getElementById("actPersonSearchClear");
+  if(clearBtn) clearBtn.style.display = "none";
+  renderActivityLog();
+}
+
 function renderActivityLog(){
   let entries = _actLogAll.slice();
 
@@ -6267,6 +6458,11 @@ function renderActivityLog(){
   // Filtru modul
   if(_actFilters.module!=="toate"){
     entries = entries.filter(e=>(e.module||"sistem")===_actFilters.module);
+  }
+  // Căutare liberă după persoană — normalizată (fără diacritice, case-insensitive)
+  if(_actFilters.personSearch && _actFilters.personSearch.trim()){
+    const q = normalizeForSearch(_actFilters.personSearch.trim());
+    entries = entries.filter(e=> normalizeForSearch(e.person||"").includes(q) || normalizeForSearch(e.details||"").includes(q));
   }
 
   // ── Statistici sumare ──
@@ -7124,9 +7320,43 @@ function computeBackupDiff(bd){
   const bdByName={}; bdDriversArr.forEach(d=>{ if(d&&d.name) bdByName[d.name]=d; });
   const liveByName={}; (state.drivers||[]).forEach(d=>{ liveByName[d.name]=d; });
 
-  const newDrivers=[], removedDrivers=[], leaveChanges=[], otherChanges=[];
+  // Potrivire prin cuvinte sortate — recunoaște "Mario Martens" ↔ "Martens
+  // Mario" ca fiind ACEEAȘI persoană (doar ordinea prenume/nume schimbată),
+  // nu o ștergere+adăugare falsă. Diacritice/majuscule ignorate.
+  const wordSortKey = name => normalizeForSearch(name).split(/\s+/).filter(Boolean).sort().join(" ");
+  const bdByWordKey={}; Object.keys(bdByName).forEach(n=>{ bdByWordKey[wordSortKey(n)]=n; });
+  const liveByWordKey={}; Object.keys(liveByName).forEach(n=>{ liveByWordKey[wordSortKey(n)]=n; });
+
+  const newDrivers=[], removedDrivers=[], renamedDrivers=[], leaveChanges=[], otherChanges=[];
+  const renamedBdNames=new Set(), renamedLiveNames=new Set();
+
+  // Identificăm redenumirile ÎNAINTE de a calcula adăugări/ștergeri reale
+  Object.keys(bdByName).forEach(bdName=>{
+    if(liveByName[bdName]) return; // potrivire exactă — nu e redenumire
+    const wk = wordSortKey(bdName);
+    const liveMatch = liveByWordKey[wk];
+    if(liveMatch && !liveByName[bdName]){
+      renamedDrivers.push({old:bdName, new:liveMatch});
+      renamedBdNames.add(bdName);
+      renamedLiveNames.add(liveMatch);
+    }
+  });
 
   Object.keys(liveByName).forEach(name=>{
+    if(renamedLiveNames.has(name)){
+      // Persoană redenumită — comparăm totuși datele (concediu etc.) sub numele NOU,
+      // folosind înregistrarea VECHE din backup ca referință
+      const oldName = renamedDrivers.find(r=>r.new===name).old;
+      const lv=liveByName[name], bk=bdByName[oldName];
+      ["leaves","krankLeaves","unpaidLeaves"].forEach(field=>{
+        const label = field==="leaves"?"Concediu":field==="krankLeaves"?"Krank":"Fără plată";
+        const liveArr=lv[field]||[], bdArr=bk[field]||[];
+        const liveSet=new Set(liveArr.map(periodKey)), bdSet=new Set(bdArr.map(periodKey));
+        liveArr.forEach(l=>{ if(!bdSet.has(periodKey(l))) leaveChanges.push({type:"add",label,name,period:l}); });
+        bdArr.forEach(l=>{ if(!liveSet.has(periodKey(l))) leaveChanges.push({type:"remove",label,name,period:l}); });
+      });
+      return;
+    }
     if(!bdByName[name]){ newDrivers.push(name); return; }
     const lv=liveByName[name], bk=bdByName[name];
     ["leaves","krankLeaves","unpaidLeaves"].forEach(field=>{
@@ -7142,7 +7372,7 @@ function computeBackupDiff(bd){
     if((lv.startDate||null)!==(bk.startDate||null)) otherChanges.push(`<b>${escapeHtml(name)}</b>: data angajare ${bk.startDate||"—"} → ${lv.startDate||"—"}`);
     if((lv.endDate||null)!==(bk.endDate||null)) otherChanges.push(`<b>${escapeHtml(name)}</b>: data plecare ${bk.endDate||"—"} → ${lv.endDate||"—"}`);
   });
-  Object.keys(bdByName).forEach(name=>{ if(!liveByName[name]) removedDrivers.push(name); });
+  Object.keys(bdByName).forEach(name=>{ if(!liveByName[name] && !renamedBdNames.has(name)) removedDrivers.push(name); });
 
   // Prezențe (timeline concedii)
   const bdPrez=bd.prezente||{}, livePrez=presState.presence||{};
@@ -7201,7 +7431,7 @@ function computeBackupDiff(bd){
   });
 
   const total = newDrivers.length+removedDrivers.length+leaveChanges.length+otherChanges.length+prezDiff+sortChanges.length+sortPresDiff+planDiff;
-  return {newDrivers,removedDrivers,leaveChanges,otherChanges,prezDiff,sortChanges,sortPresDiff,planDiff,total};
+  return {newDrivers,removedDrivers,renamedDrivers,leaveChanges,otherChanges,prezDiff,sortChanges,sortPresDiff,planDiff,total};
 }
 
 function renderBackupDiff(bd, diff){
@@ -7209,8 +7439,20 @@ function renderBackupDiff(bd, diff){
   document.getElementById("backupPreviewTitle").textContent="📊 Comparație: backup "+(savedAt?savedAt.toLocaleString("ro-RO"):(bd.date||bd.id))+" vs LIVE acum";
 
   let html="";
+
+  // Secțiune neutră pentru redenumiri (schimbare ordine prenume/nume) —
+  // afișată INDIFERENT de restul diferențelor, fiindcă nu e o alertă,
+  // doar o informație utilă ("aceste nume din backup au fost redenumite").
+  if(diff.renamedDrivers && diff.renamedDrivers.length){
+    const items = diff.renamedDrivers.map(r=>`<b>${escapeHtml(r.old)}</b> → <b>${escapeHtml(r.new)}</b>`);
+    html+=`<div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:8px;padding:10px 12px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:800;color:#6366f1;margin-bottom:6px">🔤 Persoane redenumite (aceeași persoană, ordine prenume/nume schimbată) — nu e o pierdere de date</div>
+      <div style="font-size:12px;line-height:1.7">${items.join("<br>")}</div>
+    </div>`;
+  }
+
   if(diff.total===0){
-    html=`<div style="text-align:center;padding:30px 10px">
+    html+=`<div style="text-align:center;padding:30px 10px">
       <div style="font-size:42px;margin-bottom:8px">✅</div>
       <div style="font-size:14px;font-weight:800;color:#10b981">Fără diferențe</div>
       <div style="font-size:12px;color:var(--text-dim);margin-top:4px">Ultimul backup este identic cu starea curentă (live).</div>
@@ -7706,9 +7948,15 @@ async function confirmImportExcel(){
     if(r.newLeaves.length) dr.leaves = cleanLeavesFromHolidays(dr.leaves);
     if(r.newKrank.length)  dr.krankLeaves = cleanLeavesFromHolidays(dr.krankLeaves);
     if(r.newUnpaid.length) dr.unpaidLeaves = cleanLeavesFromHolidays(dr.unpaidLeaves);
+    // Marcăm automat luna ca "importată" pentru această persoană
+    markExcelImported(dr.name, r.yearVal+"-"+String(r.monthNum).padStart(2,"0"));
     count++;
   });
   renderAll(); scheduleSave(); await savePresState();
+  // Salvăm statusul de import pentru toate lunile atinse la acest import
+  const touchedMonths = new Set(_importPending.map(r=>r.yearVal+"-"+String(r.monthNum).padStart(2,"0")));
+  await Promise.all([...touchedMonths].map(mk=>saveExcelImportStatusMonth(mk)));
+  checkExcelImportReminder(); // reverificăm dacă avertizarea mai trebuie afișată
   toast("✅ Import complet: "+count+" persoane");
   btn.disabled=false; btn.textContent="✅ Importă tot";
   _importPending=[]; closeModal("modalImportExcel");
@@ -7797,7 +8045,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.08.04-02";
+const APP_VERSION = "2026.08.05-02";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -9079,7 +9327,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.04-02</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.05-02</div>
 
 </body>
 </html>
