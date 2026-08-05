@@ -7313,9 +7313,25 @@ function _diffSection(title, items){
 
 // Legături manuale nume-vechi → nume-live, confirmate explicit de Admin
 // pentru cazuri pe care detectarea automată (reordonare cuvinte) nu le
-// prinde — ex. corectări de scriere ("Birlaba" → "Birliba"). Țin doar
-// pentru sesiunea curentă de comparare, fiindcă backup-urile rămân fixe.
+// prinde — ex. corectări de scriere ("Birlaba" → "Birliba"). Persistă în
+// Firestore — o corectare de nume rămâne valabilă pentru orice comparație
+// viitoare, nu doar pentru sesiunea curentă.
 let _manualNameLinks = {};
+let _manualNameLinksLoaded = false;
+
+async function loadManualNameLinks(){
+  try{
+    const snap = await db.collection("backup_diff_settings").doc("manual_name_links").get();
+    _manualNameLinks = snap.exists ? (snap.data()||{}) : {};
+  }catch(e){ console.warn("loadManualNameLinks err",e); _manualNameLinks = {}; }
+  _manualNameLinksLoaded = true;
+}
+
+async function saveManualNameLinks(){
+  try{
+    await db.collection("backup_diff_settings").doc("manual_name_links").set(_manualNameLinks);
+  }catch(e){ console.warn("saveManualNameLinks err",e); }
+}
 
 // Compară un backup cu starea LIVE curentă (drivers, prezente, sortatori, planificare)
 function computeBackupDiff(bd){
@@ -7480,7 +7496,7 @@ function renderBackupDiff(bd, diff){
             <option value="">— alege persoana —</option>
             ${opts}
           </select>
-          <button class="btn btn-secondary btn-small" style="font-size:11px;padding:2px 8px" onclick="linkManualRename(${JSON.stringify(n)})">🔗 Leagă</button>
+          <button class="btn btn-secondary btn-small" style="font-size:11px;padding:2px 8px" data-bdname="${escapeHtml(n)}" onclick="linkManualRename(this.dataset.bdname)">🔗 Leagă</button>
         </div>`;
       });
       html+=_diffSection("➖ Persoane șterse (sunt în backup, nu mai sunt live) — dacă e doar o greșeală de scriere, leagă manual mai jos", items);
@@ -7513,12 +7529,13 @@ function renderBackupDiff(bd, diff){
   document.getElementById("backupManagerPreview").style.display="block";
 }
 
-function linkManualRename(bdName){
+async function linkManualRename(bdName){
   const elId = "_relink_"+btoa(unescape(encodeURIComponent(bdName))).replace(/[^a-zA-Z0-9]/g,"");
   const sel = document.getElementById(elId);
   if(!sel || !sel.value){ toast("Alege întâi persoana din listă",true); return; }
   _manualNameLinks[bdName] = sel.value;
-  toast("🔗 „"+bdName+"” legat de „"+sel.value+"”");
+  await saveManualNameLinks();
+  toast("🔗 „"+bdName+"” legat permanent de „"+sel.value+"” — va rămâne așa la orice comparație viitoare");
   if(_backupDocs && _backupDocs.length){
     const bd = _backupDocs[0];
     const diff = computeBackupDiff(bd);
@@ -7526,10 +7543,10 @@ function linkManualRename(bdName){
   }
 }
 
-function showBackupDiff(){
+async function showBackupDiff(){
   if(!_backupDocs||!_backupDocs.length){ toast("Nu există backup-uri salvate",true); return; }
   _selectedBackupIdx=-1; // mod diff — fără restaurare
-  _manualNameLinks = {}; // pornim curat la fiecare comparare nouă
+  if(!_manualNameLinksLoaded) await loadManualNameLinks(); // legăturile confirmate anterior rămân valabile
   const bd=_backupDocs[0];
   const diff=computeBackupDiff(bd);
   renderBackupDiff(bd, diff);
@@ -8082,7 +8099,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.08.05-04";
+const APP_VERSION = "2026.08.05-06";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -9364,7 +9381,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.05-04</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.05-06</div>
 
 </body>
 </html>
