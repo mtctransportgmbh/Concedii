@@ -7311,6 +7311,12 @@ function _diffSection(title, items){
   </div>`;
 }
 
+// Legături manuale nume-vechi → nume-live, confirmate explicit de Admin
+// pentru cazuri pe care detectarea automată (reordonare cuvinte) nu le
+// prinde — ex. corectări de scriere ("Birlaba" → "Birliba"). Țin doar
+// pentru sesiunea curentă de comparare, fiindcă backup-urile rămân fixe.
+let _manualNameLinks = {};
+
 // Compară un backup cu starea LIVE curentă (drivers, prezente, sortatori, planificare)
 function computeBackupDiff(bd){
   const y = bd.year || activeYear;
@@ -7330,9 +7336,17 @@ function computeBackupDiff(bd){
   const newDrivers=[], removedDrivers=[], renamedDrivers=[], leaveChanges=[], otherChanges=[];
   const renamedBdNames=new Set(), renamedLiveNames=new Set();
 
-  // Identificăm redenumirile ÎNAINTE de a calcula adăugări/ștergeri reale
+  // Identificăm redenumirile ÎNAINTE de a calcula adăugări/ștergeri reale.
+  // Prioritate: legături manuale confirmate de Admin, apoi detectare automată.
   Object.keys(bdByName).forEach(bdName=>{
     if(liveByName[bdName]) return; // potrivire exactă — nu e redenumire
+    const manualMatch = _manualNameLinks[bdName];
+    if(manualMatch && liveByName[manualMatch]){
+      renamedDrivers.push({old:bdName, new:manualMatch, manual:true});
+      renamedBdNames.add(bdName);
+      renamedLiveNames.add(manualMatch);
+      return;
+    }
     const wk = wordSortKey(bdName);
     const liveMatch = liveByWordKey[wk];
     if(liveMatch && !liveByName[bdName]){
@@ -7344,17 +7358,11 @@ function computeBackupDiff(bd){
 
   Object.keys(liveByName).forEach(name=>{
     if(renamedLiveNames.has(name)){
-      // Persoană redenumită — comparăm totuși datele (concediu etc.) sub numele NOU,
-      // folosind înregistrarea VECHE din backup ca referință
-      const oldName = renamedDrivers.find(r=>r.new===name).old;
-      const lv=liveByName[name], bk=bdByName[oldName];
-      ["leaves","krankLeaves","unpaidLeaves"].forEach(field=>{
-        const label = field==="leaves"?"Concediu":field==="krankLeaves"?"Krank":"Fără plată";
-        const liveArr=lv[field]||[], bdArr=bk[field]||[];
-        const liveSet=new Set(liveArr.map(periodKey)), bdSet=new Set(bdArr.map(periodKey));
-        liveArr.forEach(l=>{ if(!bdSet.has(periodKey(l))) leaveChanges.push({type:"add",label,name,period:l}); });
-        bdArr.forEach(l=>{ if(!liveSet.has(periodKey(l))) leaveChanges.push({type:"remove",label,name,period:l}); });
-      });
+      // Persoană redenumită (aceeași persoană, doar formatul numelui diferă)
+      // — nu mai comparăm concediile deloc, doar arătăm redenumirea. Altfel
+      // apărea zgomot confuz: dacă backup-ul vechi avea puține date atașate
+      // exact sub numele vechi, TOATE concediile ar fi apărut ca "adăugate",
+      // indiferent de datele lor calendaristice reale.
       return;
     }
     if(!bdByName[name]){ newDrivers.push(name); return; }
@@ -7444,7 +7452,7 @@ function renderBackupDiff(bd, diff){
   // afișată INDIFERENT de restul diferențelor, fiindcă nu e o alertă,
   // doar o informație utilă ("aceste nume din backup au fost redenumite").
   if(diff.renamedDrivers && diff.renamedDrivers.length){
-    const items = diff.renamedDrivers.map(r=>`<b>${escapeHtml(r.old)}</b> → <b>${escapeHtml(r.new)}</b>`);
+    const items = diff.renamedDrivers.map(r=>`<b>${escapeHtml(r.old)}</b> → <b>${escapeHtml(r.new)}</b>${r.manual?' <span style="color:var(--text-dim);font-size:10px">(confirmat manual)</span>':''}`);
     html+=`<div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:8px;padding:10px 12px;margin-bottom:12px">
       <div style="font-size:12px;font-weight:800;color:#6366f1;margin-bottom:6px">🔤 Persoane redenumite (aceeași persoană, ordine prenume/nume schimbată) — nu e o pierdere de date</div>
       <div style="font-size:12px;line-height:1.7">${items.join("<br>")}</div>
@@ -7461,7 +7469,22 @@ function renderBackupDiff(bd, diff){
     html+=`<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;font-weight:800;color:#d97706">⚠️ ${diff.total} diferențe față de acest backup</div>`;
 
     html+=_diffSection("➕ Persoane noi (nu sunt în backup)", diff.newDrivers.map(n=>`<b>${escapeHtml(n)}</b>`));
-    html+=_diffSection("➖ Persoane șterse (sunt în backup, nu mai sunt live)", diff.removedDrivers.map(n=>`<b>${escapeHtml(n)}</b>`));
+    if(diff.removedDrivers.length){
+      const liveNamesSorted = [...state.drivers].filter(d=>!d.archived).map(d=>d.name).sort((a,b)=>a.localeCompare(b,"ro"));
+      const items = diff.removedDrivers.map(n=>{
+        const opts = liveNamesSorted.map(ln=>`<option value="${escapeHtml(ln)}">${escapeHtml(ln)}</option>`).join("");
+        return `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:3px 0">
+          <b>${escapeHtml(n)}</b>
+          <span style="color:var(--text-dim);font-size:11px">e de fapt:</span>
+          <select id="_relink_${btoa(unescape(encodeURIComponent(n))).replace(/[^a-zA-Z0-9]/g,"")}" style="font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text);max-width:160px">
+            <option value="">— alege persoana —</option>
+            ${opts}
+          </select>
+          <button class="btn btn-secondary btn-small" style="font-size:11px;padding:2px 8px" onclick="linkManualRename(${JSON.stringify(n)})">🔗 Leagă</button>
+        </div>`;
+      });
+      html+=_diffSection("➖ Persoane șterse (sunt în backup, nu mai sunt live) — dacă e doar o greșeală de scriere, leagă manual mai jos", items);
+    }
 
     if(diff.leaveChanges.length){
       const items=diff.leaveChanges.slice(0,40).map(c=>{
@@ -7490,9 +7513,23 @@ function renderBackupDiff(bd, diff){
   document.getElementById("backupManagerPreview").style.display="block";
 }
 
+function linkManualRename(bdName){
+  const elId = "_relink_"+btoa(unescape(encodeURIComponent(bdName))).replace(/[^a-zA-Z0-9]/g,"");
+  const sel = document.getElementById(elId);
+  if(!sel || !sel.value){ toast("Alege întâi persoana din listă",true); return; }
+  _manualNameLinks[bdName] = sel.value;
+  toast("🔗 „"+bdName+"” legat de „"+sel.value+"”");
+  if(_backupDocs && _backupDocs.length){
+    const bd = _backupDocs[0];
+    const diff = computeBackupDiff(bd);
+    renderBackupDiff(bd, diff);
+  }
+}
+
 function showBackupDiff(){
   if(!_backupDocs||!_backupDocs.length){ toast("Nu există backup-uri salvate",true); return; }
   _selectedBackupIdx=-1; // mod diff — fără restaurare
+  _manualNameLinks = {}; // pornim curat la fiecare comparare nouă
   const bd=_backupDocs[0];
   const diff=computeBackupDiff(bd);
   renderBackupDiff(bd, diff);
@@ -8045,7 +8082,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.08.05-02";
+const APP_VERSION = "2026.08.05-04";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -9327,7 +9364,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.05-02</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.05-04</div>
 
 </body>
 </html>
