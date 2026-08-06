@@ -7748,6 +7748,19 @@ function parseExcelForImport(wb,fileName){
   const skipSheets=new Set(["Angajati","Model"]);
   const results=[];
   const MONTH_MAP={januar:1,january:1,februar:2,february:2,märz:3,march:3,april:4,mai:5,may:5,juni:6,june:6,juli:7,july:7,august:8,september:9,oktober:10,october:10,november:11,dezember:12,december:12};
+  // Verifică dacă o celulă chiar conține o ORĂ REALĂ — respinge atât un
+  // artefact numeric 0, cât și un artefact Date la miezul nopții (00:00:00),
+  // care apare fiindcă fișierul e citit cu cellDates:true (celulele de tip
+  // oră devin obiecte JS Date, nu numere simple — un Date nu e NICIODATĂ
+  // egal cu 0, deci o verificare simplă "!==0" nu prindea acest caz).
+  const cellHasRealTime = (cell) => {
+    if(!cell || cell.v===null || cell.v===undefined || cell.v==="") return false;
+    if(cell.v===0) return false;
+    if(cell.v instanceof Date){
+      if(cell.v.getHours()===0 && cell.v.getMinutes()===0 && cell.v.getSeconds()===0) return false;
+    }
+    return true;
+  };
   wb.SheetNames.forEach(sheetName=>{
     if(skipSheets.has(sheetName)) return;
     const ws=wb.Sheets[sheetName]; if(!ws) return;
@@ -7778,8 +7791,8 @@ function parseExcelForImport(wb,fileName){
       const rawH=hCell?String(hCell.v||hCell.w||"").trim():"";
       const rawI=iCell?String(iCell.v||iCell.w||"").trim():"";
       const status=rawH.toLowerCase(),statusI=rawI.toLowerCase();
-      const hasArrival=dCell&&dCell.v!==null&&dCell.v!==undefined&&dCell.v!==""&&dCell.v!==0;
-      const hasDeparture=eCell&&eCell.v!==null&&eCell.v!==undefined&&eCell.v!==""&&eCell.v!==0;
+      const hasArrival=cellHasRealTime(dCell);
+      const hasDeparture=cellHasRealTime(eCell);
       const hasHours=hasArrival||hasDeparture; // ore reale lucrate — indică prezență FIZICĂ, muncă efectivă
       // Determină tipul zilei dintr-un text de status (folosit pentru ambele coloane H și I)
       const typeFromStatus=(s)=>{
@@ -8131,7 +8144,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.08.06-02";
+const APP_VERSION = "2026.08.06-03";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -9413,7 +9426,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.06-02</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.06-03</div>
 
 </body>
 </html>
