@@ -7778,8 +7778,8 @@ function parseExcelForImport(wb,fileName){
       const rawH=hCell?String(hCell.v||hCell.w||"").trim():"";
       const rawI=iCell?String(iCell.v||iCell.w||"").trim():"";
       const status=rawH.toLowerCase(),statusI=rawI.toLowerCase();
-      const hasArrival=dCell&&dCell.v!==null&&dCell.v!==undefined&&dCell.v!=="";
-      const hasDeparture=eCell&&eCell.v!==null&&eCell.v!==undefined&&eCell.v!=="";
+      const hasArrival=dCell&&dCell.v!==null&&dCell.v!==undefined&&dCell.v!==""&&dCell.v!==0;
+      const hasDeparture=eCell&&eCell.v!==null&&eCell.v!==undefined&&eCell.v!==""&&eCell.v!==0;
       const hasHours=hasArrival||hasDeparture; // ore reale lucrate — indică prezență FIZICĂ, muncă efectivă
       // Determină tipul zilei dintr-un text de status (folosit pentru ambele coloane H și I)
       const typeFromStatus=(s)=>{
@@ -7788,10 +7788,13 @@ function parseExcelForImport(wb,fileName){
         if(s==="krank"||s==="krankenstand"||s==="k") return "krank";
         if(s.includes("sonder")||s==="sonderurlaub"||s==="unbezahlterurlaub"||sn==="su") return "unpaid";
         if(s==="feiertag"||s==="f") return "feiertag";
-        if(s==="x"||sn==="ps"||s==="prezent") return "prezent";
+        if(sn==="ps") return "prezent_paketshop"; // a lucrat, dar la Paketshop — diferit de simplu "prezent"
+        if(s==="x"||s==="prezent") return "prezent";
         return null;
       };
       let dayType = typeFromStatus(status) || typeFromStatus(statusI);
+      const isPaketshopDay = dayType==="prezent_paketshop";
+      if(isPaketshopDay) dayType="prezent"; // pentru Concedii, P.S se comportă identic cu prezent normal
       if(!dayType&&hasArrival) dayType="prezent";
       if(dayType==="urlaub"||dayType==="krank"||dayType==="unpaid"){
         if(runType===dayType){}
@@ -7806,6 +7809,10 @@ function parseExcelForImport(wb,fileName){
       // Stocăm și dacă existau ore reale lucrate (D/E), pentru comparație cu Libere Springeri
       if(!changes.excelHasHours) changes.excelHasHours={};
       changes.excelHasHours[fmtDate(new Date(yearVal,monthNum-1,dayNum))] = hasHours;
+      // Stocăm și dacă era zi de Paketshop (P.S) — contează ca "Lucrat" pentru
+      // Libere Springeri, chiar fără ore în D/E (a lucrat la alt departament)
+      if(!changes.excelIsPaketshop) changes.excelIsPaketshop={};
+      changes.excelIsPaketshop[fmtDate(new Date(yearVal,monthNum-1,dayNum))] = isPaketshopDay;
     }
     if(runType)flush(runType,runStart,new Date(yearVal,monthNum,0).getDate());
 
@@ -7893,21 +7900,28 @@ function parseExcelForImport(wb,fileName){
     if(liberePersonsThisMonth.includes(dr.name)){
       const libDays = (libereState.days&&libereState.days[mkLib]&&libereState.days[mkLib][dr.name])||{};
       const exHours = changes.excelHasHours||{};
+      const exPaketshop = changes.excelIsPaketshop||{};
       Object.entries(exDs).forEach(([dateStr,excelType])=>{
         const d=parseDate(dateStr);
         if(d.getMonth()!==monthNum-1||d.getFullYear()!==yearVal) return;
         if(isSunday(d)||getHoliday(d)) return; // zile blocate, nu se verifică
         const dayNum=d.getDate();
         const hasHrs = !!exHours[dateStr];
+        const isPaketshop = !!exPaketshop[dateStr];
+        // Prioritate absolută: dacă Excel-ul spune explicit Urlaub/Krank/
+        // Fără plată pentru ziua asta, SĂRIM complet verificarea Libere,
+        // indiferent de hasHrs — acele zile sunt deja acoperite de sistemul
+        // de conflicte din Concedii, nu trebuie verificate și aici.
+        if(excelType==="urlaub"||excelType==="krank"||excelType==="unpaid") return;
         let expectedLib = null;
-        if(hasHrs) expectedLib="lucrat";
+        if(hasHrs||isPaketshop) expectedLib="lucrat"; // P.S = a lucrat la Paketshop, chiar fără ore în D/E
         else if(excelType==="prezent") expectedLib="liber";
-        if(!expectedLib) return; // Urlaub/Krank/Fără plată/Sărbătoare — acoperit deja mai sus
+        if(!expectedLib) return; // Sărbătoare/necunoscut — nu se verifică
         const actualLib = libDays[String(dayNum)]||null;
         if(actualLib!==expectedLib){
           libereConflicts.push({dateStr,dayNum,drName:dr.name,monthKey:mkLib,
             excelSays:expectedLib, appSays:actualLib||"gol",
-            desc:`Excel: ${hasHrs?"ore lucrate ✅":"prezent (X) fără ore"} → ar trebui ${expectedLib==="lucrat"?"Lucrat 🟢":"Liber 🔴"} — Libere Springeri: ${actualLib==="lucrat"?"Lucrat 🟢":actualLib==="liber"?"Liber 🔴":"—"}`
+            desc:`Excel: ${hasHrs?"ore lucrate ✅":isPaketshop?"P.S (lucrat la Paketshop) 📦":"prezent (X) fără ore"} → ar trebui ${expectedLib==="lucrat"?"Lucrat 🟢":"Liber 🔴"} — Libere Springeri: ${actualLib==="lucrat"?"Lucrat 🟢":actualLib==="liber"?"Liber 🔴":"—"}`
           });
         }
       });
@@ -7943,7 +7957,20 @@ function renderImportPreview(results){
   const errors=results.filter(r=>r.error),skipped=results.filter(r=>r.skip),empty=results.filter(r=>!r.error&&!r.skip&&r.totalNew===0);
   const MRO=["","Ianuarie","Februarie","Martie","Aprilie","Mai","Iunie","Iulie","August","Septembrie","Octombrie","Noiembrie","Decembrie"];
   document.getElementById("importExcelSub").textContent=results.length+" persoane · "+_importPending.length+" cu date noi";
-  document.getElementById("importExcelConfirmBtn").style.display=_importPending.length>0?"inline-flex":"none";
+  const _confirmBtn = document.getElementById("importExcelConfirmBtn");
+  _confirmBtn.style.display=_importPending.length>0?"inline-flex":"none";
+  if(_importPending.length>0){
+    // Blocăm butonul câteva momente — elimină riscul unui click accidental
+    // "scurs" chiar când se închide dialogul nativ de selectare a fișierului
+    _confirmBtn.disabled = true;
+    _confirmBtn.style.opacity = "0.5";
+    _confirmBtn.textContent = "✅ Importă tot (așteaptă...)";
+    setTimeout(()=>{
+      _confirmBtn.disabled = false;
+      _confirmBtn.style.opacity = "1";
+      _confirmBtn.textContent = "✅ Importă tot";
+    }, 900);
+  }
   let html=`<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
     <div style="padding:7px 14px;background:rgba(16,185,129,0.15);border-radius:6px;font-size:13px">📥 De importat: <strong>${_importPending.length}</strong></div>
     <div style="padding:7px 14px;background:rgba(100,100,100,0.1);border-radius:6px;font-size:13px">✅ OK: <strong>${empty.length}</strong></div>
@@ -7982,6 +8009,11 @@ function renderImportPreview(results){
 
 async function confirmImportExcel(){
   if(!_importPending.length) return;
+  const totalPersoane = _importPending.length;
+  const totalIntrari = _importPending.reduce((s,r)=>s+(r.totalNew||0),0);
+  if(!confirm("⚠️ Confirmi importul?\n\n"+totalPersoane+" persoane, "+totalIntrari+" intrări noi (concediu/krank/fără plată/prezențe) vor fi adăugate în aplicație.\n\nAceastă acțiune nu poate fi anulată direct — poți restaura ulterior dintr-un backup dacă e nevoie.\n\nContinui?")){
+    return;
+  }
   const btn=document.getElementById("importExcelConfirmBtn");
   btn.disabled=true; btn.textContent="⏳ Se importă...";
   const MRO=["","Ian","Feb","Mar","Apr","Mai","Iun","Iul","Aug","Sep","Oct","Nov","Dec"];
@@ -8099,7 +8131,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.08.05-06";
+const APP_VERSION = "2026.08.06-02";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -9381,7 +9413,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.05-06</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.06-02</div>
 
 </body>
 </html>
