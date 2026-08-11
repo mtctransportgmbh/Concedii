@@ -1132,6 +1132,7 @@
     <input type="file" id="importExcelFile" accept=".xlsx,.xlsm,.xls" style="display:none" multiple onchange="importExcelFile(event)">
     <button class="btn btn-secondary btn-small" id="actLogBtn" onclick="openActivityLog()" style="width:100%; margin-bottom:6px; display:none; border-color:#818cf8; color:#818cf8">📋 Istoric activitate</button>
     <button class="btn btn-secondary btn-small" id="excelStatusBtn" onclick="openExcelImportStatusPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📊 Status Import Excel</button>
+    <button class="btn btn-secondary btn-small" id="carryOverBtn" onclick="runCarryOverCalculation()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">🔄 Calculează report an nou</button>
     <button class="btn btn-secondary btn-small" id="verifyExcelBtn" onclick="document.getElementById('verifyExcelFile').click()" style="width:100%; margin-bottom:6px; display:none; border-color:#a78bfa; color:#a78bfa">📊 Verifică Excel vs HTML</button>
     <input type="file" id="verifyExcelFile" accept=".xlsx,.xlsm,.xls" style="display:none" onchange="verifyExcelFile(event)">
     <button class="btn btn-secondary btn-small" id="downloadBackupBtn" onclick="downloadBackupNow()" style="width:100%; margin-bottom:6px; display:none">💾 Descarcă backup acum</button>
@@ -1275,7 +1276,7 @@
       <!-- Panou concedii ieri/azi/mâine — vizibil pentru Mihaela -->
       <div id="todayLeavePanel" style="display:none;margin-bottom:12px">
         <div style="font-size:11px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;display:flex;align-items:center;gap:6px">🏖️ Concedii — Ruhstorf</div>
-        <div id="todayLeaveList" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;color:var(--text)">—</div>
+        <div id="todayLeaveList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;color:var(--text)">—</div>
       </div>
 
       <div class="timeline-wrap">
@@ -1447,6 +1448,7 @@
     <input type="text" id="driverNameInput" placeholder="ex: Ion Popescu">
     <label>Zile concediu disponibile / an (0 = nelimitat)</label>
     <input type="number" id="driverMaxDays" placeholder="ex: 20" min="0" value="0">
+    <div id="driverBorrowedDaysInfo" style="display:none;margin-top:6px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
       <div>
         <label>Data angajare <span style="font-size:10px;color:var(--text-dim)">(opțional)</span></label>
@@ -2940,6 +2942,8 @@ function enterApp(userKey){
   if(actLogBtn2) actLogBtn2.style.display = isAdm?"block":"none";
   const excelStatusBtn2 = document.getElementById("excelStatusBtn");
   if(excelStatusBtn2) excelStatusBtn2.style.display = isAdm?"block":"none";
+  const carryOverBtn2 = document.getElementById("carryOverBtn");
+  if(carryOverBtn2) carryOverBtn2.style.display = isAdm?"block":"none";
   const verifyExcelBtn2 = document.getElementById("verifyExcelBtn");
   if(verifyExcelBtn2) verifyExcelBtn2.style.display = isAdm?"block":"none";
   const uploadBackupBtn = document.getElementById("uploadBackupBtn");
@@ -3171,6 +3175,42 @@ function getBorrowedDaysForYear(dr, year){
   return (dr.borrowedDays||[]).filter(b=>b.toYear===year).reduce((s,b)=>s+b.days,0);
 }
 
+// Reconciliază zilele împrumutate din anul viitor cu folosirea REALĂ curentă.
+// Se apelează după orice ȘTERGERE de concediu din anul `year` (drag, buton
+// de ștergere, rezolvare conflict Excel) — dacă folosirea reală a scăzut
+// sub ce justifica împrumutul inițial, reducem/eliminăm automat intrările
+// corespunzătoare din dr.borrowedDays, ca să nu rămână "împrumut fantomă".
+function reconcileBorrowedDays(dr, year){
+  if(!dr.borrowedDays || !dr.borrowedDays.length) return false;
+  const relevant = dr.borrowedDays.filter(b=>b.fromYear===year);
+  if(!relevant.length) return false;
+
+  const baseMax = getEffectiveMaxDays(dr, year); // cota de bază, FĂRĂ împrumut
+  const carry = getCarryOverForYear(dr, year);
+  const used = usedDaysThisYear(dr, "leaves", year);
+  const realOverdraft = Math.max(0, used - (baseMax + carry)); // depășirea REALĂ acum
+
+  const totalBorrowed = relevant.reduce((s,b)=>s+b.days,0);
+  if(realOverdraft >= totalBorrowed) return false; // tot împrumutul e încă justificat
+
+  // Depășirea reală a scăzut sub ce s-a împrumutat — reducem proporțional,
+  // începând cu cele mai recente înregistrări de împrumut pentru acel an.
+  let toRemove = totalBorrowed - realOverdraft;
+  const kept = [];
+  let changed = false;
+  for(let i=dr.borrowedDays.length-1; i>=0; i--){
+    const b = dr.borrowedDays[i];
+    if(b.fromYear!==year || toRemove<=0){ kept.unshift(b); continue; }
+    if(b.days<=toRemove){ toRemove-=b.days; changed=true; continue; } // eliminăm complet intrarea
+    kept.unshift({...b, days:b.days-toRemove}); changed=true; toRemove=0;
+  }
+  if(changed){
+    dr.borrowedDays = kept;
+    logActivity("📌 Zile împrumutate reduse automat", dr.name, "depășirea reală din "+year+" a scăzut la "+realOverdraft+"z", "concedii");
+  }
+  return changed;
+}
+
 function getCarryOverForYear(dr, year){
   if(dr.carryOverByYear && dr.carryOverByYear[String(year)] !== undefined)
     return dr.carryOverByYear[String(year)]; // deja finalizat definitiv (calculat la trecerea de an)
@@ -3330,6 +3370,8 @@ function openAddDriver(){
   document.getElementById("driverMaxDays").value="0";
   document.getElementById("driverStartDate").value="";
   document.getElementById("driverEndDate").value="";
+  const _borrowInfoAdd=document.getElementById("driverBorrowedDaysInfo");
+  if(_borrowInfoAdd) _borrowInfoAdd.style.display="none";
   ["visRaluca","visMadalina","visCorina"].forEach(id=>{ document.getElementById(id).checked=false; });
   document.getElementById("driverGroup").value="";
   const _archBtn=document.getElementById("archiveDriverBtn"); if(_archBtn) _archBtn.style.display="none";
@@ -3345,6 +3387,17 @@ function openEditDriver(id){
   document.getElementById("driverMaxDays").value=dr.maxDays||0;
   document.getElementById("driverStartDate").value=dr.startDate||"";
   document.getElementById("driverEndDate").value=dr.endDate||"";
+  // Zile împrumutate din anii viitori — vizibile clar, per persoană
+  const _borrowInfo=document.getElementById("driverBorrowedDaysInfo");
+  if(dr.borrowedDays && dr.borrowedDays.length){
+    const lines = dr.borrowedDays.map(b=>
+      `📌 <b>${b.days}</b> zile împrumutate din <b>${b.toYear}</b> (depășire în ${b.fromYear}${b.addedAt?", "+b.addedAt:""})`
+    ).join("<br>");
+    _borrowInfo.innerHTML = `<div style="padding:8px 10px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:6px;font-size:11px;color:var(--text-dim);line-height:1.6">${lines}</div>`;
+    _borrowInfo.style.display="block";
+  } else {
+    _borrowInfo.style.display="none";
+  }
   const vis=dr.visibleTo||[];
   document.getElementById("visRaluca").checked=vis.includes("raluca");
   document.getElementById("visMadalina").checked=vis.includes("madalina");
@@ -3659,6 +3712,9 @@ function resolveConflict(action){
         savePresState();
       }
     }
+    // Reconciliem eventualele zile împrumutate din anul viitor — orice
+    // ramură de mai sus poate fi eliminat o zi de concediu (leaves)
+    reconcileBorrowedDays(dr, parseDate(ds).getFullYear());
     scheduleSave();
     logActivity("🔧 Conflict rezolvat (Excel aplicat)",dr.name,ds,"concedii");
     toast("✓ Ziua "+ds+" actualizată conform Excel");
@@ -3820,6 +3876,13 @@ function openLeaveModal(id, leaveType){
     <div style="background:var(--bg-elev-2);border-radius:4px;height:8px;overflow:hidden">
       <div style="width:${pct}%;background:${color};height:100%;border-radius:4px"></div>
     </div>`;
+    // Zile împrumutate din/către anii viitori — vizibile clar, per persoană
+    if(dr.borrowedDays && dr.borrowedDays.length){
+      const borrowLines = dr.borrowedDays.map(b=>
+        `<div>📌 <b>${b.days}</b> zile împrumutate din <b>${b.toYear}</b> (depășire ${b.fromYear}${b.addedAt?", "+b.addedAt:""})</div>`
+      ).join("");
+      quotaBar.innerHTML += `<div style="margin-top:8px;padding:8px 10px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:6px;font-size:11px;color:var(--text-dim);line-height:1.6">${borrowLines}</div>`;
+    }
   } else if(leaveType==="krank"){
     const k=usedDaysThisYear(dr,"krank");
     quotaBar.style.display="block";
@@ -3994,6 +4057,9 @@ function addLeave(){
         }
       });
       toast("✓ "+overlapDays+"z concediu → "+typeLabel+". Zile restaurate automat.");
+      // Reconciliem eventualele zile împrumutate din anul viitor — conversia
+      // a redus efectiv folosirea reală a concediului plătit din acest an
+      reconcileBorrowedDays(dr, parseDate(start).getFullYear());
     }
   }
 
@@ -4027,6 +4093,9 @@ function deleteLeave(driverId,start,end,leaveType){
   const arrKey = leaveType==="krank"?"krankLeaves":leaveType==="unpaid"?"unpaidLeaves":"leaves";
   if(!dr[arrKey]) dr[arrKey]=[];
   dr[arrKey]=dr[arrKey].filter(l=>!(l.start===start&&l.end===end));
+  // Dacă am șters concediu (nu krank/unpaid, care nu afectează cota),
+  // reconciliem eventualele zile împrumutate din anul viitor
+  if(leaveType==="leaves") reconcileBorrowedDays(dr, parseDate(start).getFullYear());
   openLeaveModal(driverId,leaveType);
   renderMain();scheduleSave();toast("🗑 Perioadă ștearsă");
 }
@@ -4756,6 +4825,7 @@ function tlDragEnd(){
     });
     if(changed){
       dr.leaves=newLeaves;
+      reconcileBorrowedDays(dr, parseDate(startStr).getFullYear());
       logActivity("🗑 Concediu șters",dr.name,startStr+" → "+endStr,"concedii");
       renderAll();scheduleSave();toast("🗑 Concediu șters pentru "+dr.name);
     } else toast("Nicio perioadă de șters",true);
@@ -4995,11 +5065,49 @@ function renderTimeline(){
 // ============================================================
 // NAV & VIEW
 // ============================================================
+function runCarryOverCalculation(){
+  if(!isAdmin()){toast("Doar Admin poate calcula reportul",true);return;}
+  const toYear = currentDate.getFullYear();
+  const fromYear = toYear-1;
+
+  // Preview: cine ar fi afectat și cu ce valoare, ÎNAINTE de orice scriere
+  const preview = [];
+  state.drivers.forEach(dr=>{
+    if(dr.archived) return;
+    const effMax = getEffectiveMaxDays(dr, fromYear);
+    if(!effMax || effMax===0) return;
+    if(dr.carryOverByYear && dr.carryOverByYear[String(toYear)]!==undefined) return; // deja calculat
+    const usedInFromYear = (dr.leaves||[]).reduce((sum,l)=>{
+      const s=parseDate(l.start),e=parseDate(l.end);
+      if(e.getFullYear()<fromYear||s.getFullYear()>fromYear)return sum;
+      const ys=new Date(fromYear,0,1),ye=new Date(fromYear,11,31);
+      const from=s<ys?ys:s,to=e>ye?ye:e;
+      return sum+countWorkdays(from,to);
+    },0);
+    const prevCarry = (dr.carryOverByYear && dr.carryOverByYear[String(fromYear)]!==undefined) ? dr.carryOverByYear[String(fromYear)] : (dr.carryOverDays||0);
+    const alreadyBorrowed = getBorrowedDaysForYear(dr, toYear);
+    const remaining = effMax + prevCarry - usedInFromYear - alreadyBorrowed;
+    const noStartDate = !dr.startDate;
+    preview.push({name:dr.name, remaining, noStartDate});
+  });
+
+  if(!preview.length){ toast("Nimic de calculat — toate persoanele au deja reportul stabilit pentru "+toYear,true); return; }
+
+  const warnings = preview.filter(p=>p.noStartDate);
+  let msg = "🔄 Calculează reportul din "+fromYear+" → "+toYear+"?\n\n"+preview.length+" persoane vor fi afectate:\n\n";
+  msg += preview.slice(0,15).map(p=>"  • "+p.name+": "+(p.remaining>=0?"+":"")+p.remaining+" zile"+(p.noStartDate?" ⚠️":"")).join("\n");
+  if(preview.length>15) msg += "\n  ... și încă "+(preview.length-15)+" persoane";
+  if(warnings.length){
+    msg += "\n\n⚠️ "+warnings.length+" persoane NU au dată de angajare (startDate) setată — pentru ele se presupune că au fost active tot anul "+fromYear+". Dacă au fost angajate DOAR în "+toYear+", verifică și corectează manual după calcul.";
+  }
+  msg += "\n\nContinui?";
+
+  if(!confirm(msg)) return;
+  autoCalculateCarryOver(fromYear, toYear);
+}
+
 function changeMonth(delta){
-  const prevYear = currentDate.getFullYear();
   currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth()+delta, 1);
-  const newYear = currentDate.getFullYear();
-  if(newYear > prevYear && isAdminOrTania()) autoCalculateCarryOver(prevYear, newYear);
   renderMain();
 }
 
@@ -5238,9 +5346,7 @@ async function loadExcelImportStatus(monthKey){
 }
 
 async function saveExcelImportStatusMonth(monthKey){
-  try{
-    await db.collection(excelImportColl()).doc(monthKey).set(excelImportStatus[monthKey]||{});
-  }catch(e){ console.warn("saveExcelImportStatusMonth err",e); }
+  await db.collection(excelImportColl()).doc(monthKey).set(excelImportStatus[monthKey]||{});
 }
 
 function markExcelImported(name, monthKey){
@@ -5254,8 +5360,12 @@ async function toggleExcelIgnore(name, monthKey){
   const cur = excelImportStatus[monthKey][name];
   excelImportStatus[monthKey][name] = cur==="ignored" ? undefined : "ignored";
   if(excelImportStatus[monthKey][name]===undefined) delete excelImportStatus[monthKey][name];
-  await saveExcelImportStatusMonth(monthKey);
-  logActivity("📊 Status import Excel modificat", name, monthKey+": "+(excelImportStatus[monthKey][name]||"neconfirmat"), "concedii");
+  try{
+    await saveExcelImportStatusMonth(monthKey);
+    logActivity("📊 Status import Excel modificat", name, monthKey+": "+(excelImportStatus[monthKey][name]||"neconfirmat"), "concedii");
+  }catch(e){
+    toast("⚠️ Nu s-a putut salva statusul: "+e.message,true);
+  }
   renderExcelImportStatusPanel();
 }
 
@@ -5982,37 +6092,55 @@ function updateTodayLeavePanel(){
   panel.style.display="block";
 
   const today = new Date(); today.setHours(0,0,0,0);
-  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate()-1);
-  const tomorrow  = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
+  // Săptămâna calendaristică curentă (Luni → Duminică), nu doar 3 zile fixe
+  const dow = (today.getDay()+6)%7; // 0=Luni ... 6=Duminică
+  const monday = new Date(today); monday.setDate(today.getDate()-dow);
+  const weekDates = Array.from({length:7}, (_,i)=>{ const d=new Date(monday); d.setDate(monday.getDate()+i); return d; });
 
-  // Grupul de referință = primul grup Sortatori acordat prin permisiuni
+  // TOATE grupurile Sortatori acordate prin Permisiuni — nu doar primul găsit
   const grantedSortGroups = permFor(uk,"sortatori").groups||[];
-  const groupKey = grantedSortGroups.includes("ruhstorf") ? "raluca" : "madalina";
-  const ruhDrivers = (state.drivers||[]).filter(dr=>{
-    if(dr.visibleTo && dr.visibleTo.length>0) return dr.visibleTo.includes(groupKey);
-    return groupKey==="raluca" ? DRIVERS_RALUCA.includes(dr.name) : DRIVERS_MADALINA.includes(dr.name);
+  const identityKeys = [];
+  if(grantedSortGroups.includes("ruhstorf"))  identityKeys.push("raluca");
+  if(grantedSortGroups.includes("eiselfing")) identityKeys.push("madalina");
+  const relevantDrivers = (state.drivers||[]).filter(dr=>{
+    if(dr.group) return grantedSortGroups.includes(dr.group);
+    if(dr.visibleTo && dr.visibleTo.length>0) return identityKeys.some(k=>dr.visibleTo.includes(k));
+    return identityKeys.some(k=> k==="raluca" ? DRIVERS_RALUCA.includes(dr.name) : DRIVERS_MADALINA.includes(dr.name));
   });
 
-  const namesOnDate = (date)=> ruhDrivers
-    .filter(dr=> (dr.leaves||[]).some(l=>dateInLeave(date,l)))
-    .map(dr=>dr.name)
-    .sort((a,b)=>a.localeCompare(b,"ro"));
+  const namesOnDate = (date)=>{
+    if(date.getDay()===0) return []; // Duminică — nu apare nimeni, niciodată
+    return relevantDrivers
+      .filter(dr=> (dr.leaves||[]).some(l=>dateInLeave(date,l)))
+      .map(dr=>dr.name)
+      .sort((a,b)=>a.localeCompare(b,"ro"));
+  };
 
   const DOW_RO=["Duminică","Luni","Marți","Miercuri","Joi","Vineri","Sâmbătă"];
+  const DOW_SHORT_RO=["Dum","Lun","Mar","Mie","Joi","Vin","Sâm"];
   const fmtFull=d=>DOW_RO[d.getDay()]+" · "+d.getDate()+"."+(d.getMonth()+1);
 
-  const cols = [
-    {label:"Ieri",   sub:fmtFull(yesterday), names:namesOnDate(yesterday), color:"#94a3b8"},
-    {label:"Astăzi", sub:fmtFull(today),     names:namesOnDate(today),     color:"#6366f1", highlight:true},
-    {label:"Mâine",  sub:fmtFull(tomorrow),  names:namesOnDate(tomorrow),  color:"#10b981"},
-  ];
+  const cols = weekDates.map(d=>{
+    const isToday = d.getTime()===today.getTime();
+    const isSun = d.getDay()===0;
+    return {
+      label: DOW_SHORT_RO[d.getDay()],
+      sub: fmtFull(d),
+      names: namesOnDate(d),
+      color: isSun ? "#94a3b8" : isToday ? "#6366f1" : "#10b981",
+      highlight: isToday,
+      isSun,
+    };
+  });
 
   list.innerHTML = cols.map(c=>{
-    const bg = c.highlight ? "rgba(99,102,241,0.07)" : "var(--bg-elev)";
+    const bg = c.highlight ? "rgba(99,102,241,0.07)" : c.isSun ? "rgba(148,163,184,0.05)" : "var(--bg-elev)";
     const border = c.highlight ? "1px solid rgba(99,102,241,0.3)" : "1px solid var(--border)";
-    const namesHtml = c.names.length
-      ? c.names.map(n=>`<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-weight:600;font-size:12px"><span style="width:6px;height:6px;border-radius:50%;background:${c.color};flex-shrink:0"></span>${escapeHtml(n)}</div>`).join("")
-      : `<div style="color:var(--text-dim);font-size:11px;padding:3px 0">— niciunul —</div>`;
+    const namesHtml = c.isSun
+      ? `<div style="color:var(--text-dim);font-size:11px;padding:3px 0">— liber —</div>`
+      : c.names.length
+        ? c.names.map(n=>`<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-weight:600;font-size:12px"><span style="width:6px;height:6px;border-radius:50%;background:${c.color};flex-shrink:0"></span>${escapeHtml(n)}</div>`).join("")
+        : `<div style="color:var(--text-dim);font-size:11px;padding:3px 0">— niciunul —</div>`;
     return `<div style="background:${bg};border:${border};border-radius:8px;padding:8px 10px">
       <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:5px">
         <span style="font-size:12px;font-weight:800;color:${c.color}">${c.label}</span>
@@ -7241,11 +7369,31 @@ function renderGithubBackupList(){
     html+=`<div style="background:var(--bg-elev-2);border-radius:8px;padding:12px 14px;margin-bottom:8px;border:1px solid ${isLatest?"var(--accent)":"var(--border)"};cursor:pointer" onclick="previewGithubBackup(${i})">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
         <div style="font-weight:700;font-size:13px">${isLatest?'<span style="background:var(--accent);color:#000;font-size:10px;font-weight:800;border-radius:3px;padding:1px 5px;margin-right:6px">CEL MAI RECENT</span>':""}🐙 ${escapeHtml(dateStr)} · ${escapeHtml(slotStr)}</div>
-        <button class="btn btn-secondary btn-small" onclick="event.stopPropagation();previewGithubBackup(${i})">👁 Preview</button>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-secondary btn-small" onclick="event.stopPropagation();previewGithubBackup(${i})">👁 Preview</button>
+          <button class="btn btn-secondary btn-small" style="border-color:#6366f1;color:#6366f1" onclick="event.stopPropagation();compareGithubBackup(${i})">📊 Compară</button>
+        </div>
       </div>
     </div>`;
   });
   document.getElementById("backupManagerList").innerHTML=html;
+}
+
+async function compareGithubBackup(i){
+  const f = _githubFileList[i];
+  if(!f) return;
+  document.getElementById("backupManagerList").innerHTML='<div style="color:var(--text-dim);padding:20px;text-align:center">⏳ Se descarcă '+escapeHtml(f.name)+'...</div>';
+  try{
+    const res = await fetch(f.download_url);
+    if(!res.ok) throw new Error("Nu pot descărca fișierul ("+res.status+")");
+    const data = await res.json();
+    _backupDocs = [data];
+    document.getElementById("backupManagerList").style.display="block";
+    await showBackupDiff(0);
+  }catch(e){
+    toast("Eroare la descărcare: "+e.message,true);
+    renderGithubBackupList();
+  }
 }
 
 async function previewGithubBackup(i){
@@ -7291,7 +7439,10 @@ function renderBackupList(){
             <span>v${ver}</span><span>de: ${escapeHtml(bd.savedBy||"?")}</span>
           </div>
         </div>
-        <button class="btn btn-secondary btn-small" onclick="event.stopPropagation();previewBackup(${i})">👁 Preview</button>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <button class="btn btn-secondary btn-small" onclick="event.stopPropagation();previewBackup(${i})">👁 Preview</button>
+          <button class="btn btn-secondary btn-small" style="border-color:#6366f1;color:#6366f1" onclick="event.stopPropagation();showBackupDiff(${i})">📊 Compară</button>
+        </div>
       </div>
     </div>`;
   });
@@ -7543,11 +7694,13 @@ async function linkManualRename(bdName){
   }
 }
 
-async function showBackupDiff(){
+async function showBackupDiff(idx){
   if(!_backupDocs||!_backupDocs.length){ toast("Nu există backup-uri salvate",true); return; }
+  const i = (typeof idx==="number") ? idx : 0;
+  if(i<0 || i>=_backupDocs.length){ toast("Backup invalid",true); return; }
   _selectedBackupIdx=-1; // mod diff — fără restaurare
   if(!_manualNameLinksLoaded) await loadManualNameLinks(); // legăturile confirmate anterior rămân valabile
-  const bd=_backupDocs[0];
+  const bd=_backupDocs[i];
   const diff=computeBackupDiff(bd);
   renderBackupDiff(bd, diff);
 }
@@ -7723,6 +7876,7 @@ async function confirmRestoreBackup(){
 // IMPORT EXCEL → HTML
 // ============================================================
 let _importPending=[];
+let _importAlreadyOk=[];
 
 function importExcelFile(e){
   const files=[...e.target.files]; e.target.value="";
@@ -7946,6 +8100,10 @@ function parseExcelForImport(wb,fileName){
 
 function renderImportPreview(results){
   _importPending=results.filter(r=>!r.error&&!r.skip&&r.totalNew>0);
+  // Persoane a căror lună a fost verificată cu succes, dar nu au avut nimic
+  // nou de adăugat (Excel-ul era deja identic cu ce e în aplicație) — tot
+  // trebuie marcate ca "importat", fiindcă Excel-ul CHIAR a fost verificat.
+  _importAlreadyOk=results.filter(r=>!r.error&&!r.skip&&r.totalNew===0);
 
   // Stocăm global toate conflictele detectate, indexate după dată+persoana
   // pentru acces rapid din renderTimeline
@@ -7971,17 +8129,18 @@ function renderImportPreview(results){
   const MRO=["","Ianuarie","Februarie","Martie","Aprilie","Mai","Iunie","Iulie","August","Septembrie","Octombrie","Noiembrie","Decembrie"];
   document.getElementById("importExcelSub").textContent=results.length+" persoane · "+_importPending.length+" cu date noi";
   const _confirmBtn = document.getElementById("importExcelConfirmBtn");
-  _confirmBtn.style.display=_importPending.length>0?"inline-flex":"none";
-  if(_importPending.length>0){
+  const _hasSomethingToConfirm = _importPending.length>0 || _importAlreadyOk.length>0;
+  _confirmBtn.style.display=_hasSomethingToConfirm?"inline-flex":"none";
+  if(_hasSomethingToConfirm){
     // Blocăm butonul câteva momente — elimină riscul unui click accidental
     // "scurs" chiar când se închide dialogul nativ de selectare a fișierului
     _confirmBtn.disabled = true;
     _confirmBtn.style.opacity = "0.5";
-    _confirmBtn.textContent = "✅ Importă tot (așteaptă...)";
+    _confirmBtn.textContent = _importPending.length>0 ? "✅ Importă tot (așteaptă...)" : "✅ Confirmă verificarea (așteaptă...)";
     setTimeout(()=>{
       _confirmBtn.disabled = false;
       _confirmBtn.style.opacity = "1";
-      _confirmBtn.textContent = "✅ Importă tot";
+      _confirmBtn.textContent = _importPending.length>0 ? "✅ Importă tot" : "✅ Confirmă verificarea";
     }, 900);
   }
   let html=`<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
@@ -8021,10 +8180,13 @@ function renderImportPreview(results){
 }
 
 async function confirmImportExcel(){
-  if(!_importPending.length) return;
+  if(!_importPending.length && !_importAlreadyOk.length) return;
   const totalPersoane = _importPending.length;
   const totalIntrari = _importPending.reduce((s,r)=>s+(r.totalNew||0),0);
-  if(!confirm("⚠️ Confirmi importul?\n\n"+totalPersoane+" persoane, "+totalIntrari+" intrări noi (concediu/krank/fără plată/prezențe) vor fi adăugate în aplicație.\n\nAceastă acțiune nu poate fi anulată direct — poți restaura ulterior dintr-un backup dacă e nevoie.\n\nContinui?")){
+  const confirmMsg = totalPersoane>0
+    ? "⚠️ Confirmi importul?\n\n"+totalPersoane+" persoane, "+totalIntrari+" intrări noi (concediu/krank/fără plată/prezențe) vor fi adăugate în aplicație.\n\nAceastă acțiune nu poate fi anulată direct — poți restaura ulterior dintr-un backup dacă e nevoie.\n\nContinui?"
+    : "✅ Toate cele "+_importAlreadyOk.length+" persoane erau deja la zi — nimic nou de adăugat.\n\nConfirmi doar marcarea lunii ca verificată (pentru avertizarea de import lipsă)?";
+  if(!confirm(confirmMsg)){
     return;
   }
   const btn=document.getElementById("importExcelConfirmBtn");
@@ -8051,14 +8213,25 @@ async function confirmImportExcel(){
     markExcelImported(dr.name, r.yearVal+"-"+String(r.monthNum).padStart(2,"0"));
     count++;
   });
-  renderAll(); scheduleSave(); await savePresState();
+  // Marcăm și persoanele a căror lună era deja identică cu Excel-ul —
+  // Excel-ul TOT a fost verificat pentru ele, doar că nu a fost nimic nou.
+  _importAlreadyOk.forEach(r=>{
+    const dr=state.drivers.find(d=>d.id===r.drId); if(!dr) return;
+    markExcelImported(dr.name, r.yearVal+"-"+String(r.monthNum).padStart(2,"0"));
+  });
+  renderAll(); await saveDriversNow(); await savePresState();
   // Salvăm statusul de import pentru toate lunile atinse la acest import
-  const touchedMonths = new Set(_importPending.map(r=>r.yearVal+"-"+String(r.monthNum).padStart(2,"0")));
-  await Promise.all([...touchedMonths].map(mk=>saveExcelImportStatusMonth(mk)));
+  const touchedMonths = new Set([..._importPending, ..._importAlreadyOk].map(r=>r.yearVal+"-"+String(r.monthNum).padStart(2,"0")));
+  try{
+    await Promise.all([...touchedMonths].map(mk=>saveExcelImportStatusMonth(mk)));
+  }catch(e){
+    console.error("saveExcelImportStatusMonth err",e);
+    toast("⚠️ Datele s-au importat, dar statusul de verificare NU s-a putut salva ("+e.message+") — avertizarea de import lipsă poate rămâne activă",true);
+  }
   checkExcelImportReminder(); // reverificăm dacă avertizarea mai trebuie afișată
   toast("✅ Import complet: "+count+" persoane");
   btn.disabled=false; btn.textContent="✅ Importă tot";
-  _importPending=[]; closeModal("modalImportExcel");
+  _importPending=[]; _importAlreadyOk=[]; closeModal("modalImportExcel");
 }
 
 // ============================================================
@@ -8144,7 +8317,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.08.06-03";
+const APP_VERSION = "2026.08.11-01";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -9426,7 +9599,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.06-03</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.11-01</div>
 
 </body>
 </html>
