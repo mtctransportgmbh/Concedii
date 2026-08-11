@@ -1133,6 +1133,7 @@
     <button class="btn btn-secondary btn-small" id="actLogBtn" onclick="openActivityLog()" style="width:100%; margin-bottom:6px; display:none; border-color:#818cf8; color:#818cf8">📋 Istoric activitate</button>
     <button class="btn btn-secondary btn-small" id="excelStatusBtn" onclick="openExcelImportStatusPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📊 Status Import Excel</button>
     <button class="btn btn-secondary btn-small" id="carryOverBtn" onclick="runCarryOverCalculation()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">🔄 Calculează report an nou</button>
+    <button class="btn btn-secondary btn-small" id="borrowedDaysBtn" onclick="openBorrowedDaysManager()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📌 Zile împrumutate din anul viitor</button>
     <button class="btn btn-secondary btn-small" id="verifyExcelBtn" onclick="document.getElementById('verifyExcelFile').click()" style="width:100%; margin-bottom:6px; display:none; border-color:#a78bfa; color:#a78bfa">📊 Verifică Excel vs HTML</button>
     <input type="file" id="verifyExcelFile" accept=".xlsx,.xlsm,.xls" style="display:none" onchange="verifyExcelFile(event)">
     <button class="btn btn-secondary btn-small" id="downloadBackupBtn" onclick="downloadBackupNow()" style="width:100%; margin-bottom:6px; display:none">💾 Descarcă backup acum</button>
@@ -1629,6 +1630,20 @@
 </div>
 
 <!-- ACTIVITY LOG MODAL -->
+<div class="modal-bg" id="modalBorrowedDaysManager">
+  <div class="modal" style="max-width:720px;max-height:88vh;overflow-y:auto">
+    <h3>📌 Zile împrumutate din anul viitor</h3>
+    <div class="modal-sub">Cine a depășit cota și de ce — inclusiv depășiri vechi, dinainte de acest sistem</div>
+
+    <div id="borrowNeedsActionSection" style="margin-top:14px"></div>
+    <div id="borrowReportSection" style="margin-top:14px"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalBorrowedDaysManager')">Închide</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modalExcelImportStatus">
   <div class="modal" style="max-width:560px;max-height:88vh;overflow-y:auto">
     <h3>📊 Status Import Excel</h3>
@@ -2944,6 +2959,8 @@ function enterApp(userKey){
   if(excelStatusBtn2) excelStatusBtn2.style.display = isAdm?"block":"none";
   const carryOverBtn2 = document.getElementById("carryOverBtn");
   if(carryOverBtn2) carryOverBtn2.style.display = isAdm?"block":"none";
+  const borrowedDaysBtn2 = document.getElementById("borrowedDaysBtn");
+  if(borrowedDaysBtn2) borrowedDaysBtn2.style.display = isAdm?"block":"none";
   const verifyExcelBtn2 = document.getElementById("verifyExcelBtn");
   if(verifyExcelBtn2) verifyExcelBtn2.style.display = isAdm?"block":"none";
   const uploadBackupBtn = document.getElementById("uploadBackupBtn");
@@ -5065,6 +5082,87 @@ function renderTimeline(){
 // ============================================================
 // NAV & VIEW
 // ============================================================
+// ============================================================
+// MANAGER ZILE ÎMPRUMUTATE — 2 secțiuni:
+// 1) Persoane cu depășire REALĂ dar NEÎNREGISTRATĂ ca împrumut (ex: din
+//    dinainte de acest sistem) — Admin alege, persoană cu persoană, dacă
+//    vrea să o înregistreze acum ca împrumut din anul viitor.
+// 2) Raport complet, needitabil, al tuturor împrumuturilor deja înregistrate,
+//    cu explicație clară (avea X, a folosit Y, Z sunt din anul viitor).
+// ============================================================
+function openBorrowedDaysManager(){
+  if(!isAdmin()) return;
+  openModal("modalBorrowedDaysManager");
+  renderBorrowNeedsAction();
+  renderBorrowReport();
+}
+
+function renderBorrowNeedsAction(){
+  const year = currentDate.getFullYear();
+  const rows = [];
+  state.drivers.forEach(dr=>{
+    if(dr.archived) return;
+    const baseMax = getEffectiveMaxDays(dr, year);
+    const carry = getCarryOverForYear(dr, year);
+    const used = usedDaysThisYear(dr, "leaves", year);
+    const realOverdraft = Math.max(0, used - (baseMax + carry));
+    if(realOverdraft<=0) return;
+    const alreadyRegistered = (dr.borrowedDays||[]).filter(b=>b.fromYear===year).reduce((s,b)=>s+b.days,0);
+    const unregistered = realOverdraft - alreadyRegistered;
+    if(unregistered<=0) return; // deja acoperit complet de un împrumut înregistrat
+    rows.push({dr, baseMax, carry, used, unregistered});
+  });
+
+  const el = document.getElementById("borrowNeedsActionSection");
+  if(!rows.length){
+    el.innerHTML = `<div style="padding:10px 12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px;font-size:12px;color:var(--text-dim)">✅ Nicio depășire neînregistrată — toate depășirile din ${year} sunt fie acoperite de cotă, fie deja marcate ca împrumut.</div>`;
+    return;
+  }
+
+  el.innerHTML = `<div style="font-size:12px;font-weight:800;color:#ef4444;margin-bottom:8px">⚠️ ${rows.length} persoane cu depășire neînregistrată în ${year}</div>` +
+    rows.map(r=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;background:var(--bg-elev-2);border-radius:6px;margin-bottom:6px;flex-wrap:wrap">
+        <div style="font-size:12px">
+          <b>${escapeHtml(r.dr.name)}</b> — avea ${r.baseMax+r.carry} zile disponibile (${r.baseMax} cotă${r.carry?" + "+r.carry+" reportate":""}), a folosit <b style="color:#ef4444">${r.used}</b> în ${year}
+          → <b style="color:#ef4444">${r.unregistered}</b> zile depășire neînregistrată
+        </div>
+        <button class="btn btn-small" style="background:#f59e0b;border-color:#f59e0b;color:#000;white-space:nowrap" onclick="registerRetroactiveBorrow('${r.dr.id}',${r.unregistered},${year})">📌 Înregistrează ca împrumut din ${year+1}</button>
+      </div>`).join("");
+}
+
+async function registerRetroactiveBorrow(driverId, days, year){
+  const dr = state.drivers.find(d=>d.id===driverId); if(!dr) return;
+  if(!confirm("Confirmi înregistrarea a "+days+" zile ca împrumut din "+(year+1)+" pentru "+dr.name+"?\n\nAsta va reduce vizibil cota lui "+(year+1)+" cu "+days+" zile, chiar de acum.")) return;
+  if(!dr.borrowedDays) dr.borrowedDays=[];
+  dr.borrowedDays.push({fromYear:year, toYear:year+1, days, addedAt:fmtDate(new Date())});
+  logActivity("📌 Depășire veche înregistrată retroactiv ca împrumut", dr.name, days+"z din "+(year+1), "concedii");
+  await saveDriversNow();
+  toast("✅ "+days+" zile înregistrate ca împrumut din "+(year+1)+" pentru "+dr.name);
+  renderBorrowNeedsAction();
+  renderBorrowReport();
+}
+
+function renderBorrowReport(){
+  const withBorrows = state.drivers.filter(dr=>!dr.archived && dr.borrowedDays && dr.borrowedDays.length);
+  const el = document.getElementById("borrowReportSection");
+  if(!withBorrows.length){
+    el.innerHTML = `<div style="font-size:12px;font-weight:800;color:var(--text-dim);margin-bottom:8px">📋 Raport împrumuturi active</div><div style="color:var(--text-dim);font-size:12px;padding:10px">Nimeni nu are momentan zile împrumutate.</div>`;
+    return;
+  }
+  el.innerHTML = `<div style="font-size:12px;font-weight:800;color:var(--text-dim);margin-bottom:8px">📋 Raport împrumuturi active (${withBorrows.length} persoane)</div>` +
+    withBorrows.map(dr=>{
+      const lines = dr.borrowedDays.map(b=>{
+        const baseMax = getEffectiveMaxDays(dr, b.fromYear);
+        const carry = getCarryOverForYear(dr, b.fromYear);
+        const used = usedDaysThisYear(dr, "leaves", b.fromYear);
+        return `Avea <b>${baseMax+carry}</b> zile disponibile în ${b.fromYear}, a luat <b>${used}</b> — din care <b style="color:#f59e0b">${b.days}</b> sunt împrumutate din <b>${b.toYear}</b>${b.addedAt?" (înregistrat "+b.addedAt+")":""}`;
+      }).join("<br>");
+      return `<div style="padding:8px 12px;background:var(--bg-elev-2);border-radius:6px;margin-bottom:6px;font-size:12px;line-height:1.6">
+        <b>${escapeHtml(dr.name)}</b><br>${lines}
+      </div>`;
+    }).join("");
+}
+
 function runCarryOverCalculation(){
   if(!isAdmin()){toast("Doar Admin poate calcula reportul",true);return;}
   const toYear = currentDate.getFullYear();
@@ -8317,7 +8415,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.08.11-01";
+const APP_VERSION = "2026.08.11-02";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -9599,7 +9697,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.11-01</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.11-02</div>
 
 </body>
 </html>
