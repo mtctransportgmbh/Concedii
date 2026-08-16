@@ -104,6 +104,40 @@
     font-size: 14px;
   }
 
+  /* Logo — gradient animat, lent și discret, continuu */
+  .logo-animated {
+    background: linear-gradient(90deg, var(--accent) 0%, #ffb347 25%, var(--accent) 50%, #ff9d4d 75%, var(--accent) 100%);
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: logoShimmer 8s ease-in-out infinite;
+  }
+  @keyframes logoShimmer {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Mini camion animat, sub logo — merge continuu de la stânga la dreapta */
+  .logo-truck {
+    left: -70px;
+    animation: truckDrive 6s linear infinite;
+  }
+  @keyframes truckDrive {
+    0%   { left: -70px; }
+    100% { left: 100%; }
+  }
+  .logo-road-line {
+    left: -12px;
+    animation: roadMove 0.5s linear infinite;
+  }
+  @keyframes roadMove {
+    0%   { left: -12px; }
+    100% { left: 0; }
+  }
+
   /* ===== AUTH SCREEN ===== */
   .auth-screen {
     display: flex;
@@ -1055,8 +1089,33 @@
 <div class="auth-screen" id="authScreen">
   <div class="auth-card">
     <div style="margin-bottom:24px">
-      <div style="font-size:42px;font-weight:900;letter-spacing:-2px;color:var(--accent);line-height:1">MTC Transport</div>
+      <div class="logo-animated" style="font-size:42px;font-weight:900;letter-spacing:-2px;line-height:1">MTC Transport</div>
       <div style="font-size:11px;font-weight:700;letter-spacing:4px;color:var(--text-dim);text-transform:uppercase;margin-top:4px">GESTIUNE PERSONAL</div>
+      <div style="overflow:hidden;height:26px;margin-top:8px;position:relative">
+        <svg class="logo-truck" width="70" height="24" viewBox="0 0 70 24" style="position:absolute;top:0">
+          <!-- Remorcă -->
+          <rect x="2" y="3" width="42" height="10" rx="0.8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="0.6"/>
+          <line x1="8" y1="3" x2="8" y2="13" stroke="#cbd5e1" stroke-width="0.4"/>
+          <text x="26" y="9.2" text-anchor="middle" font-size="3.6" font-weight="800" font-family="Arial, sans-serif" fill="var(--accent)">MTC Transport</text>
+          <!-- Șasiu -->
+          <rect x="4" y="13" width="40" height="1.2" fill="#94a3b8"/>
+          <!-- Cabină tractor -->
+          <path d="M44 6 H54 L61 11.5 V15 H44 Z" fill="#374151"/>
+          <rect x="55.5" y="8.3" width="4" height="3.6" fill="#93c5fd" opacity="0.85"/>
+          <rect x="44" y="13.5" width="17" height="1.5" fill="#1f2937"/>
+          <!-- Roți remorcă (3) -->
+          <circle cx="12" cy="15.5" r="2.6" fill="#334155"/><circle cx="12" cy="15.5" r="1.1" fill="#cbd5e1"/>
+          <circle cx="18" cy="15.5" r="2.6" fill="#334155"/><circle cx="18" cy="15.5" r="1.1" fill="#cbd5e1"/>
+          <circle cx="24" cy="15.5" r="2.6" fill="#334155"/><circle cx="24" cy="15.5" r="1.1" fill="#cbd5e1"/>
+          <!-- Roți cabină (2) -->
+          <circle cx="48" cy="15.5" r="2.6" fill="#334155"/><circle cx="48" cy="15.5" r="1.1" fill="#cbd5e1"/>
+          <circle cx="58" cy="15.5" r="2.6" fill="#334155"/><circle cx="58" cy="15.5" r="1.1" fill="#cbd5e1"/>
+        </svg>
+        <!-- Drum -->
+        <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:#475569;overflow:hidden">
+          <div class="logo-road-line" style="position:absolute;top:1px;height:1px;width:200%;background-image:repeating-linear-gradient(90deg, var(--accent) 0 6px, transparent 6px 12px)"></div>
+        </div>
+      </div>
     </div>
 
     <div class="auth-label">Selectează utilizatorul</div>
@@ -1098,7 +1157,7 @@
 <div class="app" id="appRoot" style="display:none">
   <aside class="sidebar">
     <div style="margin-bottom:8px">
-      <div style="font-size:22px;font-weight:900;letter-spacing:-1px;color:var(--accent);line-height:1">MTC Transport</div>
+      <div class="logo-animated" style="font-size:22px;font-weight:900;letter-spacing:-1px;line-height:1">MTC Transport</div>
       <div style="font-size:8px;font-weight:700;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;margin-top:2px">GESTIUNE PERSONAL</div>
     </div>
     
@@ -1134,6 +1193,8 @@
     <button class="btn btn-secondary btn-small" id="excelStatusBtn" onclick="openExcelImportStatusPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📊 Status Import Excel</button>
     <button class="btn btn-secondary btn-small" id="carryOverBtn" onclick="runCarryOverCalculation()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">🔄 Calculează report an nou</button>
     <button class="btn btn-secondary btn-small" id="borrowedDaysBtn" onclick="openBorrowedDaysManager()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📌 Zile împrumutate din anul viitor</button>
+    <button class="btn btn-secondary btn-small" id="cleanStalePresenceBtn" onclick="cleanStaleSortPresence()" style="width:100%; margin-bottom:6px; display:none; border-color:#ef4444; color:#ef4444">🧹 Curăță prezențe reziduale (Sortatori)</button>
+    <button class="btn btn-secondary btn-small" id="cleanStalePlanBtn" onclick="cleanStalePlanificare()" style="width:100%; margin-bottom:6px; display:none; border-color:#ef4444; color:#ef4444">🧹 Curăță bife Planificare reziduale</button>
     <button class="btn btn-secondary btn-small" id="verifyExcelBtn" onclick="document.getElementById('verifyExcelFile').click()" style="width:100%; margin-bottom:6px; display:none; border-color:#a78bfa; color:#a78bfa">📊 Verifică Excel vs HTML</button>
     <input type="file" id="verifyExcelFile" accept=".xlsx,.xlsm,.xls" style="display:none" onchange="verifyExcelFile(event)">
     <button class="btn btn-secondary btn-small" id="downloadBackupBtn" onclick="downloadBackupNow()" style="width:100%; margin-bottom:6px; display:none">💾 Descarcă backup acum</button>
@@ -1265,8 +1326,7 @@
         <span style="font-size:12px;color:var(--text-dim)">✓ = prezent &nbsp;|&nbsp; ✗ = absent &nbsp;|&nbsp; gol = necunoscut</span>
         <div style="display:flex;gap:8px;align-items:center">
           <span id="sortAdminControls" style="display:none">
-            <button class="btn btn-secondary btn-small" onclick="openAddSortator()">+ Sortator nou</button>
-            <button class="btn btn-secondary btn-small" id="copyPrevMonthBtn" onclick="copySortatoriFromPrevMonth()" title="Copiază lista din luna precedentă" style="border-color:#6366f1;color:#6366f1">📋 Copiază luna prec.</button>
+            <button class="btn btn-secondary btn-small" id="copyPrevMonthBtn" onclick="copySortatoriFromPrevMonth()" title="Copiază lista din luna precedentă" style="display:none;border-color:#6366f1;color:#6366f1">📋 Copiază luna prec.</button>
           </span>
           <button id="sortEditModeBtn" onclick="toggleSortEditMode()" style="display:none;padding:7px 16px;font-size:12px;font-weight:700;background:var(--bg-elev-2);border:2px solid var(--border);border-radius:7px;cursor:pointer;color:var(--text-dim)">✏️ Editează</button>
           <button id="sortPrintBtn" onclick="openSortPrintModal()" style="display:none;padding:8px 20px;font-size:13px;font-weight:700;background:var(--accent);color:#000;border:none;border-radius:7px;cursor:pointer;box-shadow:0 2px 8px rgba(251,191,36,0.35)">🖨️ Print / Export PDF</button>
@@ -1345,6 +1405,7 @@
           <button onclick="openWhatsAppExport()" class="btn btn-small" style="width:auto;background:#25d366;border-color:#25d366;color:#fff;font-weight:700">💬 Export WhatsApp săptămâna curentă</button>
         </div>
       </div>
+      <div id="planificareWarningsBanner" style="display:none;background:#fca5a5;color:#000;padding:10px 14px;border-radius:8px;margin-bottom:12px"></div>
       <div id="planificareGrid" style="overflow-x:auto"></div>
       <!-- Panou verificare respectare planificare -->
       <div id="planCompliancePanel" style="margin-top:16px;display:none">
@@ -1614,6 +1675,7 @@
     </div>
     <div class="pin-err" id="pinErr"></div>
     <button class="pin-forgot" id="pinForgot" style="display:none" onclick="pinForgotFlow()">Am uitat codul PIN</button>
+    <button class="pin-forgot" id="pinChangeUser" onclick="pinChangeUser()">🔄 Schimbă user</button>
   </div>
 </div>
 
@@ -2049,6 +2111,7 @@ function finishInit(){
   updateThresholdLegend();
   renderAll();
   if(isAdmin()) checkExcelImportReminder();
+  renderPlanificareWarningsBanner();
   lastSavedAt = new Date();
   saveLocalBackup();
   setSaveStatus("ok","Date încărcate ✓");
@@ -2079,24 +2142,162 @@ function finishInit(){
 // să semnaleze clar că trebuie ales altcineva pentru acele zile.
 // ============================================================
 function clearPlanificareForLeave(name, startStr, endStr){
-  if(!planState || Object.keys(planState).length===0) return 0;
   let cleared=0;
   const s=parseDate(startStr), e=parseDate(endStr);
-  for(let d=new Date(s); d<=e; d.setDate(d.getDate()+1)){
-    const dow=(d.getDay()+6)%7; // 0=luni
-    const mon=new Date(d); mon.setDate(d.getDate()-dow);
-    const wkKey=mon.getFullYear()+"-W"+String(getISOWeek(mon)).padStart(2,"0");
-    if(planState[wkKey] && planState[wkKey][name] && planState[wkKey][name][dow]===1){
-      planState[wkKey][name][dow]=0;
-      cleared++;
+  const clearedDates=[]; // datele exacte golite, pentru avertizarea persistentă
+  const normName = normalizeForSearch(name.trim()).replace(/\s+/g," ");
+
+  if(planState && Object.keys(planState).length>0){
+    for(let d=new Date(s); d<=e; d.setDate(d.getDate()+1)){
+      const dow=(d.getDay()+6)%7; // 0=luni
+      const mon=new Date(d); mon.setDate(d.getDate()-dow);
+      const wkKey=mon.getFullYear()+"-W"+String(getISOWeek(mon)).padStart(2,"0");
+      if(!planState[wkKey]) continue;
+      // Căutare TOLERANTĂ — Sortatori și Concedii sunt liste SEPARATE de
+      // persoane, cu propriile nume; dacă diferă ușor (spații, majuscule),
+      // o căutare STRICTĂ pe nume identic ar rata potrivirea silențios.
+      let matchKey = planState[wkKey][name] ? name : null;
+      if(!matchKey){
+        matchKey = Object.keys(planState[wkKey]).find(k=>normalizeForSearch(k.trim()).replace(/\s+/g," ")===normName) || null;
+      }
+      if(matchKey && planState[wkKey][matchKey] && planState[wkKey][matchKey][dow]===1){
+        planState[wkKey][matchKey][dow]=0;
+        cleared++;
+        clearedDates.push(new Date(d));
+      }
+    }
+    if(cleared>0) savePlanState();
+  }
+
+  // Curățăm și marcajul de "prezent"/"absent" rezidual din Sortatori —
+  // dacă persoana a fost bifată prezentă ÎNAINTE să apară Concediul,
+  // datele rămân altfel needeconectate în sortState.presence, generând
+  // discrepanțe false în "Verificare respectare planificare".
+  let sortCleared=0;
+  if(sortState && sortState.presence){
+    for(let d=new Date(s); d<=e; d.setDate(d.getDate()+1)){
+      const mk=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+      const dayStr=String(d.getDate());
+      if(!sortState.presence[mk]) continue;
+      let matchKey = sortState.presence[mk][name] ? name : null;
+      if(!matchKey){
+        matchKey = Object.keys(sortState.presence[mk]).find(k=>normalizeForSearch(k.trim()).replace(/\s+/g," ")===normName) || null;
+      }
+      if(matchKey && sortState.presence[mk][matchKey] && sortState.presence[mk][matchKey][dayStr]){
+        delete sortState.presence[mk][matchKey][dayStr];
+        sortCleared++;
+      }
+    }
+    if(sortCleared>0) saveSortState();
+  }
+
+  if(cleared>0){
+    if(appMode==="planificare") renderPlanificare();
+    toast("⚠️ "+cleared+" bifă"+(cleared>1?"e":"")+" șters"+(cleared>1?"e":"")+" din Planificare pentru "+name+" — alege pe altcineva pentru acele zile");
+    // Avertizare PERSISTENTĂ — nu doar toast-ul trecător, ca oricine
+    // gestionează Planificarea să vadă asta chiar dacă nu era pe ecran
+    // exact în momentul în care s-a adăugat Concediul.
+    addPlanificareWarning(name, clearedDates);
+  } else if(isAdmin()){
+    // DIAGNOSTIC TEMPORAR: dacă persoana are planificare SOMEWHERE dar nu
+    // s-a găsit potrivire pentru acest interval, arătăm exact ce s-a căutat
+    const foundWeeks = Object.keys(planState||{}).filter(wk=>planState[wk] && planState[wk][name] && planState[wk][name].some(v=>v===1));
+    if(foundWeeks.length){
+      console.warn("clearPlanificareForLeave: nicio potrivire pentru", name, startStr, "→", endStr, "— săptămâni cu planificare găsite:", foundWeeks);
     }
   }
-  if(cleared>0){
-    savePlanState();
-    if(appMode==="planificare") renderPlanificare();
-    toast("⚠️ "+cleared+" bifă"+(cleared>1?"e":"")+" șters"+(cleared>1?"e":"")+" din Planificare pentru "+name+" — alege pe altcineva pentru acele zile",true);
+  if(sortCleared>0){
+    if(appMode==="sortatori") renderSortatoriTimeline();
   }
   return cleared;
+}
+
+// ============================================================
+// AVERTIZĂRI PERSISTENTE PLANIFICARE — spre deosebire de un simplu toast
+// (care dispare dacă nu ești pe ecran exact în momentul respectiv), aceste
+// avertizări rămân vizibile, pentru ORICINE gestionează Planificarea,
+// până sunt rezolvate explicit (persoana reasignată pe altcineva).
+// ============================================================
+let _planificareWarnings = [];
+let _planificareWarningsLoaded = false;
+
+async function loadPlanificareWarnings(){
+  try{
+    const snap = await db.collection("planificare_warnings").doc("list").get();
+    _planificareWarnings = snap.exists ? (snap.data().warnings||[]) : [];
+  }catch(e){ console.warn("loadPlanificareWarnings err",e); _planificareWarnings=[]; }
+  _planificareWarningsLoaded = true;
+  return _planificareWarnings;
+}
+
+async function savePlanificareWarnings(){
+  try{
+    await db.collection("planificare_warnings").doc("list").set({warnings:_planificareWarnings});
+  }catch(e){ console.warn("savePlanificareWarnings err",e); }
+}
+
+async function addPlanificareWarning(name, dates){
+  if(!_planificareWarningsLoaded) await loadPlanificareWarnings();
+  dates.forEach(d=>{
+    const dateStr = fmtDate(d);
+    // Evităm duplicate — aceeași persoană + aceeași dată
+    const exists = _planificareWarnings.some(w=>w.name===name && w.date===dateStr);
+    if(!exists){
+      _planificareWarnings.push({
+        id: uid(),
+        name,
+        date: dateStr,
+        clearedAt: new Date().toISOString(),
+        clearedBy: window.activeUserKey||"?"
+      });
+    }
+  });
+  await savePlanificareWarnings();
+  renderPlanificareWarningsBanner();
+}
+
+async function resolvePlanificareWarning(id){
+  _planificareWarnings = _planificareWarnings.filter(w=>w.id!==id);
+  await savePlanificareWarnings();
+  renderPlanificareWarningsBanner();
+}
+
+async function resolveAllPlanificareWarningsForName(name){
+  _planificareWarnings = _planificareWarnings.filter(w=>w.name!==name);
+  await savePlanificareWarnings();
+  renderPlanificareWarningsBanner();
+}
+
+async function renderPlanificareWarningsBanner(){
+  const banner = document.getElementById("planificareWarningsBanner");
+  if(!banner) return;
+  const uk = window.activeUserKey||"";
+  const canSee = isAdmin() || hasModuleEdit(uk,"planificare");
+  if(!canSee){ banner.style.display="none"; return; }
+
+  if(!_planificareWarningsLoaded) await loadPlanificareWarnings();
+  if(!_planificareWarnings.length){ banner.style.display="none"; return; }
+
+  // Grupăm pe persoană, pentru afișare compactă
+  const byName = {};
+  _planificareWarnings.forEach(w=>{ if(!byName[w.name]) byName[w.name]=[]; byName[w.name].push(w); });
+
+  const rows = Object.entries(byName).map(([name,warnings])=>{
+    const dates = warnings.map(w=>{
+      const d=parseDate(w.date);
+      return d.getDate()+"."+(d.getMonth()+1);
+    }).sort().join(", ");
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid rgba(0,0,0,0.1)">
+      <span style="font-size:12px"><b>${escapeHtml(name)}</b> era planificat pe: ${dates} — dar are Concediu acum</span>
+      <button onclick="resolveAllPlanificareWarningsForName('${name.replace(/'/g,"\\'")}')" style="background:#000;color:#fff;border:none;padding:3px 10px;border-radius:5px;cursor:pointer;font-size:11px;white-space:nowrap">✓ Rezolvat (am reasignat)</button>
+    </div>`;
+  }).join("");
+
+  banner.innerHTML = `
+    <div style="font-weight:800;font-size:13px;margin-bottom:6px">⚠️ ${_planificareWarnings.length} sloturi de Planificare golite automat — cineva a adăugat Concediu peste ce era deja planificat</div>
+    ${rows}
+  `;
+  banner.style.display="block";
 }
 
 function scheduleSave(){
@@ -2750,6 +2951,12 @@ async function pinSubmit(){
 }
 
 window.pinForgotFlow = function(){ alert("Contactează Admin pentru a-ți reseta PIN-ul.\nAdmin poate reseta din secțiunea Coduri PIN."); };
+window.pinChangeUser = function(){
+  document.getElementById("pinScreen").classList.remove("show");
+  pinState.entered = "";
+  pinState.firstPin = "";
+  updatePinDots();
+};
 
 document.addEventListener("keydown",e=>{ if(!document.getElementById("pinScreen").classList.contains("show"))return; if(e.key>="0"&&e.key<="9")window.pinKey(e.key); else if(e.key==="Backspace")window.pinBackspace(); });
 
@@ -2890,8 +3097,8 @@ function enterApp(userKey){
   const canPlanificare= isAdm || hasModuleView(userKey,"planificare");
   const canLibere     = isAdm || hasModuleView(userKey,"libere");
 
-  if(sidebarColl)    sidebarColl.style.display="";
-  if(sidebarToggle)  sidebarToggle.style.display="";
+  if(sidebarColl)    sidebarColl.style.display = canConcedii?"":"none";
+  if(sidebarToggle)  sidebarToggle.style.display = canConcedii?"":"none";
   if(concediiModule) concediiModule.style.display = canConcedii?"block":"none";
   if(modConcedii)    modConcedii.style.display    = canConcedii?"block":"none";
   if(modSortatori)   modSortatori.style.display   = canSortatori?"block":"none";
@@ -2953,6 +3160,8 @@ function enterApp(userKey){
   const sortEditBtn = document.getElementById("sortEditModeBtn");
   const canEditSort = isAdm || hasModuleEdit(userKey,"sortatori");
   if(sortEditBtn) sortEditBtn.style.display = canEditSort?"inline-flex":"none";
+  const copyPrevMonthBtn2 = document.getElementById("copyPrevMonthBtn");
+  if(copyPrevMonthBtn2) copyPrevMonthBtn2.style.display = isAdm?"inline-flex":"none";
   const actLogBtn2 = document.getElementById("actLogBtn");
   if(actLogBtn2) actLogBtn2.style.display = isAdm?"block":"none";
   const excelStatusBtn2 = document.getElementById("excelStatusBtn");
@@ -2961,6 +3170,10 @@ function enterApp(userKey){
   if(carryOverBtn2) carryOverBtn2.style.display = isAdm?"block":"none";
   const borrowedDaysBtn2 = document.getElementById("borrowedDaysBtn");
   if(borrowedDaysBtn2) borrowedDaysBtn2.style.display = isAdm?"block":"none";
+  const cleanStaleBtn2 = document.getElementById("cleanStalePresenceBtn");
+  if(cleanStaleBtn2) cleanStaleBtn2.style.display = isAdm?"block":"none";
+  const cleanStalePlanBtn2 = document.getElementById("cleanStalePlanBtn");
+  if(cleanStalePlanBtn2) cleanStalePlanBtn2.style.display = isAdm?"block":"none";
   const verifyExcelBtn2 = document.getElementById("verifyExcelBtn");
   if(verifyExcelBtn2) verifyExcelBtn2.style.display = isAdm?"block":"none";
   const uploadBackupBtn = document.getElementById("uploadBackupBtn");
@@ -3093,6 +3306,18 @@ function isSunday(d){return d.getDay()===0;}
 function dateInLeave(date,leave){const ds=fmtDate(date);return ds>=leave.start&&ds<=leave.end;}
 function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function normalizeForSearch(s){return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[ăâ]/g,"a").replace(/î/g,"i").replace(/[șş]/g,"s").replace(/[țţ]/g,"t");}
+
+// Caută o persoană din Concedii (state.drivers) pornind de la un nume din
+// Sortatori/Planificare — liste SEPARATE de date, care pot avea mici
+// diferențe de scriere (spații, majuscule). Potrivire exactă întâi,
+// apoi fallback tolerant, ca să nu rateze silențios persoane afectate.
+function findConcDriverByName(name){
+  if(!name) return null;
+  const exact = state.drivers.find(sd=>sd.name===name);
+  if(exact) return exact;
+  const norm = normalizeForSearch(name.trim()).replace(/\s+/g," ");
+  return state.drivers.find(sd=>normalizeForSearch(sd.name.trim()).replace(/\s+/g," ")===norm) || null;
+}
 function formatDateRO(ds){const[y,m,d]=ds.split("-");return parseInt(d)+" "+["Ian","Feb","Mar","Apr","Mai","Iun","Iul","Aug","Sep","Oct","Nov","Dec"][parseInt(m)-1]+" "+y;}
 
 function isWorkday(date){return date.getDay()!==0 && !getHoliday(date);}
@@ -5090,6 +5315,100 @@ function renderTimeline(){
 // 2) Raport complet, needitabil, al tuturor împrumuturilor deja înregistrate,
 //    cu explicație clară (avea X, a folosit Y, Z sunt din anul viitor).
 // ============================================================
+// ============================================================
+// CURĂȚARE RETROACTIVĂ — repară datele deja afectate de bug-ul unde
+// marcajul de prezență din Sortatori rămânea rezidual sub un Concediu
+// adăugat ulterior (nu era curățat automat). Rulează o singură dată,
+// cu preview clar înainte de aplicare.
+// ============================================================
+// Curățare retroactivă pentru PLANIFICARE — la fel ca cleanStaleSortPresence,
+// dar pentru bifele de planificare (nu prezența din Sortatori). Pentru
+// fiecare bifă găsită pe o zi acoperită acum de Concediu, o curăță ȘI
+// înregistrează o avertizare persistentă (exact ce s-ar fi întâmplat
+// automat dacă Concediul ar fi fost adăugat DUPĂ construirea sistemului).
+async function cleanStalePlanificare(){
+  if(!isAdmin()){toast("Doar Admin",true);return;}
+  if(!planState || Object.keys(planState).length===0){ toast("Nimic de curățat",true); return; }
+
+  const toClean = []; // {wkKey, name, dow, date}
+  Object.keys(planState).forEach(wkKey=>{
+    const monday = getMondayFromWeekKey(wkKey);
+    if(!monday) return; // caz de graniță de an, needeacoperit — ignorăm defensiv
+    const weekData = planState[wkKey]||{};
+    Object.keys(weekData).forEach(name=>{
+      const concDr = findConcDriverByName(name);
+      if(!concDr) return;
+      (weekData[name]||[]).forEach((val,dow)=>{
+        if(val!==1) return;
+        const date = new Date(monday); date.setDate(monday.getDate()+dow);
+        const onLeave = (concDr.leaves||[]).some(l=>dateInLeave(date,l)) || (concDr.krankLeaves||[]).some(l=>dateInLeave(date,l)) || (concDr.unpaidLeaves||[]).some(l=>dateInLeave(date,l));
+        if(onLeave) toClean.push({wkKey, name, dow, date});
+      });
+    });
+  });
+
+  if(!toClean.length){ toast("✅ Nimic de curățat — nicio bifă de planificare reziduală găsită",true); return; }
+
+  const byName = {};
+  toClean.forEach(c=>{ if(!byName[c.name]) byName[c.name]=[]; byName[c.name].push(c.date); });
+  const summary = Object.entries(byName).map(([n,dates])=>"  • "+n+": "+dates.length+" zile").join("\n");
+
+  if(!confirm("🧹 Găsite "+toClean.length+" bife de Planificare pe zile acum acoperite de Concediu:\n\n"+summary+"\n\nLe șterg și creez avertizări pentru fiecare (ca să poți alege pe altcineva)?")) return;
+
+  toClean.forEach(c=>{
+    planState[c.wkKey][c.name][c.dow]=0;
+  });
+  savePlanState();
+  logActivity("🧹 Curățare retroactivă bife Planificare", "—", toClean.length+" bife șterse", "planificare");
+
+  // Creăm avertizări persistente, grupate pe persoană
+  for(const [name, dates] of Object.entries(byName)){
+    await addPlanificareWarning(name, dates);
+  }
+
+  toast("✅ "+toClean.length+" bife de Planificare curățate — avertizări create, alege pe altcineva pentru acele zile");
+  if(appMode==="planificare") renderPlanificare();
+}
+
+function cleanStaleSortPresence(){
+  if(!isAdmin()){toast("Doar Admin",true);return;}
+  if(!sortState || !sortState.presence){ toast("Nimic de curățat",true); return; }
+
+  const toClean = []; // {mk, name, dayStr, date}
+  Object.keys(sortState.presence).forEach(mk=>{
+    const [y,m] = mk.split("-").map(Number);
+    const monthPres = sortState.presence[mk]||{};
+    Object.keys(monthPres).forEach(name=>{
+      const normSearchName = normalizeForSearch(name.trim()).replace(/\s+/g," ");
+      const concDr = state.drivers.find(d=>d.name===name) || state.drivers.find(d=>normalizeForSearch(d.name.trim()).replace(/\s+/g," ")===normSearchName);
+      if(!concDr) return;
+      Object.keys(monthPres[name]||{}).forEach(dayStr=>{
+        const date = new Date(y, m-1, parseInt(dayStr));
+        const onLeave = (concDr.leaves||[]).some(l=>dateInLeave(date,l)) || (concDr.krankLeaves||[]).some(l=>dateInLeave(date,l)) || (concDr.unpaidLeaves||[]).some(l=>dateInLeave(date,l));
+        if(onLeave) toClean.push({mk, name, dayStr});
+      });
+    });
+  });
+
+  if(!toClean.length){ toast("✅ Nimic de curățat — nicio prezență reziduală găsită",true); return; }
+
+  const byName = {};
+  toClean.forEach(c=>{ byName[c.name]=(byName[c.name]||0)+1; });
+  const summary = Object.entries(byName).map(([n,c])=>"  • "+n+": "+c+" zile").join("\n");
+
+  if(!confirm("🧹 Găsite "+toClean.length+" marcaje de prezență reziduale (sub zile de Concediu/Krank/Fără plată):\n\n"+summary+"\n\nLe șterg pe toate? Nu afectează Concediul în sine, doar curăță marcajul de prezență fals din Sortatori.")) return;
+
+  const touchedMonths = new Set();
+  toClean.forEach(c=>{
+    delete sortState.presence[c.mk][c.name][c.dayStr];
+    touchedMonths.add(c.mk);
+  });
+  saveSortState();
+  logActivity("🧹 Curățare retroactivă prezențe reziduale", "—", toClean.length+" marcaje șterse", "sortatori");
+  toast("✅ "+toClean.length+" marcaje reziduale șterse din Sortatori");
+  if(appMode==="sortatori") renderSortatoriTimeline();
+}
+
 function openBorrowedDaysManager(){
   if(!isAdmin()) return;
   openModal("modalBorrowedDaysManager");
@@ -6326,6 +6645,7 @@ function _finishSortMouseDrag(){
 document.addEventListener("mouseup", ()=>{ if(_sortMouseDrag.active) _finishSortMouseDrag(); });
 
 function openAddSortatorCat(group, cat){
+  if(!isAdmin()){toast("Doar Admin poate adăuga persoane noi",true);return;}
   // Colecteaza driveri disponibili din modulul concedii
   const existingNames = new Set(getMonthDrivers().filter(d=>d.group===group).map(d=>d.name));
   const groupKey = group==="eiselfing"?"madalina":"raluca";
@@ -6386,6 +6706,7 @@ function confirmSortPick(){
 }
 
 function deleteSortator(id){
+  if(!isAdmin()){toast("Doar Admin poate șterge persoane din sortatori",true);return;}
   const _mkDel=getSortKey(); const _drvDel=getMonthDrivers(_mkDel); const dr=_drvDel.find(d=>d.id===id);
   if(!dr||!confirm("Ștergi "+dr.name+" din sortatori?")) return;
   setMonthDrivers(_drvDel.filter(d=>d.id!==id), _mkDel);
@@ -6398,7 +6719,7 @@ function deleteSortator(id){
 function makeSortRow(dr, presence, daysInMonth, y, m, gridCols, canAdd, canEdit){
   if(canEdit===undefined) canEdit=canAdd;
   const dp = presence[dr.name]||{};
-  const delBtn = canAdd ? `<span onclick="event.stopPropagation();deleteSortator('${dr.id}')" onmousedown="event.stopPropagation()" style="color:var(--red);cursor:pointer;font-size:10px;margin-left:4px" title="Șterge">✕</span>` : "";
+  const delBtn = isAdmin() ? `<span onclick="event.stopPropagation();deleteSortator('${dr.id}')" onmousedown="event.stopPropagation()" style="color:var(--red);cursor:pointer;font-size:10px;margin-left:4px" title="Șterge">✕</span>` : "";
 
   // Badge zile prezente — vizibil pentru Admin, Tania, Mădălina
   const uk = window.activeUserKey||"";
@@ -6453,7 +6774,7 @@ function makeSortRow(dr, presence, daysInMonth, y, m, gridCols, canAdd, canEdit)
 }
 
 function makeCatHeader(label, color, count, gridCols, canEdit, group, cat, daysInMonth){
-  const addBtn = canEdit?`<span onclick="event.stopPropagation();openAddSortatorCat('${group}','${cat}')" onmousedown="event.stopPropagation()" style="color:${color};cursor:pointer;font-weight:400;font-size:11px;margin-left:6px">+ Adaugă</span>`:"";
+  const addBtn = isAdmin()?`<span onclick="event.stopPropagation();openAddSortatorCat('${group}','${cat}')" onmousedown="event.stopPropagation()" style="color:${color};cursor:pointer;font-weight:400;font-size:11px;margin-left:6px">+ Adaugă</span>`:"";
   const dropAttrs = canEdit
     ? `data-drop-cat="${cat}" onmouseenter="sortCatMouseEnter(event)" onmouseleave="sortCatMouseLeave(event)" onmouseup="sortCatMouseUp(event,'${cat}')"`
     : "";
@@ -8415,7 +8736,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.08.11-02";
+const APP_VERSION = "2026.08.16-11";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -8552,6 +8873,31 @@ function getISOWeek(d){
   return Math.ceil((((date-yearStart)/86400000)+1)/7);
 }
 
+// Inversul lui getISOWeek — dat fiind o cheie "an-Wsăptămână" (EXACT formatul
+// folosit peste tot în aplicație: an calendaristic al zilei de Luni + numărul
+// săptămânii), găsește data de Luni corespunzătoare. Căutare iterativă (nu
+// formulă matematică), ca să fie garantat consistentă cu restul codului —
+// standardul ISO strict poate diferi de convenția aplicației la marginile anului.
+function getMondayFromWeekKey(wkKey){
+  const [yearStr, weekStr] = wkKey.split("-W");
+  const year = parseInt(yearStr);
+  // Căutare exhaustivă, dar PRIORITIZÂND anul cerut explicit în cheie —
+  // doar dacă nu găsim nimic acolo, extindem la anii adiacenți (necesar
+  // la limitele de an, unde construcția cheii — preexistentă în restul
+  // aplicației — poate fi neobișnuită).
+  for(const y of [year, year-1, year+1]){
+    for(let doy=0; doy<370; doy++){
+      const d = new Date(y,0,1); d.setDate(d.getDate()+doy);
+      if(d.getFullYear()>y+1) break;
+      const dow = (d.getDay()+6)%7;
+      const mon = new Date(d); mon.setDate(d.getDate()-dow);
+      const testKey = mon.getFullYear()+"-W"+String(getISOWeek(mon)).padStart(2,"0");
+      if(testKey===wkKey) return mon;
+    }
+  }
+  return null; // nu ar trebui să se întâmple niciodată, dar returnăm null defensiv
+}
+
 function getPlanWeekDates(){
   const d = new Date(planCurrentDate);
   const dow = (d.getDay()+6)%7;
@@ -8640,6 +8986,7 @@ document.addEventListener("mouseup", ()=>{ if(_planMouseDrag.active) _finishPlan
 function renderPlanificare(){
   const grid = document.getElementById("planificareGrid");
   if(!grid) return;
+  renderPlanificareWarningsBanner();
   // Plasă de siguranță: resetăm orice stare de drag rămasă blocată (ex: dacă
   // mouse-up s-a întâmplat în afara unei zone cu listener, sau după un refresh)
   if(typeof _finishPlanMouseDrag==="function") _finishPlanMouseDrag();
@@ -8678,7 +9025,7 @@ function renderPlanificare(){
     cats.filter(cat=>cat.key!=="camion").forEach(cat=>{
       (getMonthDrivers()||[]).filter(dr=>dr.group==="ruhstorf"&&(cat.key==="permanent"?(!dr.category||dr.category==="permanent"):dr.category===cat.key)).forEach(dr=>{
         const wkData=(planState[wkKey]&&planState[wkKey][dr.name])||[0,0,0,0,0,0,0];
-        const concDr=state.drivers.find(sd=>sd.name===dr.name);
+        const concDr=findConcDriverByName(dr.name);
         const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)));
         if(!onLeave&&wkData[dow]===1) cnt++;
       });
@@ -8746,7 +9093,7 @@ function renderPlanificare(){
 
     catDrivers.forEach((dr,ri)=>{
       const rowBg=ri%2===0?"var(--bg-elev)":"var(--bg-elev-2)";
-      const concDr=state.drivers.find(sd=>sd.name===dr.name);
+      const concDr=findConcDriverByName(dr.name);
 
       // Calcul prezente lunare
       let prezCount=0;
@@ -8855,8 +9202,15 @@ function renderPlanCompliance(){
 
   const report = [];
   ruhDrivers.forEach(dr=>{
+    const concDr = findConcDriverByName(dr.name);
     const rows = {planned:0, present:0, issues:[], unexpected:0};
     pastDays.forEach(d=>{
+      // Zilele de Concediu/Krank/Fără plată se exclud complet din verificare —
+      // persoana nu era disponibilă pentru sortat, indiferent ce mai există
+      // rezidual în datele de prezență din Sortatori (marcat înainte să
+      // apară Concediul).
+      const onLeave = concDr && ((concDr.leaves||[]).some(l=>dateInLeave(d,l)) || (concDr.krankLeaves||[]).some(l=>dateInLeave(d,l)) || (concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)));
+      if(onLeave) return;
       const dow=(d.getDay()+6)%7;
       const wkKey=d.getFullYear()+"-W"+String(getISOWeek(d)).padStart(2,"0");
       const wkData=(planState[wkKey]&&planState[wkKey][dr.name])||[0,0,0,0,0,0,0];
@@ -9012,7 +9366,7 @@ function openWhatsAppExport(){
     (getMonthDrivers(_planMk)||[]).filter(d=>d.group==="ruhstorf"&&(cat.key==="permanent"?(!d.category||d.category==="permanent"):d.category===cat.key))
     .sort((a,b)=>a.name.localeCompare(b.name,"ro"))
     .forEach(dr=>{
-      const concDr=state.drivers.find(sd=>sd.name===dr.name);
+      const concDr=findConcDriverByName(dr.name);
       const dw=weekData[dr.name]||[0,0,0,0,0,0,0];
       const pz=workDayIdxs.filter(i=>{
         const d=dates[i];
@@ -9032,7 +9386,7 @@ function openWhatsAppExport(){
     const dw=weekData[dr.name]||[0,0,0,0,0,0,0];
     const hasAny=workDayIdxs.some(i=>{
       const d=dates[i];
-      const concDr=state.drivers.find(sd=>sd.name===dr.name);
+      const concDr=findConcDriverByName(dr.name);
       const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)));
       return dw[i]===1&&!onLeave;
     });
@@ -9195,7 +9549,7 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
     const cDrivers=(getMonthDrivers()||[]).filter(dr=>dr.group==="ruhstorf"&&dr.category==="camion");
     for(const dr of cDrivers){
       const dw=weekData[dr.name]||[0,0,0,0,0,0,0];
-      const concDr=state.drivers.find(sd=>sd.name===dr.name);
+      const concDr=findConcDriverByName(dr.name);
       const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)));
       if(dw[dow]===1&&!onLeave) return dr.name;
     }
@@ -9697,7 +10051,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.11-02</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.16-11</div>
 
 </body>
 </html>
