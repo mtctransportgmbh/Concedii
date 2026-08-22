@@ -3196,7 +3196,7 @@ function enterApp(userKey){
   const carryOverBtn2 = document.getElementById("carryOverBtn");
   if(carryOverBtn2) carryOverBtn2.style.display = isAdm?"block":"none";
   const borrowedDaysBtn2 = document.getElementById("borrowedDaysBtn");
-  if(borrowedDaysBtn2) borrowedDaysBtn2.style.display = isAdm?"block":"none";
+  if(borrowedDaysBtn2) borrowedDaysBtn2.style.display = (isAdm||canConcedii)?"block":"none";
   const cleanStaleBtn2 = document.getElementById("cleanStalePresenceBtn");
   if(cleanStaleBtn2) cleanStaleBtn2.style.display = isAdm?"block":"none";
   const cleanStalePlanBtn2 = document.getElementById("cleanStalePlanBtn");
@@ -5437,13 +5437,19 @@ function cleanStaleSortPresence(){
 }
 
 function openBorrowedDaysManager(){
-  if(!isAdmin()) return;
+  const uk = window.activeUserKey||"";
+  if(!isAdmin() && !hasModuleView(uk,"concedii")) return;
   openModal("modalBorrowedDaysManager");
   renderBorrowNeedsAction();
   renderBorrowReport();
 }
 
 function renderBorrowNeedsAction(){
+  const el0 = document.getElementById("borrowNeedsActionSection");
+  if(!isAdmin()){
+    el0.innerHTML = `<div style="padding:8px 12px;background:var(--bg-elev-2);border-radius:6px;font-size:12px;color:var(--text-dim)">ℹ️ Doar Admin poate înregistra depășiri vechi ca împrumut — mai jos ai raportul complet, needeeditabil.</div>`;
+    return;
+  }
   const year = currentDate.getFullYear();
   const rows = [];
   state.drivers.forEach(dr=>{
@@ -5480,19 +5486,23 @@ async function registerRetroactiveBorrow(driverId, days, year){
   const dr = state.drivers.find(d=>d.id===driverId); if(!dr) return;
   if(!confirm("Confirmi înregistrarea a "+days+" zile ca împrumut din "+(year+1)+" pentru "+dr.name+"?\n\nAsta va reduce vizibil cota lui "+(year+1)+" cu "+days+" zile, chiar de acum.")) return;
   if(!dr.borrowedDays) dr.borrowedDays=[];
-  // Dacă există deja o intrare pentru ACEEAȘI pereche an-sursă/an-destinație,
-  // o ACTUALIZĂM (total nou), nu mai adăugăm o linie separată — evită
-  // acumularea de intrări aproape identice la fiecare verificare repetată.
+  // Recalculăm direct depășirea REALĂ curentă (nu adunăm la ce era înainte)
+  // — elimină orice risc de acumulare greșită, indiferent de istoricul
+  // înregistrărilor anterioare pentru acest an.
+  const baseMax = getEffectiveMaxDays(dr, year);
+  const carry = getCarryOverForYear(dr, year);
+  const used = usedDaysThisYear(dr, "leaves", year);
+  const realOverdraft = Math.max(0, used - (baseMax+carry));
   const existing = dr.borrowedDays.find(b=>b.fromYear===year && b.toYear===year+1);
   if(existing){
-    existing.days = existing.days + days;
+    existing.days = realOverdraft;
     existing.addedAt = fmtDate(new Date());
   } else {
-    dr.borrowedDays.push({fromYear:year, toYear:year+1, days, addedAt:fmtDate(new Date())});
+    dr.borrowedDays.push({fromYear:year, toYear:year+1, days:realOverdraft, addedAt:fmtDate(new Date())});
   }
-  logActivity("📌 Depășire veche înregistrată retroactiv ca împrumut", dr.name, days+"z din "+(year+1), "concedii");
+  logActivity("📌 Depășire veche înregistrată retroactiv ca împrumut", dr.name, realOverdraft+"z din "+(year+1), "concedii");
   await saveDriversNow();
-  toast("✅ "+days+" zile înregistrate ca împrumut din "+(year+1)+" pentru "+dr.name);
+  toast("✅ "+realOverdraft+" zile înregistrate ca împrumut din "+(year+1)+" pentru "+dr.name);
   renderBorrowNeedsAction();
   renderBorrowReport();
 }
@@ -5524,7 +5534,7 @@ function renderBorrowReport(){
         const used = usedDaysThisYear(dr, "leaves", b.fromYear);
         return `Avea <b>${baseMax+carry}</b> zile disponibile în ${b.fromYear}, a luat <b>${used}</b> — din care <b style="color:#f59e0b">${b.days}</b> sunt împrumutate din <b>${b.toYear}</b>${b.addedAt?" (înregistrat "+b.addedAt+")":""}${b.count>1?` <span style="color:var(--text-dim);font-size:10px">(${b.count} intrări unite)</span>`:""}`;
       }).join("<br>");
-      const consolidateBtn = hasDuplicates ? `<button class="btn btn-secondary btn-small" style="font-size:10px;margin-top:4px" onclick="consolidateBorrowedDays('${dr.id}')">🧹 Curăță datele (unește definitiv)</button>` : "";
+      const consolidateBtn = (hasDuplicates && isAdmin()) ? `<button class="btn btn-secondary btn-small" style="font-size:10px;margin-top:4px" onclick="consolidateBorrowedDays('${dr.id}')">🧹 Curăță datele (unește definitiv)</button>` : "";
       return `<div style="padding:8px 12px;background:var(--bg-elev-2);border-radius:6px;margin-bottom:6px;font-size:12px;line-height:1.6">
         <b>${escapeHtml(dr.name)}</b><br>${lines}${consolidateBtn}
       </div>`;
@@ -5532,18 +5542,29 @@ function renderBorrowReport(){
 }
 
 async function consolidateBorrowedDays(driverId){
+  if(!isAdmin()){toast("Doar Admin poate modifica aceste date",true);return;}
   const dr = state.drivers.find(d=>d.id===driverId); if(!dr||!dr.borrowedDays) return;
-  const consolidated = {};
+  // NU însumăm intrările istorice (pot fi ele însele eronate) — recalculăm
+  // direct din formula corectă: depășire reală = folosit - (cotă+reportat).
+  // Păstrăm doar perechile an-sursă/an-destinație distincte găsite în date,
+  // dar cu valoarea RECALCULATĂ, nu suma vechilor înregistrări.
+  const pairs = {};
   dr.borrowedDays.forEach(b=>{
     const key = b.fromYear+"→"+b.toYear;
-    if(!consolidated[key]) consolidated[key] = {fromYear:b.fromYear, toYear:b.toYear, days:0, addedAt:b.addedAt};
-    consolidated[key].days += b.days;
-    if(b.addedAt && (!consolidated[key].addedAt || b.addedAt>consolidated[key].addedAt)) consolidated[key].addedAt = b.addedAt;
+    if(!pairs[key]) pairs[key] = {fromYear:b.fromYear, toYear:b.toYear, addedAt:b.addedAt};
+    if(b.addedAt && (!pairs[key].addedAt || b.addedAt>pairs[key].addedAt)) pairs[key].addedAt = b.addedAt;
   });
-  dr.borrowedDays = Object.values(consolidated);
+  const recalculated = Object.values(pairs).map(p=>{
+    const baseMax = getEffectiveMaxDays(dr, p.fromYear);
+    const carry = getCarryOverForYear(dr, p.fromYear);
+    const used = usedDaysThisYear(dr, "leaves", p.fromYear);
+    const realOverdraft = Math.max(0, used - (baseMax+carry));
+    return {fromYear:p.fromYear, toYear:p.toYear, days:realOverdraft, addedAt:p.addedAt};
+  }).filter(p=>p.days>0); // eliminăm complet dacă depășirea reală a ajuns la 0
+  dr.borrowedDays = recalculated;
   await saveDriversNow();
-  logActivity("🧹 Împrumuturi consolidate", dr.name, dr.borrowedDays.length+" intrări finale", "concedii");
-  toast("✅ Date curățate pentru "+dr.name);
+  logActivity("🧹 Împrumuturi recalculate corect", dr.name, dr.borrowedDays.length+" intrări finale", "concedii");
+  toast("✅ Date recalculate corect pentru "+dr.name);
   renderBorrowReport();
 }
 
@@ -8801,7 +8822,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.08.22-01";
+const APP_VERSION = "2026.08.22-03";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -10116,7 +10137,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.22-01</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.22-03</div>
 
 </body>
 </html>
