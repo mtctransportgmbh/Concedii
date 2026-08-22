@@ -129,6 +129,14 @@
     0%   { left: -70px; }
     100% { left: 100%; }
   }
+  .logo-truck-small {
+    left: -42px;
+    animation: truckDriveSmall 4.5s linear infinite;
+  }
+  @keyframes truckDriveSmall {
+    0%   { left: -42px; }
+    100% { left: 100%; }
+  }
   .logo-road-line {
     left: -12px;
     animation: roadMove 0.5s linear infinite;
@@ -1159,6 +1167,25 @@
     <div style="margin-bottom:8px">
       <div class="logo-animated" style="font-size:22px;font-weight:900;letter-spacing:-1px;line-height:1">MTC Transport</div>
       <div style="font-size:8px;font-weight:700;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;margin-top:2px">GESTIUNE PERSONAL</div>
+      <div style="overflow:hidden;height:15px;margin-top:5px;position:relative">
+        <svg class="logo-truck logo-truck-small" width="42" height="14" viewBox="0 0 70 24" style="position:absolute;top:0">
+          <rect x="2" y="3" width="42" height="10" rx="0.8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="0.6"/>
+          <line x1="8" y1="3" x2="8" y2="13" stroke="#cbd5e1" stroke-width="0.4"/>
+          <text x="26" y="9.2" text-anchor="middle" font-size="3.6" font-weight="800" font-family="Arial, sans-serif" fill="var(--accent)">MTC Transport</text>
+          <rect x="4" y="13" width="40" height="1.2" fill="#94a3b8"/>
+          <path d="M44 6 H54 L61 11.5 V15 H44 Z" fill="#374151"/>
+          <rect x="55.5" y="8.3" width="4" height="3.6" fill="#93c5fd" opacity="0.85"/>
+          <rect x="44" y="13.5" width="17" height="1.5" fill="#1f2937"/>
+          <circle cx="12" cy="15.5" r="2.6" fill="#334155"/><circle cx="12" cy="15.5" r="1.1" fill="#cbd5e1"/>
+          <circle cx="18" cy="15.5" r="2.6" fill="#334155"/><circle cx="18" cy="15.5" r="1.1" fill="#cbd5e1"/>
+          <circle cx="24" cy="15.5" r="2.6" fill="#334155"/><circle cx="24" cy="15.5" r="1.1" fill="#cbd5e1"/>
+          <circle cx="48" cy="15.5" r="2.6" fill="#334155"/><circle cx="48" cy="15.5" r="1.1" fill="#cbd5e1"/>
+          <circle cx="58" cy="15.5" r="2.6" fill="#334155"/><circle cx="58" cy="15.5" r="1.1" fill="#cbd5e1"/>
+        </svg>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:#475569;overflow:hidden">
+          <div class="logo-road-line" style="position:absolute;top:0.5px;height:1px;width:200%;background-image:repeating-linear-gradient(90deg, var(--accent) 0 4px, transparent 4px 8px)"></div>
+        </div>
+      </div>
     </div>
     
     <div class="user-info" id="userInfo">
@@ -5453,7 +5480,16 @@ async function registerRetroactiveBorrow(driverId, days, year){
   const dr = state.drivers.find(d=>d.id===driverId); if(!dr) return;
   if(!confirm("Confirmi înregistrarea a "+days+" zile ca împrumut din "+(year+1)+" pentru "+dr.name+"?\n\nAsta va reduce vizibil cota lui "+(year+1)+" cu "+days+" zile, chiar de acum.")) return;
   if(!dr.borrowedDays) dr.borrowedDays=[];
-  dr.borrowedDays.push({fromYear:year, toYear:year+1, days, addedAt:fmtDate(new Date())});
+  // Dacă există deja o intrare pentru ACEEAȘI pereche an-sursă/an-destinație,
+  // o ACTUALIZĂM (total nou), nu mai adăugăm o linie separată — evită
+  // acumularea de intrări aproape identice la fiecare verificare repetată.
+  const existing = dr.borrowedDays.find(b=>b.fromYear===year && b.toYear===year+1);
+  if(existing){
+    existing.days = existing.days + days;
+    existing.addedAt = fmtDate(new Date());
+  } else {
+    dr.borrowedDays.push({fromYear:year, toYear:year+1, days, addedAt:fmtDate(new Date())});
+  }
   logActivity("📌 Depășire veche înregistrată retroactiv ca împrumut", dr.name, days+"z din "+(year+1), "concedii");
   await saveDriversNow();
   toast("✅ "+days+" zile înregistrate ca împrumut din "+(year+1)+" pentru "+dr.name);
@@ -5470,16 +5506,45 @@ function renderBorrowReport(){
   }
   el.innerHTML = `<div style="font-size:12px;font-weight:800;color:var(--text-dim);margin-bottom:8px">📋 Raport împrumuturi active (${withBorrows.length} persoane)</div>` +
     withBorrows.map(dr=>{
-      const lines = dr.borrowedDays.map(b=>{
+      // Consolidăm intrări multiple pentru ACEEAȘI pereche an-sursă/an-destinație
+      // într-o singură linie — pot exista date vechi, duplicate, dinainte de
+      // fix-ul care previne crearea de intrări redundante la fiecare verificare.
+      const consolidated = {};
+      dr.borrowedDays.forEach(b=>{
+        const key = b.fromYear+"→"+b.toYear;
+        if(!consolidated[key]) consolidated[key] = {fromYear:b.fromYear, toYear:b.toYear, days:0, addedAt:b.addedAt, count:0};
+        consolidated[key].days += b.days;
+        consolidated[key].count++;
+        if(b.addedAt && (!consolidated[key].addedAt || b.addedAt>consolidated[key].addedAt)) consolidated[key].addedAt = b.addedAt;
+      });
+      const hasDuplicates = Object.values(consolidated).some(c=>c.count>1);
+      const lines = Object.values(consolidated).map(b=>{
         const baseMax = getEffectiveMaxDays(dr, b.fromYear);
         const carry = getCarryOverForYear(dr, b.fromYear);
         const used = usedDaysThisYear(dr, "leaves", b.fromYear);
-        return `Avea <b>${baseMax+carry}</b> zile disponibile în ${b.fromYear}, a luat <b>${used}</b> — din care <b style="color:#f59e0b">${b.days}</b> sunt împrumutate din <b>${b.toYear}</b>${b.addedAt?" (înregistrat "+b.addedAt+")":""}`;
+        return `Avea <b>${baseMax+carry}</b> zile disponibile în ${b.fromYear}, a luat <b>${used}</b> — din care <b style="color:#f59e0b">${b.days}</b> sunt împrumutate din <b>${b.toYear}</b>${b.addedAt?" (înregistrat "+b.addedAt+")":""}${b.count>1?` <span style="color:var(--text-dim);font-size:10px">(${b.count} intrări unite)</span>`:""}`;
       }).join("<br>");
+      const consolidateBtn = hasDuplicates ? `<button class="btn btn-secondary btn-small" style="font-size:10px;margin-top:4px" onclick="consolidateBorrowedDays('${dr.id}')">🧹 Curăță datele (unește definitiv)</button>` : "";
       return `<div style="padding:8px 12px;background:var(--bg-elev-2);border-radius:6px;margin-bottom:6px;font-size:12px;line-height:1.6">
-        <b>${escapeHtml(dr.name)}</b><br>${lines}
+        <b>${escapeHtml(dr.name)}</b><br>${lines}${consolidateBtn}
       </div>`;
     }).join("");
+}
+
+async function consolidateBorrowedDays(driverId){
+  const dr = state.drivers.find(d=>d.id===driverId); if(!dr||!dr.borrowedDays) return;
+  const consolidated = {};
+  dr.borrowedDays.forEach(b=>{
+    const key = b.fromYear+"→"+b.toYear;
+    if(!consolidated[key]) consolidated[key] = {fromYear:b.fromYear, toYear:b.toYear, days:0, addedAt:b.addedAt};
+    consolidated[key].days += b.days;
+    if(b.addedAt && (!consolidated[key].addedAt || b.addedAt>consolidated[key].addedAt)) consolidated[key].addedAt = b.addedAt;
+  });
+  dr.borrowedDays = Object.values(consolidated);
+  await saveDriversNow();
+  logActivity("🧹 Împrumuturi consolidate", dr.name, dr.borrowedDays.length+" intrări finale", "concedii");
+  toast("✅ Date curățate pentru "+dr.name);
+  renderBorrowReport();
 }
 
 function runCarryOverCalculation(){
@@ -8736,7 +8801,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.08.16-11";
+const APP_VERSION = "2026.08.22-01";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -10051,7 +10116,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.16-11</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.22-01</div>
 
 </body>
 </html>
