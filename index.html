@@ -1856,7 +1856,7 @@
 // ============================================================
 // CONFIGURARE — schimbă doar USE_TEST pentru a comuta între medii
 // ============================================================
-const USE_TEST = false; // true = test | false = producție
+const USE_TEST = true; // true = test | false = producție
 
 const FIREBASE_CONFIGS = {
   production: {
@@ -3696,7 +3696,16 @@ function handleOverdraftChoice(dr, viewedYear, used, newDays, maxDays){
   );
   if(wantsBorrow){
     if(!dr.borrowedDays) dr.borrowedDays=[];
-    dr.borrowedDays.push({fromYear:viewedYear, toYear:viewedYear+1, days:over, addedAt:fmtDate(new Date())});
+    // Dacă există deja o intrare pentru ACEEAȘI pereche an-sursă/an-destinație,
+    // o actualizăm direct (nu mai adăugăm o linie separată) — "over" reprezintă
+    // deja depășirea TOTALĂ curentă, deci se unesc automat, fără intervenție manuală.
+    const existingBorrow = dr.borrowedDays.find(b=>b.fromYear===viewedYear && b.toYear===viewedYear+1);
+    if(existingBorrow){
+      existingBorrow.days = over;
+      existingBorrow.addedAt = fmtDate(new Date());
+    } else {
+      dr.borrowedDays.push({fromYear:viewedYear, toYear:viewedYear+1, days:over, addedAt:fmtDate(new Date())});
+    }
     logActivity("📌 Zile împrumutate din anul viitor",dr.name,over+"z din "+(viewedYear+1),"concedii");
     toast("📌 "+over+" zile împrumutate din cota "+(viewedYear+1));
   }
@@ -8822,7 +8831,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.08.22-03";
+const APP_VERSION = "2026.09.05-01";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -9545,7 +9554,7 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
     });
   }
 
-  // 1) Lista de bază a sloturilor = Permanenți (sortați alfabetic), max 14.
+  // 1) Lista de bază a sloturilor = Permanenți (sortați alfabetic), max 13.
   const permDrivers = (getMonthDrivers()||[])
     .filter(dr=>dr.group==="ruhstorf"&&(!dr.category||dr.category==="permanent"))
     .map(dr=>({name:dr.name, cat:"permanent"}))
@@ -9553,6 +9562,15 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
     .slice(0, MAX_PERM_SLOTS);
 
   permDrivers.forEach(p=>{ p.days = presentDaysFor(p.name); });
+
+  // Dacă lista reală de Permanenți a scăzut sub numărul de sloturi fixe
+  // (ex: cineva a fost șters definitiv, nu doar în concediu), completăm
+  // sloturile lipsă cu "fantome" — marcate absente toată săptămâna, ca
+  // logica de mai jos (deja construită pentru absențe) să caute automat
+  // un înlocuitor din Rotații, exact ca la o absență temporară normală.
+  while(permDrivers.length < MAX_PERM_SLOTS){
+    permDrivers.push({name:null, cat:"permanent", days:workDays.map(()=>false)});
+  }
 
   // 2) Candidați de înlocuire = Rotații + Urgențe planificați măcar o zi,
   // sortați alfabetic. Îi împărțim în funcție de cât de prezenți sunt:
@@ -9596,7 +9614,7 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
         return {label:sub.name, baseCat:sub.cat, perDay: workDays.map(()=>({name:sub.name, cat:sub.cat, isSub:true}))};
       }
       // Niciun înlocuitor disponibil toată săptămâna — încercăm parțiali zi de zi
-      return {label:p.name, baseCat:p.cat, perDay: workDays.map((d,di)=>{
+      return {label:p.name||"", baseCat:p.cat, perDay: workDays.map((d,di)=>{
         const sub = partialSubs.find(s=>s.days[di]&&!usedPartialByDay[di].has(s.name));
         if(sub){ usedPartialByDay[di].add(sub.name); return {name:sub.name, cat:sub.cat, isSub:true}; }
         return null;
@@ -9604,7 +9622,7 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
     }
     // Prezent măcar o zi — rămâne titularul slotului; doar zilele lui de
     // absență individuală se completează cu un înlocuitor parțial.
-    return {label:p.name, baseCat:p.cat, perDay: workDays.map((d,di)=>{
+    return {label:p.name||"", baseCat:p.cat, perDay: workDays.map((d,di)=>{
       if(p.days[di]) return {name:p.name, cat:p.cat, isSub:false};
       const sub = partialSubs.find(s=>s.days[di]&&!usedPartialByDay[di].has(s.name));
       if(sub){ usedPartialByDay[di].add(sub.name); return {name:sub.name, cat:sub.cat, isSub:true}; }
@@ -10137,7 +10155,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.08.22-03</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.05-01</div>
 
 </body>
 </html>
