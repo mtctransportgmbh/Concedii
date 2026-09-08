@@ -2258,9 +2258,7 @@ async function loadPlanificareWarnings(){
 }
 
 async function savePlanificareWarnings(){
-  try{
-    await db.collection("planificare_warnings").doc("list").set({warnings:_planificareWarnings});
-  }catch(e){ console.warn("savePlanificareWarnings err",e); }
+  await db.collection("planificare_warnings").doc("list").set({warnings:_planificareWarnings});
 }
 
 async function addPlanificareWarning(name, dates){
@@ -2279,7 +2277,12 @@ async function addPlanificareWarning(name, dates){
       });
     }
   });
-  await savePlanificareWarnings();
+  try{
+    await savePlanificareWarnings();
+  }catch(e){
+    console.error("savePlanificareWarnings err",e);
+    toast("⚠️ Avertizarea de Planificare nu s-a putut salva ("+e.message+") — persoana rezervată nu va apărea în lista de avertizări",true);
+  }
   renderPlanificareWarningsBanner();
 }
 
@@ -8831,7 +8834,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.09.05-01";
+const APP_VERSION = "2026.09.08-01";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -10155,7 +10158,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.05-01</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.08-01</div>
 
 </body>
 </html>
