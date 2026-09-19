@@ -1365,6 +1365,7 @@
       <div id="todayLeavePanel" style="display:none;margin-bottom:12px">
         <div style="font-size:11px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;display:flex;align-items:center;gap:6px">🏖️ Concedii — Ruhstorf</div>
         <div id="todayLeaveList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;color:var(--text)">—</div>
+        <div id="todayLeaveReminders" style="display:none"></div>
       </div>
 
       <div class="timeline-wrap">
@@ -1661,11 +1662,38 @@
   </div>
 </div>
 
+<div class="modal-bg" id="modalAnnouncement">
+  <div class="modal" style="max-width:480px">
+    <h3>📌 Noutate — Remindere pe zile</h3>
+    <div class="modal-sub">Am adăugat la ultimul update</div>
+    <div style="font-size:13px;line-height:1.7;margin-top:10px">
+      <p>De acum poți adăuga <b>remindere scurte</b> direct pe orice zi din calendar — ceva de genul "Iancu vrea altă tură" sau "Paul vrea să termine mai repede".</p>
+      <p><b>Cum funcționează:</b><br>
+      Dai click pe orice zi din calendarul de Concedii, jos în fereastră scrii textul și apeși "+ Adaugă". Reminderul apare direct pe calendar, într-un chenar turcoaz, chiar deasupra zilei respective — nu mai trebuie să dai click ca să-l vezi.</p>
+      <p><b>Cine vede ce:</b><br>
+      Fiecare vede doar reminderele relevante pentru el — nu sunt vizibile tuturor la fel. Dacă ai nelămuriri despre exact ce vezi tu, întreabă-l pe Admin.</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeAnnouncementModal()">✓ Am citit</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modalDay">
   <div class="modal">
     <h3 id="modalDayTitle">Ziua</h3>
     <div class="modal-sub" id="modalDaySub"></div>
     <div class="day-drivers" id="dayDriversList"></div>
+
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px">📌 Remindere</div>
+      <div id="dayRemindersList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="dayReminderInput" placeholder="ex: Iancu vrea altă tură..." style="flex:1;padding:6px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)">
+        <button class="btn btn-small" style="background:#f59e0b;border-color:#f59e0b;color:#000;white-space:nowrap" onclick="submitDayReminder()">+ Adaugă</button>
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modalDay')">Închide</button>
     </div>
@@ -2139,6 +2167,8 @@ function finishInit(){
   renderAll();
   if(isAdmin()) checkExcelImportReminder();
   renderPlanificareWarningsBanner();
+  loadCalendarReminders().then(()=>renderAll()); // markerele de reminder devin vizibile odată încărcate
+  showAnnouncementIfNeeded();
   lastSavedAt = new Date();
   saveLocalBackup();
   setSaveStatus("ok","Date încărcate ✓");
@@ -3966,21 +3996,21 @@ function resolveConflict(action){
       dr.krankLeaves=removeDay(dr.krankLeaves);
       dr.unpaidLeaves=removeDay(dr.unpaidLeaves);
       dr.leaves.push({start:ds,end:ds});
-      dr.leaves=cleanLeavesFromHolidays(dr.leaves);
+      dr.leaves=splitLeavesFromHolidaysOnly(dr.leaves);
       clearPlanificareForLeave(dr.name,ds,ds);
     } else if(c.excelSays==="krank"){
       dr.leaves=removeDay(dr.leaves);
       dr.krankLeaves=removeDay(dr.krankLeaves);
       dr.unpaidLeaves=removeDay(dr.unpaidLeaves);
       dr.krankLeaves.push({start:ds,end:ds});
-      dr.krankLeaves=cleanLeavesFromHolidays(dr.krankLeaves);
+      dr.krankLeaves=splitLeavesFromHolidaysOnly(dr.krankLeaves);
       clearPlanificareForLeave(dr.name,ds,ds);
     } else if(c.excelSays==="unpaid"){
       dr.leaves=removeDay(dr.leaves);
       dr.krankLeaves=removeDay(dr.krankLeaves);
       dr.unpaidLeaves=removeDay(dr.unpaidLeaves);
       dr.unpaidLeaves.push({start:ds,end:ds});
-      dr.unpaidLeaves=cleanLeavesFromHolidays(dr.unpaidLeaves);
+      dr.unpaidLeaves=splitLeavesFromHolidaysOnly(dr.unpaidLeaves);
       clearPlanificareForLeave(dr.name,ds,ds);
     }
     // Curățăm orice marcaj de prezență rezidual/contradictoriu, dacă statusul
@@ -4347,15 +4377,15 @@ function addLeave(){
   if(leaveType==="krank"){
     if(!dr.krankLeaves) dr.krankLeaves=[];
     dr.krankLeaves.push({start,end});
-    dr.krankLeaves = cleanLeavesFromHolidays(dr.krankLeaves);
+    dr.krankLeaves = splitLeavesFromHolidaysOnly(dr.krankLeaves);
   } else if(leaveType==="unpaid"){
     if(!dr.unpaidLeaves) dr.unpaidLeaves=[];
     dr.unpaidLeaves.push({start,end});
-    dr.unpaidLeaves = cleanLeavesFromHolidays(dr.unpaidLeaves);
+    dr.unpaidLeaves = splitLeavesFromHolidaysOnly(dr.unpaidLeaves);
   } else {
     if(!dr.leaves) dr.leaves=[];
     dr.leaves.push({start,end});
-    dr.leaves = cleanLeavesFromHolidays(dr.leaves);
+    dr.leaves = splitLeavesFromHolidaysOnly(dr.leaves);
   }
   clearPlanificareForLeave(dr.name,start,end);
   openLeaveModal(leaveDriverId,leaveType);
@@ -4491,7 +4521,7 @@ function saveQuickLeave(){
   const targetArr = _qType==="krank"?"krankLeaves":_qType==="unpaid"?"unpaidLeaves":"leaves";
   if(!dr[targetArr])dr[targetArr]=[];
   dr[targetArr].push({start,end});
-  dr[targetArr] = cleanLeavesFromHolidays(dr[targetArr]);
+  dr[targetArr] = splitLeavesFromHolidaysOnly(dr[targetArr]);
   clearPlanificareForLeave(dr.name,start,end);
 
   const _qLabel=_qType==="krank"?"Krank adăugat rapid":_qType==="unpaid"?"S adăugat rapid":"Concediu adăugat rapid";
@@ -4958,11 +4988,154 @@ function renderCalDay(d,otherMonth,today){
   else if(holiday)inner=`<div class="cal-day-num">${dnum}</div>`+(drivers.length>0?`<div class="cal-day-count">${drivers.length}</div>`:"")+`<div class="holiday-name">${escapeHtml(holiday.split("(")[0].trim())}</div>`+namesHtml;
   else inner=`<div class="cal-day-num">${dnum}</div>`+(drivers.length>0?`<div class="cal-day-count">${drivers.length}</div>`:"")+namesHtml;
   const titleAttr=drivers.length>0?`title="${escapeHtml(drivers.map(dr=>dr.name).join(", ")+(holiday?" • "+holiday:""))}"`:( holiday?`title="${escapeHtml(holiday)}"`:""  );
-  return `<div class="${classes.join(" ")}" ${clickHandler} ${titleAttr}>${inner}</div>`;
+  const uk = window.activeUserKey||"?";
+  const visibleReminders = (!isSun && !otherMonth) ? (_calendarReminders||[]).filter(r=>r.dateStr===ds && canSeeReminder(r,uk)) : [];
+  let reminderMark = "";
+  if(visibleReminders.length){
+    const shown = visibleReminders.slice(0,2);
+    const extra = visibleReminders.length - shown.length;
+    const lines = shown.map(r=>`<div style="padding:2px 0"><b>${escapeHtml(reminderAuthorDisplayName(r.author))}</b>: ${escapeHtml(r.text)}</div>`)
+      .join(`<div style="border-top:1px solid rgba(94,234,212,0.35);margin:2px 0"></div>`);
+    reminderMark = `<div style="position:absolute;bottom:calc(100% + 3px);left:0;width:max-content;max-width:220px;background:#134e4a;color:#5eead4;font-size:9px;line-height:1.3;padding:3px 5px;border-radius:4px;z-index:20;box-shadow:0 2px 6px rgba(0,0,0,0.4);text-align:left;pointer-events:none;border:1px solid #2dd4bf">${lines}${extra>0?`<div style="border-top:1px solid rgba(94,234,212,0.35);margin:2px 0"></div><i>+${extra} mai multe</i>`:""}</div>`;
+  }
+  return `<div class="${classes.join(" ")}" ${clickHandler} ${titleAttr}>${reminderMark}${inner}</div>`;
+}
+
+// ============================================================
+// REMINDERE PE ZILE DE CALENDAR — orice user poate adăuga o notă scurtă
+// pentru o zi anume (ex: "Iancu vrea altă tură"). Vizibilitate pe grup:
+// fiecare user vede doar reminderele postate de propriul grup + orice
+// postat de Admin (vizibil tuturor); Admin și Tania văd absolut tot.
+// ============================================================
+let _calendarReminders = [];
+let _calendarRemindersLoaded = false;
+let _currentDayDetailDate = null;
+
+// Grupul FIX asociat fiecărui user, doar pentru acest sistem de remindere
+// (nu ține cont de permisiunile complexe din Sortatori — e o regulă simplă,
+// separată, aleasă explicit).
+// Nume de afișare pentru remindere — "admin" rămâne cheia internă (folosită
+// pentru permisiuni/filtrare), dar se afișează "Paul" peste tot vizual.
+// ============================================================
+// ANUNȚ NOUTATE — apare o singură dată per dispozitiv/browser, la login,
+// pentru feature-uri noi importante. Cheia e versionată, ca să pot adăuga
+// anunțuri VIITOARE fără să repet automat cele deja confirmate.
+// ============================================================
+function showAnnouncementIfNeeded(){
+  const KEY = "mtc_announcement_seen_reminder_v1";
+  if(localStorage.getItem(KEY)) return;
+  openModal("modalAnnouncement");
+}
+
+function closeAnnouncementModal(){
+  localStorage.setItem("mtc_announcement_seen_reminder_v1", "1");
+  closeModal("modalAnnouncement");
+}
+
+function reminderAuthorDisplayName(uk){
+  if(uk==="admin") return "Paul";
+  return uk;
+}
+
+function getReminderGroupForUser(uk){
+  if(uk==="raluca")   return "ruhstorf";
+  if(uk==="madalina") return "eiselfing";
+  if(uk==="corina")   return "camion";
+  if(uk==="mihaela")  return "ruhstorf"; // vede/postează alături de Raluca
+  return "toate"; // admin, tania — postează vizibil pentru toată lumea
+}
+
+// Regulă de vizibilitate remindere — pereche directă vizualizator → autori
+// vizibili (confirmată explicit): Mădălina și Corina văd DOAR ale lor,
+// Admin vede DOAR Raluca+Admin, Raluca vede Raluca+Admin, Mihaela vede
+// Admin+Raluca. Doar Tania rămâne cu vizibilitate completă.
+const REMINDER_VISIBLE_AUTHORS = {
+  admin:    ["raluca","admin"],
+  raluca:   ["raluca","admin"],
+  madalina: ["madalina"],
+  corina:   ["corina"],
+  mihaela:  ["admin","raluca"],
+};
+
+function canSeeReminder(reminder, uk){
+  if(uk==="tania") return true; // singura excepție care vede absolut tot
+  const allowed = REMINDER_VISIBLE_AUTHORS[uk];
+  if(!allowed) return false; // user needecunoscut — needevede nimic, defensiv
+  return allowed.includes(reminder.author);
+}
+
+async function loadCalendarReminders(){
+  try{
+    const snap = await db.collection("calendar_reminders").doc("list").get();
+    _calendarReminders = snap.exists ? (snap.data().reminders||[]) : [];
+  }catch(e){ console.warn("loadCalendarReminders err",e); _calendarReminders=[]; }
+  _calendarRemindersLoaded = true;
+  return _calendarReminders;
+}
+
+async function saveCalendarReminders(){
+  await db.collection("calendar_reminders").doc("list").set({reminders:_calendarReminders});
+}
+
+async function submitDayReminder(){
+  const input = document.getElementById("dayReminderInput");
+  const text = input.value.trim();
+  if(!text) return;
+  const uk = window.activeUserKey||"?";
+  if(!_calendarRemindersLoaded) await loadCalendarReminders();
+  _calendarReminders.push({
+    id: uid(),
+    dateStr: _currentDayDetailDate,
+    text,
+    author: uk,
+    group: getReminderGroupForUser(uk),
+    createdAt: new Date().toISOString()
+  });
+  try{
+    await saveCalendarReminders();
+    input.value="";
+    logActivity("📌 Reminder adăugat", uk, _currentDayDetailDate+": "+text, "concedii");
+  }catch(e){
+    toast("⚠️ Reminderul nu s-a putut salva: "+e.message,true);
+  }
+  renderDayReminders(_currentDayDetailDate);
+  renderAll(); // actualizăm și markerul vizual de pe celula calendarului
+}
+
+async function deleteDayReminder(id){
+  const r = _calendarReminders.find(x=>x.id===id); if(!r) return;
+  const uk = window.activeUserKey||"?";
+  if(uk!=="tania" && r.author!==uk){ toast("Poți șterge doar reminderele tale",true); return; }
+  if(!confirm("Ștergi acest reminder?")) return;
+  _calendarReminders = _calendarReminders.filter(x=>x.id!==id);
+  try{
+    await saveCalendarReminders();
+  }catch(e){
+    toast("⚠️ Ștergerea nu s-a putut salva: "+e.message,true);
+  }
+  renderDayReminders(_currentDayDetailDate);
+  renderAll();
+}
+
+async function renderDayReminders(dateStr){
+  if(!_calendarRemindersLoaded) await loadCalendarReminders();
+  const uk = window.activeUserKey||"?";
+  const visible = _calendarReminders.filter(r=>r.dateStr===dateStr && canSeeReminder(r,uk));
+  const list = document.getElementById("dayRemindersList");
+  if(!list) return;
+  if(!visible.length){ list.innerHTML = `<div style="color:var(--text-dim);font-size:11px;font-style:italic">Niciun reminder pentru această zi</div>`; return; }
+  list.innerHTML = visible.map(r=>{
+    const canDelete = uk==="tania" || r.author===uk;
+    return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:6px 10px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:6px">
+      <div style="font-size:12px"><b>${escapeHtml(reminderAuthorDisplayName(r.author))}</b>: ${escapeHtml(r.text)}</div>
+      ${canDelete?`<span onclick="deleteDayReminder('${r.id}')" style="cursor:pointer;color:var(--text-dim);font-size:12px;flex-shrink:0">✕</span>`:""}
+    </div>`;
+  }).join("");
 }
 
 function openDayDetail(dateStr){
   const d=parseDate(dateStr);if(isSunday(d))return;
+  _currentDayDetailDate = dateStr;
   const drivers=driversOnDate(d),holiday=getHoliday(d);
   document.getElementById("modalDayTitle").textContent=formatDateRO(dateStr);
   const dowName=["Duminică","Luni","Marți","Miercuri","Joi","Vineri","Sâmbătă"][d.getDay()];
@@ -4984,6 +5157,7 @@ function openDayDetail(dateStr){
       return `<div class="day-driver"><span>${escapeHtml(dr.name)}</span><span style="color:var(--text-dim);font-size:11px">${rangeStr}</span></div>`;
     }).join("");
   }
+  renderDayReminders(dateStr);
   openModal("modalDay");
 }
 
@@ -5139,7 +5313,7 @@ function tlDragEnd(){
     if(!segments.length){ tlDrag={active:false,driverId:null,startDay:null,endDay:null,removing:false}; return; }
     segments.forEach(seg=>dr.leaves.push(seg));
     // Curățăm sărbătorile și unim perioadele consecutive
-    dr.leaves = cleanLeavesFromHolidays(dr.leaves);
+    dr.leaves = splitLeavesFromHolidaysOnly(dr.leaves);
     clearPlanificareForLeave(dr.name,startStr2,endStr2);
     logActivity("➕ Concediu adăugat",dr.name,startStr2+" → "+endStr2+" ("+newDays+"z)","concedii");
     renderAll();scheduleSave();toast("✓ "+dr.name+": "+newDays+" zile lucrătoare");
@@ -5727,6 +5901,8 @@ let sortCurrentDate = new Date();
 let sortView = "ruhstorf";
 let libereView = "ruhstorf";
 let appMode = "concedii";
+let _planificareConcediiUnsub = null;
+let _planificareWarningsUnsub = null;
 let _sortUnsub = null; // separate from unsubListeners
 let presState = {presence:{}};
 let _presUnsub = null;
@@ -5763,6 +5939,43 @@ function getSortDrivers(){
   return all.filter(d=>d.group===sortView);
 }
 
+// ============================================================
+// ACTUALIZARE LIVE PLANIFICARE — ascultă în timp real modificările de
+// Concedii (grupul Ruhstorf) și avertizările persistente, DAR NUMAI cât
+// timp ești efectiv în modulul Planificare — se opresc automat la ieșire,
+// ca să nu consume resurse inutil în celelalte module.
+// ============================================================
+function startPlanificareLiveListeners(){
+  stopPlanificareLiveListeners(); // siguranță — nu pornim duplicate
+
+  _planificareConcediiUnsub = db.collection(concediiColl()).doc("raluca")
+    .onSnapshot(snap=>{
+      if(!snap.exists) return;
+      const data = snap.data();
+      const incoming = data.drivers||[];
+      // Actualizăm DOAR persoanele din documentul Ralucai (grupul Ruhstorf)
+      // în state.drivers, păstrând restul (alte grupuri) needeatinse.
+      incoming.forEach(d=>{
+        const idx = state.drivers.findIndex(sd=>sd.id===d.id);
+        if(idx>=0) state.drivers[idx] = d;
+        else state.drivers.push(d);
+      });
+      if(appMode==="planificare") renderPlanificare();
+    }, err=>{ console.warn("planificare live concedii listener err", err); });
+
+  _planificareWarningsUnsub = db.collection("planificare_warnings").doc("list")
+    .onSnapshot(snap=>{
+      _planificareWarnings = snap.exists ? (snap.data().warnings||[]) : [];
+      _planificareWarningsLoaded = true;
+      if(appMode==="planificare") renderPlanificareWarningsBanner();
+    }, err=>{ console.warn("planificare live warnings listener err", err); });
+}
+
+function stopPlanificareLiveListeners(){
+  if(_planificareConcediiUnsub){ _planificareConcediiUnsub(); _planificareConcediiUnsub=null; }
+  if(_planificareWarningsUnsub){ _planificareWarningsUnsub(); _planificareWarningsUnsub=null; }
+}
+
 function setAppMode(mode){
   appMode = mode;
   document.getElementById("concediiModule").style.display   = mode==="concedii"?"block":"none";
@@ -5785,7 +5998,8 @@ function setAppMode(mode){
   if(mlib){ mlib.classList.toggle("active", mode==="libere"); mlib.classList.toggle("mod-tab-active", mode==="libere"); }
   if(mode==="sortatori")   renderSortatoriTimeline();
   if(mode==="prezente")    renderPrezenteTimeline();
-  if(mode==="planificare") renderPlanificare();
+  if(mode==="planificare"){ renderPlanificare(); startPlanificareLiveListeners(); }
+  else stopPlanificareLiveListeners();
   if(mode==="libere")      renderLibere();
 }
 
@@ -6625,10 +6839,16 @@ function updateTodayLeavePanel(){
 
   const namesOnDate = (date)=>{
     if(date.getDay()===0) return []; // Duminică — nu apare nimeni, niciodată
-    return relevantDrivers
+    const dateStr = fmtDate(date);
+    const leaveEntries = relevantDrivers
       .filter(dr=> (dr.leaves||[]).some(l=>dateInLeave(date,l)))
-      .map(dr=>dr.name)
-      .sort((a,b)=>a.localeCompare(b,"ro"));
+      .map(dr=>({name:dr.name, type:"leave"}));
+    // Fără plată — extindere specifică, doar pentru grupul Ruhstorf, doar
+    // aici (nu schimbă regula generală de vizibilitate din restul aplicației)
+    const unpaidEntries = relevantDrivers
+      .filter(dr=> dr.group==="ruhstorf" && (dr.unpaidLeaves||[]).some(l=>dateInLeave(date,l)))
+      .map(dr=>({name:dr.name, type:"unpaid"}));
+    return [...leaveEntries, ...unpaidEntries].sort((a,b)=>a.name.localeCompare(b.name,"ro"));
   };
 
   const DOW_RO=["Duminică","Luni","Marți","Miercuri","Joi","Vineri","Sâmbătă"];
@@ -6654,7 +6874,11 @@ function updateTodayLeavePanel(){
     const namesHtml = c.isSun
       ? `<div style="color:var(--text-dim);font-size:11px;padding:3px 0">— liber —</div>`
       : c.names.length
-        ? c.names.map(n=>`<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-weight:600;font-size:12px"><span style="width:6px;height:6px;border-radius:50%;background:${c.color};flex-shrink:0"></span>${escapeHtml(n)}</div>`).join("")
+        ? c.names.map(n=>{
+            const dotColor = n.type==="unpaid" ? "#3b82f6" : c.color;
+            const suffix = n.type==="unpaid" ? ` <span style="color:#3b82f6;font-size:9px">(fără plată)</span>` : "";
+            return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-weight:600;font-size:12px"><span style="width:6px;height:6px;border-radius:50%;background:${dotColor};flex-shrink:0"></span>${escapeHtml(n.name)}${suffix}</div>`;
+          }).join("")
         : `<div style="color:var(--text-dim);font-size:11px;padding:3px 0">— niciunul —</div>`;
     return `<div style="background:${bg};border:${border};border-radius:8px;padding:8px 10px">
       <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:5px">
@@ -6664,6 +6888,59 @@ function updateTodayLeavePanel(){
       ${namesHtml}
     </div>`;
   }).join("");
+
+  // Remindere vizibile pentru acest user — Mihaela nu vede calendarul mare de
+  // Concedii (unde apar normal), deci le arătăm și aici, în panoul ei dedicat.
+  renderTodayLeaveReminders(weekDates, uk);
+}
+
+async function renderTodayLeaveReminders(weekDates, uk){
+  const el = document.getElementById("todayLeaveReminders");
+  if(!el) return;
+  if(!_calendarRemindersLoaded) await loadCalendarReminders();
+  const weekDateStrs = new Set(weekDates.map(d=>fmtDate(d)));
+  const visible = _calendarReminders.filter(r=>weekDateStrs.has(r.dateStr) && canSeeReminder(r,uk));
+  if(!visible.length){ el.innerHTML=""; el.style.display="none"; return; }
+  el.style.display="block";
+
+  const todayStr = fmtDate(new Date());
+  const DOW_RO=["Duminică","Luni","Marți","Miercuri","Joi","Vineri","Sâmbătă"];
+
+  // Grupăm reminderele pe zi, păstrăm ordinea cronologică a zilelor
+  const byDay = {};
+  visible.forEach(r=>{ if(!byDay[r.dateStr]) byDay[r.dateStr]=[]; byDay[r.dateStr].push(r); });
+  const sortedDays = Object.keys(byDay).sort();
+
+  const dayCards = sortedDays.map(dateStr=>{
+    const d = parseDate(dateStr);
+    const isToday = dateStr===todayStr;
+    const dayLabel = DOW_RO[d.getDay()]+" · "+d.getDate()+"."+(d.getMonth()+1);
+    const entries = byDay[dateStr].map((r,i)=>{
+      const sep = i>0 ? `<div style="border-top:1px solid rgba(94,234,212,0.25);margin:5px 0"></div>` : "";
+      return sep+`<div style="font-size:12px;line-height:1.5;color:#e0f7f5"><b style="color:#5eead4">${escapeHtml(reminderAuthorDisplayName(r.author))}</b>: ${escapeHtml(r.text)}</div>`;
+    }).join("");
+
+    if(isToday){
+      // Efect de "bulă de discuție" — o etichetă mică flotantă, cu o
+      // săgeată CSS care coboară din ea direct spre chenarul reminderului.
+      return `<div style="position:relative;margin-top:14px;margin-bottom:8px">
+        <div style="position:absolute;top:-12px;left:10px;display:inline-flex;align-items:center;gap:6px;background:#2dd4bf;color:#0f2e2c;font-size:10px;font-weight:900;padding:3px 8px;border-radius:5px;z-index:2;box-shadow:0 2px 4px rgba(0,0,0,0.3)">
+          ${dayLabel} <span style="background:#0f2e2c;color:#2dd4bf;font-size:8px;padding:1px 4px;border-radius:2px">AZI</span>
+        </div>
+        <div style="position:absolute;top:1px;left:22px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:6px solid #2dd4bf;z-index:2"></div>
+        <div style="background:#0f2e2c;border:2px solid #2dd4bf;border-radius:8px;padding:14px 10px 8px 10px;box-shadow:0 2px 8px rgba(45,212,191,0.2)">
+          ${entries}
+        </div>
+      </div>`;
+    }
+    // Zile normale — bordură simplă, consistentă
+    return `<div style="background:#0f2e2c;border:1px solid rgba(45,212,191,0.25);border-radius:8px;padding:8px 10px;margin-bottom:8px">
+      <div style="font-size:11px;font-weight:800;color:#8ab5b1;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid rgba(94,234,212,0.2)">${dayLabel}</div>
+      ${entries}
+    </div>`;
+  }).join("");
+
+  el.innerHTML = `<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-dim);margin:10px 0 6px">📌 Remindere săptămâna asta</div>` + dayCards;
 }
 
 function copySortatoriFromPrevMonth(){
@@ -8723,9 +9000,9 @@ async function confirmImportExcel(){
       logActivity("📥 Import prezențe",dr.name,r.newPrezente.length+"z ("+MRO[r.monthNum]+" "+r.yearVal+")","concedii");
     }
     // Unim perioadele consecutive și scoatem sărbătorile
-    if(r.newLeaves.length) dr.leaves = cleanLeavesFromHolidays(dr.leaves);
-    if(r.newKrank.length)  dr.krankLeaves = cleanLeavesFromHolidays(dr.krankLeaves);
-    if(r.newUnpaid.length) dr.unpaidLeaves = cleanLeavesFromHolidays(dr.unpaidLeaves);
+    if(r.newLeaves.length) dr.leaves = splitLeavesFromHolidaysOnly(dr.leaves);
+    if(r.newKrank.length)  dr.krankLeaves = splitLeavesFromHolidaysOnly(dr.krankLeaves);
+    if(r.newUnpaid.length) dr.unpaidLeaves = splitLeavesFromHolidaysOnly(dr.unpaidLeaves);
     // Marcăm automat luna ca "importată" pentru această persoană
     markExcelImported(dr.name, r.yearVal+"-"+String(r.monthNum).padStart(2,"0"));
     count++;
@@ -8784,6 +9061,19 @@ function cleanLeavesFromHolidays(leaves){
   return mergeLeaves(result);
 }
 
+// Doar sparge perioadele care conțin sărbători — FĂRĂ să unească automat
+// perioade separate. Unirea rămâne strict manuală, doar prin butonul dedicat
+// "🔧 Unește perioade consecutive" — userul decide explicit când vrea asta,
+// nu se întâmplă automat la fiecare adăugare de concediu.
+function splitLeavesFromHolidaysOnly(leaves){
+  const result=[];
+  (leaves||[]).forEach(l=>{
+    const segs=splitLeaveAroundHolidays(l);
+    segs.forEach(s=>result.push(s));
+  });
+  return result;
+}
+
 async function normalizeAllLeaves(){
   if(!isAdmin()){toast("Doar Admin",true);return;}
   if(!confirm("Unești perioadele consecutive ȘI scoți zilele de sărbătoare din concedii?\nAcesta va actualiza datele în Firestore.")) return;
@@ -8834,7 +9124,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.09.08-01";
+const APP_VERSION = "2026.09.19-09";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -10158,7 +10448,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.08-01</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.19-09</div>
 
 </body>
 </html>
