@@ -8215,7 +8215,11 @@ function loadPresState(){
       presState = {presence:{}};
     }
     // Re-render timeline if visible
-    if(document.getElementById("timelineView").style.display!=="none") renderTimeline();
+    // Re-randăm NECONDIȚIONAT (nu doar dacă timelineView pare vizibil chiar
+    // ACUM) — verificarea condiționată crea o cursă de condiții: dacă
+    // datele soseau puțin prea devreme (înainte ca interfața să fie
+    // complet afișată), re-randarea era sărită silențios, definitiv.
+    renderTimeline();
   }, err=>console.error("pres snap",err));
 }
 
@@ -9364,7 +9368,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.09.24-04";
+const APP_VERSION = "2026.09.24-05";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -10688,7 +10692,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.24-04</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.24-05</div>
 
 </body>
 </html>
