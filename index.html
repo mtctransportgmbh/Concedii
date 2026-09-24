@@ -1396,6 +1396,7 @@
       </div>
       <!-- Statistici sumare -->
       <div id="libereStats" style="margin-bottom:10px"></div>
+      <div id="libereFreeRecommendation" style="display:none;margin-bottom:10px"></div>
       <!-- Timeline Libere -->
       <div class="timeline-wrap">
         <div class="timeline" id="libereTimeline"></div>
@@ -2421,7 +2422,8 @@ async function saveDriversNow(){
 // ============================================================
 async function fetchCompleteServerState(){
   const pinKeys=["raluca","madalina","corina","mihaela","tania"];
-  const [concSnap, sortSnap, planSnap, presSnap, libSnap, pinSnaps, permSnap] = await Promise.all([
+  const [concSnap, sortSnap, planSnap, presSnap, libSnap, pinSnaps, permSnap,
+         excelStatusSnap, backupDiffSnap, planWarnSnap, calRemindSnap, activitySnap] = await Promise.all([
     db.collection(concediiColl()).get(), // TOATĂ colecția, nu doar 4 documente cunoscute — evită orice discrepanță dacă apare un document neașteptat
     db.collection(sortatoriColl()).doc("state").get(),
     db.collection("planificare").doc("ruhstorf").get(),
@@ -2429,6 +2431,11 @@ async function fetchCompleteServerState(){
     db.collection(libereColl()).doc("state").get(),
     Promise.all(pinKeys.map(pk=>db.collection("pins").doc(pk).get())),
     db.collection("permissions").doc("overrides").get(),
+    db.collection(excelImportColl()).get(), // toate documentele (câte unul per lună)
+    db.collection("backup_diff_settings").doc("manual_name_links").get(),
+    db.collection("planificare_warnings").doc("list").get(),
+    db.collection("calendar_reminders").doc("list").get(),
+    db.collection(activityColl()).orderBy("timestamp","desc").limit(1000).get(), // limitat — evită riscul de document Firestore prea mare la restaurare
   ]);
 
   // Merge persoane din TOATE documentele existente în colecție, deduplicat după nume
@@ -2457,7 +2464,17 @@ async function fetchCompleteServerState(){
   // Permisiuni acordate (panoul de Permisiuni) — un singur document
   const permissionsData = permSnap.exists ? permSnap.data() : null;
 
-  return {allDrivers, sortatoriData, planData, presData, libData, pinsData, permissionsData};
+  // Status import Excel — un document per lună
+  const excelStatusData = {};
+  excelStatusSnap.forEach(doc=>{ excelStatusData[doc.id] = doc.data(); });
+
+  const backupDiffData = backupDiffSnap.exists ? backupDiffSnap.data() : null;
+  const planWarningsData = planWarnSnap.exists ? planWarnSnap.data() : null;
+  const calRemindersData = calRemindSnap.exists ? calRemindSnap.data() : null;
+  const activityData = activitySnap.docs.map(d=>d.data());
+
+  return {allDrivers, sortatoriData, planData, presData, libData, pinsData, permissionsData,
+          excelStatusData, backupDiffData, planWarningsData, calRemindersData, activityData};
 }
 
 function buildCompleteBackup(){
@@ -2534,7 +2551,8 @@ async function triggerAutoBackup(time, customDocId){
     // Citim ÎNTOTDEAUNA complet de pe server — indiferent cine a declanșat
     // salvarea, backup-ul trebuie să conțină absolut tot (toate persoanele,
     // nu doar grupul userului curent), sortatori, planificare, prezențe, libere.
-    const {allDrivers, sortatoriData, planData, presData, libData, pinsData, permissionsData} = await fetchCompleteServerState();
+    const {allDrivers, sortatoriData, planData, presData, libData, pinsData, permissionsData,
+           excelStatusData, backupDiffData, planWarningsData, calRemindersData, activityData} = await fetchCompleteServerState();
     if(!allDrivers.length){ console.warn("triggerAutoBackup: server gol — ABORTED"); return; }
 
     const driversData={};
@@ -2566,9 +2584,14 @@ async function triggerAutoBackup(time, customDocId){
       ? {persons:libData.persons, days:libData.days||{}} : null;
     const pinsSnap = (pinsData && Object.keys(pinsData).length>0) ? pinsData : null;
     const permSnap3 = permissionsData || null;
+    const excelStatusSnap2 = (excelStatusData && Object.keys(excelStatusData).length>0) ? excelStatusData : null;
+    const backupDiffSnap2 = backupDiffData || null;
+    const planWarningsSnap2 = planWarningsData || null;
+    const calRemindersSnap2 = calRemindersData || null;
+    const activitySnap2 = (activityData && activityData.length>0) ? activityData : null;
 
     const backupDoc = {
-      version:4, year:activeYear,
+      version:5, year:activeYear,
       savedAt:now.toISOString(), time, date:today, slot,
       savedBy:snapshotUser,
       driverCount:allDrivers.length,
@@ -2579,7 +2602,12 @@ async function triggerAutoBackup(time, customDocId){
       ...(planSnap2?{planificare:planSnap2}:{}),
       ...(libereSnap?{libere:libereSnap}:{}),
       ...(pinsSnap?{pins:pinsSnap}:{}),
-      ...(permSnap3?{permissions:permSnap3}:{})
+      ...(permSnap3?{permissions:permSnap3}:{}),
+      ...(excelStatusSnap2?{excelImportStatus:excelStatusSnap2}:{}),
+      ...(backupDiffSnap2?{backupDiffSettings:backupDiffSnap2}:{}),
+      ...(planWarningsSnap2?{planificareWarnings:planWarningsSnap2}:{}),
+      ...(calRemindersSnap2?{calendarReminders:calRemindersSnap2}:{}),
+      ...(activitySnap2?{activityLog:activitySnap2}:{}),
     };
 
     await db.collection(backupColl()).doc(docId).set(backupDoc);
@@ -4678,6 +4706,11 @@ function importBackup(e){
       if(loaded.permissions){
         permOverrides = loaded.permissions;
       }
+      // ── 7. STATUS IMPORT EXCEL, LEGĂTURI NUME, AVERTIZĂRI PLANIFICARE, REMINDERE ──
+      if(loaded.excelImportStatus) excelImportStatus = loaded.excelImportStatus;
+      if(loaded.backupDiffSettings) _manualNameLinks = loaded.backupDiffSettings;
+      if(loaded.planificareWarnings) _planificareWarnings = loaded.planificareWarnings.warnings||[];
+      if(loaded.calendarReminders) _calendarReminders = loaded.calendarReminders.reminders||[];
 
       // Scriem TOT înapoi pe server — altfel restaurarea ar exista doar
       // local, în acest browser, și s-ar pierde la refresh.
@@ -4688,7 +4721,15 @@ function importBackup(e){
       if(loaded.planificare) savePromises.push(savePlanState());
       if(loaded.libere)    savePromises.push(saveLibereState());
       if(loaded.permissions) savePromises.push(savePermOverrides());
-      // ── 7. CODURI PIN — un document separat per user, scriem direct ──
+      if(loaded.excelImportStatus){
+        Object.entries(loaded.excelImportStatus).forEach(([mk,statusDoc])=>{
+          savePromises.push(db.collection(excelImportColl()).doc(mk).set(statusDoc));
+        });
+      }
+      if(loaded.backupDiffSettings) savePromises.push(db.collection("backup_diff_settings").doc("manual_name_links").set(loaded.backupDiffSettings));
+      if(loaded.planificareWarnings) savePromises.push(db.collection("planificare_warnings").doc("list").set(loaded.planificareWarnings));
+      if(loaded.calendarReminders) savePromises.push(db.collection("calendar_reminders").doc("list").set(loaded.calendarReminders));
+      // ── 8. CODURI PIN — un document separat per user, scriem direct ──
       if(loaded.pins){
         Object.entries(loaded.pins).forEach(([uk,pinDoc])=>{
           savePromises.push(db.collection("pins").doc(uk).set(pinDoc));
@@ -4803,7 +4844,8 @@ async function downloadBackupNow(){
   // sortatori/planificare/prezențe/libere complete și la zi.
   let backup;
   try{
-    const {allDrivers, sortatoriData, planData, presData, libData, pinsData, permissionsData} = await fetchCompleteServerState();
+    const {allDrivers, sortatoriData, planData, presData, libData, pinsData, permissionsData,
+           excelStatusData, backupDiffData, planWarningsData, calRemindersData, activityData} = await fetchCompleteServerState();
     const driversData=allDrivers.map(dr=>({
       name:dr.name, visibleTo:dr.visibleTo||[],
       maxDays:dr.maxDays||0, carryOverDays:dr.carryOverDays||0,
@@ -4817,7 +4859,7 @@ async function downloadBackupNow(){
       remainingDaysPaid:dr.remainingDaysPaid!==undefined?dr.remainingDaysPaid:null
     }));
     backup = {
-      version:4, year:activeYear, savedAt:new Date().toISOString(),
+      version:5, year:activeYear, savedAt:new Date().toISOString(),
       date:fmtDate(new Date()), savedBy:window.activeUserKey||"unknown",
       driverCount:driversData.length,
       thresholds:state.thresholds||{warn:3,crit:5},
@@ -4828,10 +4870,15 @@ async function downloadBackupNow(){
       libere: libData?{persons:libData.persons||{},days:libData.days||{}}:null,
       pins: (pinsData&&Object.keys(pinsData).length>0)?pinsData:null,
       permissions: permissionsData||null,
+      excelImportStatus: (excelStatusData&&Object.keys(excelStatusData).length>0)?excelStatusData:null,
+      backupDiffSettings: backupDiffData||null,
+      planificareWarnings: planWarningsData||null,
+      calendarReminders: calRemindersData||null,
+      activityLog: activityData||[], // ultimele 1000 intrări — istoric complet needepractic într-un document
     };
   }catch(e){
-    console.warn("downloadBackupNow: fetch complet eșuat, fallback la buildCompleteBackup local",e);
-    backup = buildCompleteBackup();
+    toast("❌ Backup-ul NU s-a putut genera complet: "+e.message+" — încearcă din nou, nu s-a descărcat niciun fișier.",true);
+    return;
   }
   const data=JSON.stringify(backup,null,2);
   const blob=new Blob([data],{type:"application/json"});
@@ -6459,6 +6506,143 @@ function renderLibere(){
 
   // ── Statistici ──
   renderLibereStats(persons, statsPerPerson, mk, y, m);
+  renderLibereFreeRecommendation(persons, mk, y, m);
+}
+
+// ============================================================
+// RECOMANDARE "CINE AR TREBUI SĂ AIBĂ LIBER URMĂTORUL" — doar pentru Admin.
+// Regulă: rotație echitabilă, bazată STRICT pe luna curentă (nu istoric din
+// lunile anterioare) — cine a avut cele mai puține zile "liber" luna asta
+// e prioritar. Excludem persoanele care s-au întors din concediu de mai
+// puțin de 5 zile LUCRĂTOARE — au nevoie să lucreze câteva zile întâi.
+// ============================================================
+function computeLibereFreeRecommendation(persons, mk, y, m){
+  const dayData = (libereState.days||{})[mk]||{};
+  const today = new Date();
+  const results = [];
+
+  persons.forEach(name=>{
+    const personDays = dayData[name]||{};
+    const liberDayNums = Object.entries(personDays).filter(([day,v])=>v==="liber").map(([day])=>parseInt(day));
+    const liberCount = liberDayNums.length;
+    // Cea mai RECENTĂ zi de "liber" din luna asta — folosită ca departajare
+    // când 2+ persoane au același număr de zile libere: cine a avut ultima
+    // dată "liber" mai demult e mai îndreptățit să fie următorul.
+    const lastLiberDay = liberCount ? Math.max(...liberDayNums) : null;
+
+    // Verificăm dacă persoana s-a întors recent din concediu SAU e chiar
+    // ACUM în concediu — ambele cazuri o exclud din recomandare
+    const dr = state.drivers.find(d=>d.name===name);
+    let notEligible = false, workdaysSinceReturn = null, currentlyOnLeave = false, recentlyHired = false;
+    if(dr){
+      // 0) A fost angajată de mai puțin de 14 zile calendaristice? — regulă
+      // SEPARATĂ, needeconectată de concediu.
+      if(dr.startDate){
+        const daysSinceHired = Math.round((today-parseDate(dr.startDate))/86400000);
+        if(daysSinceHired>=0 && daysSinceHired<14){
+          notEligible = true;
+          recentlyHired = true;
+        }
+      }
+
+      const allLeaves = dr.leaves||[];
+
+      // 1) E chiar ACUM în concediu? (bug găsit — înainte se verifica doar
+      // concediul TERMINAT, un concediu ÎN CURS era complet ignorat)
+      const activeLeave = allLeaves.find(l=>parseDate(l.start)<=today && today<=parseDate(l.end));
+      if(activeLeave){
+        notEligible = true;
+        currentlyOnLeave = true;
+      } else {
+        // 2) S-a întors recent dintr-un concediu de MINIM 3 zile CONSECUTIVE?
+        // Un concediu de 1 zi (ex: o programare medicală) nu ar trebui să
+        // blocheze rotația — doar concediile reale, de câteva zile.
+        const sorted = [...allLeaves].sort((a,b)=>b.end.localeCompare(a.end));
+        const lastLeave = sorted.find(l=>{
+          const days = Math.round((parseDate(l.end)-parseDate(l.start))/86400000)+1;
+          return days>=3 && parseDate(l.end)<=today;
+        });
+        if(lastLeave){
+          const leaveEnd = parseDate(lastLeave.end);
+          let count=0;
+          const d = new Date(leaveEnd); d.setDate(d.getDate()+1);
+          while(d<=today){
+            if(isWorkday(d)) count++;
+            d.setDate(d.getDate()+1);
+          }
+          workdaysSinceReturn = count;
+          if(count < 6) notEligible = true;
+        }
+      }
+    }
+
+    results.push({name, liberCount, lastLiberDay, notEligible, workdaysSinceReturn, currentlyOnLeave, recentlyHired});
+  });
+
+  // Sortăm: întâi cei cu cele mai puține "liber" (prioritari); la egalitate,
+  // cine a avut ultima oară "liber" mai demult (rotație reală, nu doar
+  // contor simplu) — cei fără NICIO zi liber încă (lastLiberDay=null) sunt
+  // cei mai prioritari dintre cei cu același contor.
+  const eligible = results.filter(r=>!r.notEligible).sort((a,b)=>{
+    if(a.liberCount!==b.liberCount) return a.liberCount-b.liberCount;
+    if(a.lastLiberDay===null && b.lastLiberDay===null) return 0;
+    if(a.lastLiberDay===null) return -1;
+    if(b.lastLiberDay===null) return 1;
+    return a.lastLiberDay-b.lastLiberDay;
+  });
+  const ineligible = results.filter(r=>r.notEligible).sort((a,b)=>{
+    if(a.currentlyOnLeave && !b.currentlyOnLeave) return -1;
+    if(!a.currentlyOnLeave && b.currentlyOnLeave) return 1;
+    if(a.workdaysSinceReturn===null || b.workdaysSinceReturn===null) return 0;
+    return a.workdaysSinceReturn-b.workdaysSinceReturn;
+  });
+  return {eligible, ineligible};
+}
+
+function renderLibereFreeRecommendation(persons, mk, y, m){
+  const container = document.getElementById("libereFreeRecommendation");
+  if(!container) return;
+  if(!isAdmin() || !persons.length){ container.style.display="none"; return; }
+  container.style.display="block";
+
+  const {eligible, ineligible} = computeLibereFreeRecommendation(persons, mk, y, m);
+  if(!eligible.length && !ineligible.length){ container.innerHTML=""; return; }
+
+  // Recomandare UNICĂ — prima din lista deja sortată corect (cel mai puțin
+  // liber, iar la egalitate, cel cu "liber" mai demult primul)
+  const top = eligible[0];
+  const rest = eligible.slice(1);
+
+  let html = `<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px">💡 Recomandare — cine ar trebui să aibă liber următorul</div>`;
+
+  if(top){
+    const detail = top.liberCount===0 ? "0 zile liber luna asta" : top.liberCount+" zile liber luna asta, ultima pe "+top.lastLiberDay+"."+(m+1);
+    html += `<div style="padding:8px 12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:8px;margin-bottom:8px">
+      <div style="font-size:13px;font-weight:800;color:#10b981">${escapeHtml(top.name)}</div>
+      <div style="font-size:11px;color:var(--text-dim)">${detail}</div>
+    </div>`;
+  }
+
+  if(rest.length){
+    html += `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">Următorii, în ordine: ${rest.map(r=>escapeHtml(r.name)+" ("+r.liberCount+")").join(", ")}</div>`;
+  }
+
+  if(ineligible.length){
+    const onLeaveNow = ineligible.filter(r=>r.currentlyOnLeave);
+    const recentlyHiredList = ineligible.filter(r=>r.recentlyHired && !r.currentlyOnLeave);
+    const recentlyReturned = ineligible.filter(r=>!r.currentlyOnLeave && !r.recentlyHired);
+    if(onLeaveNow.length){
+      html += `<div style="font-size:11px;color:#ef4444;margin-bottom:3px">🏖️ În concediu acum: ${onLeaveNow.map(r=>escapeHtml(r.name)).join(", ")}</div>`;
+    }
+    if(recentlyHiredList.length){
+      html += `<div style="font-size:11px;color:#8b5cf6;margin-bottom:3px">🆕 Angajați recent (sub 14 zile): ${recentlyHiredList.map(r=>escapeHtml(r.name)).join(", ")}</div>`;
+    }
+    if(recentlyReturned.length){
+      html += `<div style="font-size:11px;color:#f59e0b">⏳ Nu recomandăm încă (s-au întors recent din concediu de min. 3 zile): ${recentlyReturned.map(r=>escapeHtml(r.name)+" — mai lucrează "+(6-r.workdaysSinceReturn)+"z").join(", ")}</div>`;
+    }
+  }
+
+  container.innerHTML = html;
 }
 
 function isWorkday(d){ return !isSunday(d)&&!getHoliday(d); }
@@ -8654,6 +8838,22 @@ async function confirmRestoreBackup(){
     if(bd.pins && Object.keys(bd.pins).length>0){
       await Promise.all(Object.entries(bd.pins).map(([uk,pinDoc])=>db.collection("pins").doc(uk).set(pinDoc)));
     }
+    if(bd.excelImportStatus && Object.keys(bd.excelImportStatus).length>0){
+      await Promise.all(Object.entries(bd.excelImportStatus).map(([mk,statusDoc])=>db.collection(excelImportColl()).doc(mk).set(statusDoc)));
+      excelImportStatus = bd.excelImportStatus;
+    }
+    if(bd.backupDiffSettings){
+      await db.collection("backup_diff_settings").doc("manual_name_links").set(bd.backupDiffSettings);
+      _manualNameLinks = bd.backupDiffSettings;
+    }
+    if(bd.planificareWarnings){
+      await db.collection("planificare_warnings").doc("list").set(bd.planificareWarnings);
+      _planificareWarnings = bd.planificareWarnings.warnings||[];
+    }
+    if(bd.calendarReminders){
+      await db.collection("calendar_reminders").doc("list").set(bd.calendarReminders);
+      _calendarReminders = bd.calendarReminders.reminders||[];
+    }
     await saveDriversNow();
     renderAll();
     if(document.getElementById("sortatoriTimeline"))renderSortatoriTimeline();
@@ -9124,7 +9324,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.09.19-09";
+const APP_VERSION = "2026.09.24-02";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -10448,7 +10648,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.19-09</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.24-02</div>
 
 </body>
 </html>
