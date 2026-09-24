@@ -1469,7 +1469,8 @@
       <div id="backupRestoreWarning" style="margin-top:14px;padding:10px;background:rgba(239,68,68,0.1);border-radius:6px;border:1px solid rgba(239,68,68,0.3);font-size:12px;color:var(--red)">⚠️ Restaurarea va înlocui datele curente. Acțiunea nu poate fi anulată.</div>
       <div class="modal-actions" style="margin-top:10px">
         <button class="btn btn-secondary" onclick="backToBackupList()">Anulează</button>
-        <button class="btn" id="backupRestoreConfirmBtn" onclick="confirmRestoreBackup()" style="background:#ef4444;border-color:#ef4444">🔄 Restaurează</button>
+        <button class="btn btn-secondary" id="backupRestorePresenceOnlyBtn" onclick="confirmRestorePresenceOnly()" style="border-color:#3b82f6;color:#3b82f6">🔄 Restaurează DOAR Prezențe din acest backup</button>
+        <button class="btn" id="backupRestoreConfirmBtn" onclick="confirmRestoreBackup()" style="background:#ef4444;border-color:#ef4444">🔄 Restaurează COMPLET</button>
       </div>
     </div>
     <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('modalBackupManager')">Închide</button></div>
@@ -1880,7 +1881,7 @@
 // ============================================================
 // CONFIGURARE — schimbă doar USE_TEST pentru a comuta între medii
 // ============================================================
-const USE_TEST = false; // true = test | false = producție
+const USE_TEST = true; // true = test | false = producție
 
 const FIREBASE_CONFIGS = {
   production: {
@@ -2360,6 +2361,7 @@ function scheduleSave(){
   if(saveTimer)clearTimeout(saveTimer);
   setSaveStatus("saving","Se salvează...");
   saveTimer = setTimeout(()=>saveDriversNow(), 600);
+  scheduleActivityBackup();
 }
 
 // Salvare IMEDIATĂ (fără debounce) — folosită de scheduleSave() (prin timer)
@@ -2533,6 +2535,36 @@ function restoreCompleteBackup(bk){
     }
   });
   return restored;
+}
+
+// ============================================================
+// BACKUP DECLANȘAT DE ACTIVITATE — orice modificare de date, de la orice
+// user, declanșează un backup automat în Firestore după câteva secunde de
+// inactivitate. Dacă activitatea continuă neîntreruptă (acțiuni repetate
+// una după alta), se forțează un backup după maxim 1 minut, ca nicio
+// sesiune lungă de lucru să nu rămână needeacoperită.
+// ============================================================
+let _activityBackupTimer = null;
+let _activityBackupFirstActionAt = null;
+const ACTIVITY_BACKUP_DEBOUNCE_MS = 8000;  // 8 secunde de inactivitate
+const ACTIVITY_BACKUP_MAX_WAIT_MS = 60000; // plafon — maxim 1 minut
+
+function scheduleActivityBackup(){
+  const now = Date.now();
+  if(!_activityBackupFirstActionAt) _activityBackupFirstActionAt = now;
+  if(_activityBackupTimer) clearTimeout(_activityBackupTimer);
+
+  const elapsed = now - _activityBackupFirstActionAt;
+  const waitTime = Math.min(ACTIVITY_BACKUP_DEBOUNCE_MS, ACTIVITY_BACKUP_MAX_WAIT_MS - elapsed);
+
+  const fire = ()=>{
+    _activityBackupFirstActionAt = null;
+    const docId = "activity_"+fmtDate(new Date())+"_"+Date.now();
+    triggerAutoBackup("activity", docId);
+  };
+
+  if(waitTime<=0){ fire(); return; } // plafonul de 1 minut a fost atins — backup imediat
+  _activityBackupTimer = setTimeout(fire, waitTime);
 }
 
 async function triggerAutoBackup(time, customDocId){
@@ -5993,6 +6025,7 @@ let _planificareConcediiUnsub = null;
 let _planificareWarningsUnsub = null;
 let _sortUnsub = null; // separate from unsubListeners
 let presState = {presence:{}};
+let _presStateLoaded = false; // devine true doar după primul răspuns REAL de la server
 let _presUnsub = null;
 
 // ---- Helpers ----
@@ -6359,6 +6392,7 @@ function loadLibereState(){
 }
 
 async function saveLibereState(){
+  scheduleActivityBackup();
   try{
     await db.collection(libereColl()).doc("state").set(JSON.parse(JSON.stringify(libereState)));
     return true;
@@ -6871,6 +6905,7 @@ function goSortToday(){ sortCurrentDate = new Date(); renderSortatoriTimeline();
 
 // ---- Firestore ----
 async function saveSortState(){
+  scheduleActivityBackup();
   try{
     // Verificăm că există cel puțin o lună cu date
     const hasData = Array.isArray(sortState.drivers)
@@ -8214,6 +8249,7 @@ function loadPresState(){
     } else {
       presState = {presence:{}};
     }
+    _presStateLoaded = true; // acum e sigur să scriem — am primit un răspuns REAL de pe server
     // Re-render timeline if visible
     // Re-randăm NECONDIȚIONAT (nu doar dacă timelineView pare vizibil chiar
     // ACUM) — verificarea condiționată crea o cursă de condiții: dacă
@@ -8224,8 +8260,14 @@ function loadPresState(){
 }
 
 async function savePresState(){
+  if(!_presStateLoaded){
+    console.error("savePresState: BLOCAT — presState nu a fost încă încărcat de pe server. Salvarea ar fi suprascris datele reale cu un obiect gol.");
+    toast("⚠️ Salvarea prezenței a fost blocată — datele nu erau încă încărcate corect. Reîncarcă pagina și încearcă din nou.",true);
+    return;
+  }
   try{
     await db.collection(prezenteColl()).doc("state").set(JSON.parse(JSON.stringify(presState)));
+    scheduleActivityBackup();
   }catch(e){ console.error("pres save",e); }
 }
 
@@ -8612,12 +8654,20 @@ function computeBackupDiff(bd){
   const bdSortPres=(bd.sortatori&&bd.sortatori.presence)||{};
   const liveSortPres=sortState.presence||{};
   let sortPresDiff=0;
+  const sortPresChanges=[];
+  const SORT_PRES_DETAIL_LIMIT=50;
   new Set([...Object.keys(bdSortPres),...Object.keys(liveSortPres)]).forEach(mk=>{
     const bm=bdSortPres[mk]||{}, lm=liveSortPres[mk]||{};
     new Set([...Object.keys(bm),...Object.keys(lm)]).forEach(name=>{
       const bdays=bm[name]||{}, ldays=lm[name]||{};
       new Set([...Object.keys(bdays),...Object.keys(ldays)]).forEach(day=>{
-        if((bdays[day]||null)!==(ldays[day]||null)) sortPresDiff++;
+        const bv=bdays[day]||null, lv2=ldays[day]||null;
+        if(bv!==lv2){
+          sortPresDiff++;
+          if(sortPresDiff<=SORT_PRES_DETAIL_LIMIT){
+            sortPresChanges.push(`<b>${escapeHtml(name)}</b> — ${mk} ziua ${day}: ${bv||"—"} → ${lv2||"—"}`);
+          }
+        }
       });
     });
   });
@@ -8625,16 +8675,28 @@ function computeBackupDiff(bd){
   // Planificare
   const bdPlan=bd.planificare||{}, livePlan=planState||{};
   let planDiff=0;
+  const planChanges=[];
+  const PLAN_DETAIL_LIMIT=50;
+  const DOW_RO_SHORT=["Lu","Ma","Mi","Jo","Vi","Sâ","Du"];
   new Set([...Object.keys(bdPlan),...Object.keys(livePlan)]).forEach(wk=>{
     const bw=bdPlan[wk]||{}, lw=livePlan[wk]||{};
     new Set([...Object.keys(bw),...Object.keys(lw)]).forEach(name=>{
       const ba=bw[name]||[0,0,0,0,0,0,0], la=lw[name]||[0,0,0,0,0,0,0];
-      for(let i=0;i<7;i++) if((ba[i]||0)!==(la[i]||0)) planDiff++;
+      for(let i=0;i<7;i++){
+        if((ba[i]||0)!==(la[i]||0)){
+          planDiff++;
+          if(planDiff<=PLAN_DETAIL_LIMIT){
+            const monday=getMondayFromWeekKey(wk);
+            const dayLabel = monday ? DOW_RO_SHORT[i]+" "+formatDateRO(fmtDate(new Date(monday.getFullYear(),monday.getMonth(),monday.getDate()+i))) : DOW_RO_SHORT[i];
+            planChanges.push(`<b>${escapeHtml(name)}</b> — ${dayLabel}: ${ba[i]?"bifat":"nebifat"} → ${la[i]?"bifat":"nebifat"}`);
+          }
+        }
+      }
     });
   });
 
   const total = newDrivers.length+removedDrivers.length+leaveChanges.length+otherChanges.length+prezDiff+sortChanges.length+sortPresDiff+planDiff;
-  return {newDrivers,removedDrivers,renamedDrivers,leaveChanges,otherChanges,prezDiff,sortChanges,sortPresDiff,planDiff,total};
+  return {newDrivers,removedDrivers,renamedDrivers,leaveChanges,otherChanges,prezDiff,sortChanges,sortPresDiff,sortPresChanges,planDiff,planChanges,total};
 }
 
 function renderBackupDiff(bd, diff){
@@ -8695,9 +8757,17 @@ function renderBackupDiff(bd, diff){
 
     const summaryBits=[];
     if(diff.prezDiff)     summaryBits.push("📅 Prezențe (timeline): <b>"+diff.prezDiff+"</b> celule diferite");
-    if(diff.sortPresDiff) summaryBits.push("📋 Prezențe sortatori: <b>"+diff.sortPresDiff+"</b> celule diferite");
-    if(diff.planDiff)     summaryBits.push("🗓️ Planificare: <b>"+diff.planDiff+"</b> celule diferite");
+    if(diff.sortPresDiff) summaryBits.push("📋 Prezențe sortatori: <b>"+diff.sortPresDiff+"</b> celule diferite"+(diff.sortPresDiff>50?" (prea multe pentru detaliu)":""));
+    if(diff.planDiff)     summaryBits.push("🗓️ Planificare: <b>"+diff.planDiff+"</b> celule diferite"+(diff.planDiff>50?" (prea multe pentru detaliu)":""));
     html+=_diffSection("🔢 Sumar modificări numerice", summaryBits);
+
+    // Detalii concrete — doar când numărul e mic (sub 50), altfel needepractic
+    if(diff.sortPresChanges && diff.sortPresChanges.length){
+      html+=_diffSection("📋 Prezențe sortatori — detaliu ("+diff.sortPresDiff+")", diff.sortPresChanges);
+    }
+    if(diff.planChanges && diff.planChanges.length){
+      html+=_diffSection("🗓️ Planificare — detaliu ("+diff.planDiff+")", diff.planChanges);
+    }
   }
 
   document.getElementById("backupPreviewContent").innerHTML=html;
@@ -8746,6 +8816,8 @@ function previewBackup(idx){
   document.getElementById("backupRestoreWarning").style.display="";
   document.getElementById("backupRestoreConfirmBtn").style.display="";
   const bd=_backupDocs[idx];
+  const presBtn = document.getElementById("backupRestorePresenceOnlyBtn");
+  if(presBtn) presBtn.style.display = (bd.prezente && Object.keys(bd.prezente).length>0) ? "" : "none";
   const savedAt=bd.savedAt?new Date(bd.savedAt):null;
   document.getElementById("backupPreviewTitle").textContent="Backup din: "+(savedAt?savedAt.toLocaleString("ro-RO"):(bd.date||bd.id));
 
@@ -8828,6 +8900,34 @@ function previewBackup(idx){
   document.getElementById("backupPreviewContent").innerHTML=html;
   document.getElementById("backupManagerList").style.display="none";
   document.getElementById("backupManagerPreview").style.display="block";
+}
+
+// Restaurare SELECTIVĂ, doar pentru Prezențe — spre deosebire de
+// restaurarea completă, NU atinge Concedii/Sortatori/Planificare/etc.
+// Esențială pentru cazul în care doar prezențele s-au pierdut (ex: în urma
+// unei suprascrieri accidentale), dar restul datelor au evoluat normal de
+// atunci și nu trebuie pierdute odată cu restaurarea.
+async function confirmRestorePresenceOnly(){
+  if(_selectedBackupIdx<0||_selectedBackupIdx>=_backupDocs.length) return;
+  const bd=_backupDocs[_selectedBackupIdx];
+  if(!bd.prezente || Object.keys(bd.prezente).length===0){
+    toast("Acest backup nu are date de Prezențe de restaurat",true);
+    return;
+  }
+  if(!confirm("Restaurezi DOAR datele de Prezențe din acest backup ("+(bd.date||bd.savedAt||bd.id)+")?\n\nRestul datelor (Concedii, Sortatori, Planificare, etc.) NU vor fi atinse — rămân exact cum sunt acum, live.\n\nContinui?")) return;
+  const btn=document.getElementById("backupRestorePresenceOnlyBtn");
+  btn.disabled=true; btn.textContent="⏳ Se restaurează...";
+  try{
+    presState.presence = bd.prezente;
+    _presStateLoaded = true; // datele sunt acum valide local, permite salvarea
+    await savePresState();
+    renderAll();
+    if(document.getElementById("timelineView")) renderTimeline();
+    logActivity("🔄 Restaurare SELECTIVĂ — doar Prezențe","—","din backup "+(bd.date||bd.savedAt||bd.id),"sistem");
+    toast("✅ Prezențele au fost restaurate din backup — restul datelor needeatinse");
+    closeModal("modalBackupManager");
+  }catch(e){ toast("Eroare: "+e.message,true); }
+  btn.disabled=false; btn.textContent="🔄 Restaurează DOAR Prezențe din acest backup";
 }
 
 async function confirmRestoreBackup(){
@@ -9374,7 +9474,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.09.24-06";
+const APP_VERSION = "2026.09.24-09";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -9564,6 +9664,7 @@ function loadPlanState(){
 }
 
 async function savePlanState(){
+  scheduleActivityBackup();
   try{
     await db.collection("planificare").doc("ruhstorf").set(JSON.parse(JSON.stringify(planState)));
   }catch(e){ console.error("plan save",e); }
@@ -10698,7 +10799,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.24-06</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.24-09</div>
 
 </body>
 </html>
