@@ -2165,7 +2165,6 @@ function finishInit(){
   renderPlanificareWarningsBanner();
   loadCalendarReminders().then(()=>renderAll()); // markerele de reminder devin vizibile odată încărcate
   checkAnnouncementIfNeeded();
-  showAnnouncementIfNeeded();
   lastSavedAt = new Date();
   saveLocalBackup();
   setSaveStatus("ok","Date încărcate ✓");
@@ -6086,7 +6085,6 @@ function setAppMode(mode){
   const mlib=document.getElementById("modLibere");
   if(mlib){ mlib.classList.toggle("active", mode==="libere"); mlib.classList.toggle("mod-tab-active", mode==="libere"); }
   if(mode==="sortatori")   renderSortatoriTimeline();
-  if(mode==="prezente")    renderPrezenteTimeline();
   if(mode==="planificare"){ renderPlanificare(); startPlanificareLiveListeners(); }
   else stopPlanificareLiveListeners();
   if(mode==="libere")      renderLibere();
@@ -9366,7 +9364,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.09.24-03";
+const APP_VERSION = "2026.09.24-04";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -10690,7 +10688,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.24-03</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.24-04</div>
 
 </body>
 </html>
