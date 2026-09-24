@@ -8309,12 +8309,18 @@ let _backupSource = "firestore";
 let _githubFileList = [];
 
 function getGitHubRepoInfo(){
-  // Format GitHub Pages: https://{owner}.github.io/{repo}/...
+  // Format GitHub Pages standard: https://{owner}.github.io/{repo}/...
   const host = window.location.hostname;
-  const owner = host.split(".github.io")[0];
-  const pathParts = window.location.pathname.split("/").filter(Boolean);
-  const repo = pathParts[0] || "";
-  return {owner, repo};
+  if(host.endsWith(".github.io")){
+    const owner = host.replace(".github.io","");
+    const pathParts = window.location.pathname.split("/").filter(Boolean);
+    const repo = pathParts[0] || "";
+    if(owner && repo) return {owner, repo};
+  }
+  // Domeniu custom (ex: concedii.mtctransportgmbh.de) — URL-ul NU conține
+  // deloc informația de repository, detectarea automată e imposibilă.
+  // Fallback la valorile cunoscute ale proiectului.
+  return {owner:"mtctransportgmbh", repo:"Concedii"};
 }
 
 async function openBackupManager(){
@@ -9368,7 +9374,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.09.24-05";
+const APP_VERSION = "2026.09.24-06";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -10692,7 +10698,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.24-05</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.24-06</div>
 
 </body>
 </html>
