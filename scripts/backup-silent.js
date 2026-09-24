@@ -23,6 +23,11 @@ try{
   console.error('   Asigură-te că ai copiat exact tot conținutul fișierului .json, fără modificări.');
   process.exit(1);
 }
+const EXPECTED_PROJECT_ID = 'calendar-f2589'; // proiectul de PRODUCȚIE — NU concedii-test
+if(serviceAccount.project_id !== EXPECTED_PROJECT_ID){
+  console.error(`❌ STOP — proiectul Firebase folosit ("${serviceAccount.project_id}") NU este cel de producție ("${EXPECTED_PROJECT_ID}"). Backup-ul ar conține date greșite (posibil din concedii-test). Verifică secretul FIREBASE_SERVICE_ACCOUNT din GitHub → Settings → Secrets and variables → Actions.`);
+  process.exit(1);
+}
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
@@ -135,11 +140,41 @@ async function fetchAll(){
     if(permSnap.exists && permSnap.data()) permissions=permSnap.data();
   }catch(e){console.warn('permissions:',e.message);}
 
+  // Status import Excel — un document per lună, toate incluse
+  let excelImportStatus=null;
+  try{
+    const excelSnap=await db.collection('excel_import_status').get();
+    const excelObj={};
+    excelSnap.forEach(doc=>{ excelObj[doc.id]=doc.data(); });
+    if(Object.keys(excelObj).length>0) excelImportStatus=excelObj;
+  }catch(e){console.warn('excelImportStatus:',e.message);}
+
+  // Legături manuale de nume (comparație backup-uri)
+  let backupDiffSettings=null;
+  try{
+    const bdSnap=await db.collection('backup_diff_settings').doc('manual_name_links').get();
+    if(bdSnap.exists && bdSnap.data()) backupDiffSettings=bdSnap.data();
+  }catch(e){console.warn('backupDiffSettings:',e.message);}
+
+  // Avertizări persistente Planificare
+  let planificareWarnings=null;
+  try{
+    const pwSnap=await db.collection('planificare_warnings').doc('list').get();
+    if(pwSnap.exists && pwSnap.data()) planificareWarnings=pwSnap.data();
+  }catch(e){console.warn('planificareWarnings:',e.message);}
+
+  // Remindere pe zile de calendar
+  let calendarReminders=null;
+  try{
+    const crSnap=await db.collection('calendar_reminders').doc('list').get();
+    if(crSnap.exists && crSnap.data()) calendarReminders=crSnap.data();
+  }catch(e){console.warn('calendarReminders:',e.message);}
+
   const driversObj={};
   allDriversFull.forEach(d=>{ driversObj[d.id||d.name]=d; });
 
   return {
-    version:4, year:YEAR,
+    version:5, year:YEAR,
     savedAt:now.toISOString(), date:dateStr, time:timeStr,
     slot:'sched'+SLOT_HOUR,
     savedBy:'github-actions-silent',
@@ -151,7 +186,11 @@ async function fetchAll(){
     ...(planificare?{planificare}:{}),
     ...(libere?{libere}:{}),
     ...(pins?{pins}:{}),
-    ...(permissions?{permissions}:{})
+    ...(permissions?{permissions}:{}),
+    ...(excelImportStatus?{excelImportStatus}:{}),
+    ...(backupDiffSettings?{backupDiffSettings}:{}),
+    ...(planificareWarnings?{planificareWarnings}:{}),
+    ...(calendarReminders?{calendarReminders}:{})
   };
 }
 

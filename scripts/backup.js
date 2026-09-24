@@ -1,7 +1,14 @@
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
 
+const EXPECTED_PROJECT_ID = 'calendar-f2589'; // proiectul de PRODUCȚIE — NU concedii-test
+
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+console.log('🔑 Proiect Firebase folosit:', serviceAccount.project_id || '(lipsă)');
+if(serviceAccount.project_id !== EXPECTED_PROJECT_ID){
+  console.error(`❌ STOP — proiectul Firebase folosit ("${serviceAccount.project_id}") NU este cel de producție ("${EXPECTED_PROJECT_ID}"). Backup-ul ar conține date greșite (posibil din concedii-test). Verifică secretul FIREBASE_SERVICE_ACCOUNT din GitHub → Settings → Secrets and variables → Actions.`);
+  process.exit(1);
+}
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
@@ -91,13 +98,60 @@ async function fetchAll(){
     }
   }catch(e){console.warn('libere:',e.message);}
 
+  // Coduri PIN (login) — critice, fără ele niciun user non-admin nu se poate loga
+  let pins=null;
+  try{
+    const pinKeys=['raluca','madalina','corina','mihaela','tania'];
+    const pinSnaps=await Promise.all(pinKeys.map(pk=>db.collection('pins').doc(pk).get()));
+    const pinsObj={};
+    pinKeys.forEach((pk,i)=>{ if(pinSnaps[i].exists) pinsObj[pk]=pinSnaps[i].data(); });
+    if(Object.keys(pinsObj).length>0) pins=pinsObj;
+  }catch(e){console.warn('pins:',e.message);}
+
+  // Permisiuni acordate (panoul de Permisiuni) — fără ele, tot accesul non-admin dispare
+  let permissions=null;
+  try{
+    const permSnap=await db.collection('permissions').doc('overrides').get();
+    if(permSnap.exists && permSnap.data()) permissions=permSnap.data();
+  }catch(e){console.warn('permissions:',e.message);}
+
+  // Status import Excel — un document per lună, toate incluse
+  let excelImportStatus=null;
+  try{
+    const excelSnap=await db.collection('excel_import_status').get();
+    const excelObj={};
+    excelSnap.forEach(doc=>{ excelObj[doc.id]=doc.data(); });
+    if(Object.keys(excelObj).length>0) excelImportStatus=excelObj;
+  }catch(e){console.warn('excelImportStatus:',e.message);}
+
+  // Legături manuale de nume (comparație backup-uri)
+  let backupDiffSettings=null;
+  try{
+    const bdSnap=await db.collection('backup_diff_settings').doc('manual_name_links').get();
+    if(bdSnap.exists && bdSnap.data()) backupDiffSettings=bdSnap.data();
+  }catch(e){console.warn('backupDiffSettings:',e.message);}
+
+  // Avertizări persistente Planificare
+  let planificareWarnings=null;
+  try{
+    const pwSnap=await db.collection('planificare_warnings').doc('list').get();
+    if(pwSnap.exists && pwSnap.data()) planificareWarnings=pwSnap.data();
+  }catch(e){console.warn('planificareWarnings:',e.message);}
+
+  // Remindere pe zile de calendar
+  let calendarReminders=null;
+  try{
+    const crSnap=await db.collection('calendar_reminders').doc('list').get();
+    if(crSnap.exists && crSnap.data()) calendarReminders=crSnap.data();
+  }catch(e){console.warn('calendarReminders:',e.message);}
+
   const sortCount=sortatori?(Array.isArray(sortatori.drivers)?sortatori.drivers.length:Object.values(sortatori.drivers||{}).reduce((s,a)=>s+(a||[]).length,0)):0;
   const prezCount=Object.keys(prezente||{}).length;
   const planCount=Object.keys(planificare||{}).length;
   const libCount=libere?Object.keys(libere.persons||{}).length:0;
   console.log(`Sortatori: ${sortCount}, Prezente luni: ${prezCount}, Planificare saptamani: ${planCount}, Libere luni: ${libCount}`);
 
-  return {version:4,year:YEAR,savedAt:now.toISOString(),date:dateStr,time:timeStr,savedBy:'github-actions',driverCount:allDriversFull.length,thresholds:concedii['tania']?.thresholds||{warn:3,crit:5},drivers:allDriversFull,prezente:prezente||{},sortatori,planificare,libere,_raw_concedii:concedii};
+  return {version:5,year:YEAR,savedAt:now.toISOString(),date:dateStr,time:timeStr,savedBy:'github-actions',driverCount:allDriversFull.length,thresholds:concedii['tania']?.thresholds||{warn:3,crit:5},drivers:allDriversFull,prezente:prezente||{},sortatori,planificare,libere,pins,permissions,excelImportStatus,backupDiffSettings,planificareWarnings,calendarReminders,_raw_concedii:concedii};
 }
 
 // ── Ultimul backup salvat (din app, la 06/14/22 sau la modificari) ──
