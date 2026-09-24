@@ -1222,6 +1222,7 @@
     <button class="btn btn-secondary btn-small" id="borrowedDaysBtn" onclick="openBorrowedDaysManager()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📌 Zile împrumutate din anul viitor</button>
     <button class="btn btn-secondary btn-small" id="cleanStalePresenceBtn" onclick="cleanStaleSortPresence()" style="width:100%; margin-bottom:6px; display:none; border-color:#ef4444; color:#ef4444">🧹 Curăță prezențe reziduale (Sortatori)</button>
     <button class="btn btn-secondary btn-small" id="cleanStalePlanBtn" onclick="cleanStalePlanificare()" style="width:100%; margin-bottom:6px; display:none; border-color:#ef4444; color:#ef4444">🧹 Curăță bife Planificare reziduale</button>
+    <button class="btn btn-secondary btn-small" id="postAnnouncementBtn" onclick="postNewAnnouncement()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">📢 Postează anunț pentru toți</button>
     <button class="btn btn-secondary btn-small" id="verifyExcelBtn" onclick="document.getElementById('verifyExcelFile').click()" style="width:100%; margin-bottom:6px; display:none; border-color:#a78bfa; color:#a78bfa">📊 Verifică Excel vs HTML</button>
     <input type="file" id="verifyExcelFile" accept=".xlsx,.xlsm,.xls" style="display:none" onchange="verifyExcelFile(event)">
     <button class="btn btn-secondary btn-small" id="downloadBackupBtn" onclick="downloadBackupNow()" style="width:100%; margin-bottom:6px; display:none">💾 Descarcă backup acum</button>
@@ -1665,15 +1666,9 @@
 
 <div class="modal-bg" id="modalAnnouncement">
   <div class="modal" style="max-width:480px">
-    <h3>📌 Noutate — Remindere pe zile</h3>
-    <div class="modal-sub">Am adăugat la ultimul update</div>
-    <div style="font-size:13px;line-height:1.7;margin-top:10px">
-      <p>De acum poți adăuga <b>remindere scurte</b> direct pe orice zi din calendar — ceva de genul "Iancu vrea altă tură" sau "Paul vrea să termine mai repede".</p>
-      <p><b>Cum funcționează:</b><br>
-      Dai click pe orice zi din calendarul de Concedii, jos în fereastră scrii textul și apeși "+ Adaugă". Reminderul apare direct pe calendar, într-un chenar turcoaz, chiar deasupra zilei respective — nu mai trebuie să dai click ca să-l vezi.</p>
-      <p><b>Cine vede ce:</b><br>
-      Fiecare vede doar reminderele relevante pentru el — nu sunt vizibile tuturor la fel. Dacă ai nelămuriri despre exact ce vezi tu, întreabă-l pe Admin.</p>
-    </div>
+    <h3>📢 Anunț</h3>
+    <div class="modal-sub" id="announcementModalSub"></div>
+    <div id="announcementModalText" style="font-size:13px;line-height:1.7;margin-top:10px"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeAnnouncementModal()">✓ Am citit</button>
     </div>
@@ -1885,7 +1880,7 @@
 // ============================================================
 // CONFIGURARE — schimbă doar USE_TEST pentru a comuta între medii
 // ============================================================
-const USE_TEST = false; // true = test | false = producție
+const USE_TEST = true; // true = test | false = producție
 
 const FIREBASE_CONFIGS = {
   production: {
@@ -2169,6 +2164,7 @@ function finishInit(){
   if(isAdmin()) checkExcelImportReminder();
   renderPlanificareWarningsBanner();
   loadCalendarReminders().then(()=>renderAll()); // markerele de reminder devin vizibile odată încărcate
+  checkAnnouncementIfNeeded();
   showAnnouncementIfNeeded();
   lastSavedAt = new Date();
   saveLocalBackup();
@@ -3262,6 +3258,8 @@ function enterApp(userKey){
   if(cleanStaleBtn2) cleanStaleBtn2.style.display = isAdm?"block":"none";
   const cleanStalePlanBtn2 = document.getElementById("cleanStalePlanBtn");
   if(cleanStalePlanBtn2) cleanStalePlanBtn2.style.display = isAdm?"block":"none";
+  const postAnnouncementBtn2 = document.getElementById("postAnnouncementBtn");
+  if(postAnnouncementBtn2) postAnnouncementBtn2.style.display = isAdm?"block":"none";
   const verifyExcelBtn2 = document.getElementById("verifyExcelBtn");
   if(verifyExcelBtn2) verifyExcelBtn2.style.display = isAdm?"block":"none";
   const uploadBackupBtn = document.getElementById("uploadBackupBtn");
@@ -5068,15 +5066,59 @@ let _currentDayDetailDate = null;
 // pentru feature-uri noi importante. Cheia e versionată, ca să pot adăuga
 // anunțuri VIITOARE fără să repet automat cele deja confirmate.
 // ============================================================
-function showAnnouncementIfNeeded(){
-  const KEY = "mtc_announcement_seen_reminder_v1";
-  if(localStorage.getItem(KEY)) return;
-  openModal("modalAnnouncement");
+// ============================================================
+// ANUNȚURI CONTROLATE DE ADMIN — Admin postează oricând un text nou,
+// vizibil o singură dată per persoană (urmărire în Firestore, nu doar
+// localStorage — funcționează corect indiferent de dispozitiv, spre
+// deosebire de versiunea anterioară, care rămânea "needevăzută" dacă
+// persoana schimba dispozitivul/browserul).
+// ============================================================
+async function checkAnnouncementIfNeeded(){
+  const uk = window.activeUserKey||"?";
+  try{
+    const curSnap = await db.collection("app_announcements").doc("current").get();
+    if(!curSnap.exists) return;
+    const current = curSnap.data();
+    if(!current || !current.id || !current.text) return;
+
+    const seenSnap = await db.collection("app_announcements").doc("seen").get();
+    const seenMap = seenSnap.exists ? (seenSnap.data()||{}) : {};
+    if(seenMap[uk]===current.id) return; // deja văzut de ACEASTĂ persoană
+
+    document.getElementById("announcementModalText").innerHTML = escapeHtml(current.text).replace(/\n/g,"<br>");
+    document.getElementById("announcementModalSub").textContent = "Postat de "+(current.postedBy||"Admin")+(current.postedAt?" · "+fmtDate(new Date(current.postedAt)):"");
+    window._currentAnnouncementId = current.id;
+    openModal("modalAnnouncement");
+  }catch(e){ console.warn("checkAnnouncementIfNeeded err",e); }
 }
 
-function closeAnnouncementModal(){
-  localStorage.setItem("mtc_announcement_seen_reminder_v1", "1");
+async function closeAnnouncementModal(){
+  const uk = window.activeUserKey||"?";
+  const id = window._currentAnnouncementId;
   closeModal("modalAnnouncement");
+  if(!id) return;
+  try{
+    const seenSnap = await db.collection("app_announcements").doc("seen").get();
+    const seenMap = seenSnap.exists ? (seenSnap.data()||{}) : {};
+    seenMap[uk] = id;
+    await db.collection("app_announcements").doc("seen").set(seenMap);
+  }catch(e){ console.warn("closeAnnouncementModal err",e); }
+}
+
+async function postNewAnnouncement(){
+  if(!isAdmin()){toast("Doar Admin poate posta anunțuri",true);return;}
+  const text = prompt("Scrie textul anunțului (va apărea o singură dată, la toți userii, la următoarea logare):");
+  if(!text || !text.trim()) return;
+  const id = "ann_"+Date.now();
+  try{
+    await db.collection("app_announcements").doc("current").set({
+      id, text: text.trim(), postedAt: new Date().toISOString(), postedBy: reminderAuthorDisplayName(window.activeUserKey||"admin")
+    });
+    logActivity("📢 Anunț nou postat","—",text.trim().slice(0,80),"sistem");
+    toast("✅ Anunț postat — va apărea userilor la următoarea logare");
+  }catch(e){
+    toast("⚠️ Anunțul nu s-a putut posta: "+e.message,true);
+  }
 }
 
 function reminderAuthorDisplayName(uk){
@@ -9324,7 +9366,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.09.24-02";
+const APP_VERSION = "2026.09.24-03";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -10648,7 +10690,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.24-02</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.24-03</div>
 
 </body>
 </html>
