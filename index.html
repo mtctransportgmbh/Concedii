@@ -1549,6 +1549,10 @@
     <input type="text" id="driverNameInput" placeholder="ex: Ion Popescu">
     <label>Zile concediu disponibile / an (0 = nelimitat)</label>
     <input type="number" id="driverMaxDays" placeholder="ex: 20" min="0" value="0">
+    <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);margin-top:4px;cursor:pointer">
+      <input type="checkbox" id="driverMaxDaysOverrideCheck">
+      Suprascrie manual — ignoră regula automată (2 zile/lună după data angajării)
+    </label>
     <div id="driverBorrowedDaysInfo" style="display:none;margin-top:6px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
       <div>
@@ -1660,6 +1664,10 @@
         Zile disponibile/an:
         <input type="number" id="leaveMaxDaysInput" min="0" style="width:70px;padding:4px 8px;font-size:13px" onchange="saveMaxDays()">
         <span style="font-size:11px;color:var(--text-dim)">(0 = nelimitat)</span>
+      </label>
+      <label id="leaveMaxDaysOverrideRow" style="display:none;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);margin-top:6px;cursor:pointer">
+        <input type="checkbox" id="leaveMaxDaysOverrideCheck" onchange="toggleMaxDaysOverride()">
+        Suprascrie manual — ignoră regula automată după data angajării
       </label>
     </div>
     <label>De la</label>
@@ -2499,6 +2507,7 @@ function buildCompleteBackup(){
       name:          dr.name,
       visibleTo:     dr.visibleTo||[],
       maxDays:       dr.maxDays||0,
+      maxDaysOverride: dr.maxDaysOverride||false,
       carryOverDays: dr.carryOverDays||0,
       carryOverByYear: dr.carryOverByYear||{},
       borrowedDays: dr.borrowedDays||[],
@@ -2541,6 +2550,7 @@ function restoreCompleteBackup(bk){
       dr.unpaidLeaves  = bkDr.unpaidLeaves||[];
       dr.specialLeaves = bkDr.specialLeaves||[];
       dr.maxDays       = bkDr.maxDays||dr.maxDays||0;
+      if(bkDr.maxDaysOverride) dr.maxDaysOverride=true; else delete dr.maxDaysOverride;
       dr.carryOverDays = bkDr.carryOverDays||0;
       dr.carryOverByYear = bkDr.carryOverByYear||{};
       dr.borrowedDays = bkDr.borrowedDays||[];
@@ -2602,7 +2612,7 @@ async function triggerAutoBackup(time, customDocId){
     allDrivers.forEach(dr=>{
       driversData[dr.id||dr.name]={
         name:dr.name, visibleTo:dr.visibleTo||[],
-        maxDays:dr.maxDays||0, carryOverDays:dr.carryOverDays||0,
+        maxDays:dr.maxDays||0, maxDaysOverride:dr.maxDaysOverride||false, carryOverDays:dr.carryOverDays||0,
         carryOverByYear:dr.carryOverByYear||{},
         borrowedDays:dr.borrowedDays||[],
         group:dr.group||null,
@@ -3550,6 +3560,10 @@ function conflictMessage(dr, result){
 }
 
 function getEffectiveMaxDays(dr, year){
+  // Suprascriere manuală: dacă Admin a alocat explicit un număr de zile
+  // pentru această persoană, îl folosim direct — NU mai aplicăm regula
+  // automată bazată pe data angajării (2 zile/lună, pragul zilei 14/15).
+  if(dr.maxDaysOverride) return dr.maxDays||0;
   if(!dr.startDate) return dr.maxDays||0;
   const start = parseDate(dr.startDate);
   const startYear = start.getFullYear();
@@ -3768,6 +3782,7 @@ function openAddDriver(){
   document.getElementById("modalDriverTitle").textContent="Adaugă persoană";
   document.getElementById("driverNameInput").value="";
   document.getElementById("driverMaxDays").value="0";
+  document.getElementById("driverMaxDaysOverrideCheck").checked=false;
   document.getElementById("driverStartDate").value="";
   document.getElementById("driverEndDate").value="";
   const _borrowInfoAdd=document.getElementById("driverBorrowedDaysInfo");
@@ -3784,7 +3799,8 @@ function openEditDriver(id){
   const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
   document.getElementById("modalDriverTitle").textContent="Editează persoană";
   document.getElementById("driverNameInput").value=dr.name;
-  document.getElementById("driverMaxDays").value=dr.maxDays||0;
+  document.getElementById("driverMaxDays").value=dr.maxDaysOverride?(dr.maxDays||0):getEffectiveMaxDays(dr,currentDate.getFullYear());
+  document.getElementById("driverMaxDaysOverrideCheck").checked=!!dr.maxDaysOverride;
   document.getElementById("driverStartDate").value=dr.startDate||"";
   document.getElementById("driverEndDate").value=dr.endDate||"";
   // Zile împrumutate din anii viitori — vizibile clar, per persoană
@@ -3883,6 +3899,7 @@ function saveDriver(){
   const name=document.getElementById("driverNameInput").value.trim();
   if(!name){toast("Introdu un nume",true);return;}
   const maxDays=parseInt(document.getElementById("driverMaxDays").value)||0;
+  const maxDaysOverride=document.getElementById("driverMaxDaysOverrideCheck").checked;
   const startDate=document.getElementById("driverStartDate").value||null;
   const endDate=document.getElementById("driverEndDate").value||null;
   const group=document.getElementById("driverGroup").value||null;
@@ -3896,6 +3913,7 @@ function saveDriver(){
     if(dr){
       const oldEndDate=dr.endDate||null;
       dr.name=name; dr.maxDays=maxDays; dr.visibleTo=visibleTo;
+      if(maxDaysOverride) dr.maxDaysOverride=true; else delete dr.maxDaysOverride;
       if(group) dr.group=group; else delete dr.group;
       if(startDate) dr.startDate=startDate; else delete dr.startDate;
       if(endDate) dr.endDate=endDate; else delete dr.endDate;
@@ -3914,6 +3932,7 @@ function saveDriver(){
     }
   } else {
     const nd={id:uid(),name,leaves:[],krankLeaves:[],unpaidLeaves:[],specialLeaves:[],maxDays,carryOverDays:0,visibleTo};
+    if(maxDaysOverride) nd.maxDaysOverride=true;
     if(group) nd.group=group;
     if(startDate) nd.startDate=startDate;
     if(endDate) nd.endDate=endDate;
@@ -4318,6 +4337,21 @@ function openLeaveModal(id, leaveType){
   if(isAdmin()&&leaveType==="leaves"){
     maxRow.style.display="block";
     document.getElementById("leaveMaxDaysInput").value=maxDays;
+    // Suprascriere manuală — vizibilă doar dacă persoana are dată de
+    // angajare setată (altfel calculul e oricum mereu manual, fără regulă automată)
+    const overrideRow=document.getElementById("leaveMaxDaysOverrideRow");
+    const overrideCheck=document.getElementById("leaveMaxDaysOverrideCheck");
+    const maxInput=document.getElementById("leaveMaxDaysInput");
+    if(dr.startDate){
+      overrideRow.style.display="flex";
+      overrideCheck.checked=!!dr.maxDaysOverride;
+      maxInput.disabled=!dr.maxDaysOverride;
+      maxInput.title=dr.maxDaysOverride?"":"Bifează suprascrierea manuală ca să poți edita direct";
+    } else {
+      overrideRow.style.display="none";
+      maxInput.disabled=false;
+      maxInput.title="";
+    }
     // Show carry over field
     let carryRow=document.getElementById("leaveCarryRow");
     if(!carryRow){
@@ -4343,7 +4377,29 @@ function openLeaveModal(id, leaveType){
 
 function saveMaxDays(){
   const dr=state.drivers.find(d=>d.id===leaveDriverId);if(!dr)return;
+  // Dacă persoana are dată de angajare și suprascrierea manuală NU e bifată,
+  // câmpul e doar informativ (disabled) — nu salvăm peste calculul automat.
+  if(dr.startDate && !dr.maxDaysOverride){ openLeaveModal(leaveDriverId,"leaves"); return; }
   dr.maxDays=parseInt(document.getElementById("leaveMaxDaysInput").value)||0;
+  logActivity("✏️ Zile disponibile/an (manual)",dr.name,String(dr.maxDays),"concedii");
+  openLeaveModal(leaveDriverId,"leaves");scheduleSave();
+}
+
+function toggleMaxDaysOverride(){
+  const dr=state.drivers.find(d=>d.id===leaveDriverId);if(!dr)return;
+  const checked=document.getElementById("leaveMaxDaysOverrideCheck").checked;
+  if(checked){
+    // La activare, păstrăm ca punct de plecare valoarea calculată automat
+    // până acum, ca să nu sară brusc la 0 — Admin o poate schimba apoi liber.
+    const viewYear=currentDate.getFullYear();
+    dr.maxDays = getEffectiveMaxDays(dr, viewYear);
+    dr.maxDaysOverride = true;
+    toast("✓ Suprascriere activă pentru "+dr.name+" — regula după data angajării nu se mai aplică");
+  } else {
+    delete dr.maxDaysOverride;
+    toast("✓ Revenit la calculul automat după data angajării pentru "+dr.name);
+  }
+  logActivity(checked?"🔓 Suprascriere zile activată":"🔒 Suprascriere zile dezactivată",dr.name,"","concedii");
   openLeaveModal(leaveDriverId,"leaves");scheduleSave();
 }
 function saveCarryOver(){
@@ -4774,6 +4830,7 @@ function importBackup(e){
         name: d.name,
         visibleTo: d.visibleTo||["tania"],
         maxDays: d.maxDays||0,
+        maxDaysOverride: d.maxDaysOverride||false,
         carryOverDays: d.carryOverDays||0,
         carryOverByYear: d.carryOverByYear||{},
         borrowedDays: d.borrowedDays||[],
@@ -4903,6 +4960,7 @@ function uploadLocalBackup(e){
           name:           d.name,
           visibleTo:      d.visibleTo||["tania"],
           maxDays:        d.maxDays||0,
+          maxDaysOverride: d.maxDaysOverride||false,
           carryOverDays:  d.carryOverDays||0,
           carryOverByYear:d.carryOverByYear||{},
           borrowedDays:  d.borrowedDays||[],
@@ -4954,7 +5012,7 @@ async function downloadBackupNow(){
            excelStatusData, backupDiffData, planWarningsData, calRemindersData, activityData} = await fetchCompleteServerState();
     const driversData=allDrivers.map(dr=>({
       name:dr.name, visibleTo:dr.visibleTo||[],
-      maxDays:dr.maxDays||0, carryOverDays:dr.carryOverDays||0,
+      maxDays:dr.maxDays||0, maxDaysOverride:dr.maxDaysOverride||false, carryOverDays:dr.carryOverDays||0,
       carryOverByYear:dr.carryOverByYear||{},
       borrowedDays:dr.borrowedDays||[],
       group:dr.group||null,
@@ -8741,6 +8799,7 @@ function computeBackupDiff(bd){
       bdArr.forEach(l=>{ if(!liveSet.has(periodKey(l))) leaveChanges.push({type:"remove",label,name,period:l}); });
     });
     if((lv.maxDays||0)!==(bk.maxDays||0)) otherChanges.push(`<b>${escapeHtml(name)}</b>: zile disponibile/an ${bk.maxDays||0} → ${lv.maxDays||0}`);
+    if(!!lv.maxDaysOverride!==!!bk.maxDaysOverride) otherChanges.push(`<b>${escapeHtml(name)}</b>: suprascriere manuală zile ${bk.maxDaysOverride?"activă":"inactivă"} → ${lv.maxDaysOverride?"activă":"inactivă"}`);
     const lvCarry=getCarryOverForYear(lv,y), bkCarry=getCarryOverForYear(bk,y);
     if(lvCarry!==bkCarry) otherChanges.push(`<b>${escapeHtml(name)}</b>: zile reportate ${y} ${bkCarry} → ${lvCarry}`);
     if((lv.startDate||null)!==(bk.startDate||null)) otherChanges.push(`<b>${escapeHtml(name)}</b>: data angajare ${bk.startDate||"—"} → ${lv.startDate||"—"}`);
@@ -9080,6 +9139,7 @@ async function confirmRestoreBackup(){
       name: d.name,
       visibleTo: d.visibleTo||["tania"],
       maxDays: d.maxDays||0,
+      maxDaysOverride: d.maxDaysOverride||false,
       carryOverDays: d.carryOverDays||0,
       carryOverByYear: d.carryOverByYear||{},
       borrowedDays: d.borrowedDays||[],
@@ -9605,7 +9665,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.02-01";
+const APP_VERSION = "2026.10.02-02";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -10936,7 +10996,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.02-01</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.02-02</div>
 
 </body>
 </html>
