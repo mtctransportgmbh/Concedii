@@ -53,12 +53,12 @@
   [data-theme="light"] body { background: var(--bg); }
   [data-theme="light"] .sidebar { background: var(--bg-elev); border-right-color: var(--border); box-shadow: 2px 0 8px rgba(0,0,0,0.08); }
   [data-theme="light"] .modal { box-shadow: 0 20px 60px rgba(0,0,0,0.18); }
-  [data-theme="light"] .tl-cell:not(.sunday):not(.in-leave):not(.in-krank):not(.in-unpaid):not(.pres-p):not(.pres-a):hover { background: rgba(217,119,6,0.12); }
+  [data-theme="light"] .tl-cell:not(.sunday):not(.in-leave):not(.in-krank):not(.in-unpaid):not(.in-special):not(.pres-p):not(.pres-a):not(.pres-h):hover { background: rgba(217,119,6,0.12); }
   [data-theme="light"] .tl-day-header { background: var(--bg-elev-2); color: var(--text); border-bottom-color: var(--border); }
   [data-theme="light"] .tl-driver-row { background: var(--bg-elev); border-bottom-color: var(--border); color: var(--text); }
   [data-theme="light"] .tl-row { background: var(--bg-elev); border-bottom-color: var(--border); }
   [data-theme="light"] .tl-cell { border-right-color: var(--border); }
-  [data-theme="light"] .tl-cell:not(.in-leave):not(.in-krank):not(.in-unpaid):not(.sort-p):not(.sort-a):not(.pres-p):not(.pres-a):not(.sunday):not(.holiday):not(.in-leave) { color: var(--text-dim); }
+  [data-theme="light"] .tl-cell:not(.in-leave):not(.in-krank):not(.in-unpaid):not(.in-special):not(.sort-p):not(.sort-a):not(.pres-p):not(.pres-a):not(.pres-h):not(.sunday):not(.holiday):not(.in-leave) { color: var(--text-dim); }
   [data-theme="light"] .stat { background: var(--bg-elev); border-color: var(--border); }
   [data-theme="light"] .driver-card { background: var(--bg-elev); border-color: var(--border); }
   [data-theme="light"] .driver-card:hover { border-color: var(--accent); }
@@ -765,7 +765,15 @@
   /* Timeline unpaid cell */
   .tl-cell.in-unpaid { background: rgba(96,165,250,0.7) !important; color:#fff !important; }
   .tl-cell.in-unpaid:hover { background: rgba(96,165,250,0.9) !important; }
-  
+
+  /* Timeline special-day cell (eveniment special — nu se scade din concediu) */
+  .tl-cell.in-special { background: #8b5cf6 !important; color:#fff !important; }
+  .tl-cell.in-special:hover { background: #7c3aed !important; }
+
+  /* Jumătate zi Prezent/Concediu — doar grupul Camion (Corina) */
+  .tl-cell.pres-h { background: linear-gradient(135deg, #16a34a 50%, rgba(255,220,0,0.7) 50%) !important; color:#1a1a1a !important; font-size:12px; font-weight:900; text-shadow:0 1px 1px rgba(255,255,255,0.55); }
+  .tl-cell.pres-h:hover { filter:brightness(1.08); }
+
   .timeline-wrap { background: var(--bg-elev); border-radius: 8px; border: 1px solid var(--border); overflow: auto; max-height: calc(100vh - 110px); }
   .tl-names { position: sticky; left: 0; z-index: 4; background: var(--bg-elev); }
   .timeline { display: grid; grid-template-columns: 200px 1fr 128px; min-width: 100%; }
@@ -847,7 +855,7 @@
   .tl-cell.today-col {
     box-shadow: inset 3px 0 0 #2563eb, inset -3px 0 0 #2563eb;
   }
-  .tl-cell.today-col:not(.in-leave):not(.in-krank):not(.in-unpaid):not(.pres-p):not(.pres-a):not(.sort-p):not(.sort-a):not(.lib-lucrat):not(.lib-liber):not(.lib-concediu):not(.lib-krank) {
+  .tl-cell.today-col:not(.in-leave):not(.in-krank):not(.in-unpaid):not(.in-special):not(.pres-p):not(.pres-a):not(.pres-h):not(.sort-p):not(.sort-a):not(.lib-lucrat):not(.lib-liber):not(.lib-concediu):not(.lib-krank) {
     background: rgba(37,99,235,0.12) !important;
   }
   .tl-row { display: grid; height: 34px; border-bottom: 1px solid var(--border); position: relative; box-sizing: border-box; }
@@ -865,7 +873,7 @@
   /* Zile în afara contractului — negru/gri, nebifabile */
   .tl-cell.tl-inactive-day { background: rgba(0,0,0,0.55) !important; cursor: not-allowed !important; }
   [data-theme="light"] .tl-cell.tl-inactive-day { background: rgba(0,0,0,0.15) !important; }
-  .tl-cell:not(.sunday):not(.in-leave):not(.in-krank):not(.in-unpaid):not(.pres-p):not(.pres-a):hover { background: rgba(245,158,11,0.15); }
+  .tl-cell:not(.sunday):not(.in-leave):not(.in-krank):not(.in-unpaid):not(.in-special):not(.pres-p):not(.pres-a):not(.pres-h):hover { background: rgba(245,158,11,0.15); }
   .tl-cell.in-leave { background: var(--green); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; color:#fff; }
   .tl-cell.lib-lucrat { background: #10b981 !important; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; color:#fff !important; }
   .tl-cell.lib-liber { background: #ef4444 !important; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; color:#fff !important; }
@@ -906,7 +914,7 @@
   [data-theme="light"] .tl-cell.in-leave.tl-selecting { background: rgba(220,38,38,0.4) !important; }
   [data-theme="light"] .tl-cell.tl-removing { background: rgba(59,130,246,0.4) !important; outline: 2px solid #2563eb; }
   [data-theme="light"] .tl-cell.in-leave.tl-removing { background: rgba(59,130,246,0.6) !important; outline: 2px solid #2563eb; }
-  [data-theme="light"] .tl-cell:not(.sunday):not(.in-leave):not(.in-krank):not(.in-unpaid):not(.pres-p):not(.pres-a):hover { background: rgba(217,119,6,0.12); }
+  [data-theme="light"] .tl-cell:not(.sunday):not(.in-leave):not(.in-krank):not(.in-unpaid):not(.in-special):not(.pres-p):not(.pres-a):not(.pres-h):hover { background: rgba(217,119,6,0.12); }
 
   /* Light: calendar names */
   [data-theme="light"] .cal-name { color: #fff; background: rgba(0,0,0,0.55); border-top-color: rgba(0,0,0,0.1); }
@@ -1639,10 +1647,11 @@
   <div class="modal">
     <h3 id="modalLeaveTitle">Concedii</h3>
     <!-- Tab selector -->
-    <div id="leaveTypeTabs" style="display:flex;gap:6px;margin-bottom:12px">
+    <div id="leaveTypeTabs" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
       <button id="tabLeaves"  class="group-tab active" onclick="switchLeaveTab('leaves')">✈️ Concediu</button>
       <button id="tabKrank"   class="group-tab"        onclick="switchLeaveTab('krank')">🤒 Krank</button>
       <button id="tabUnpaid"  class="group-tab"        onclick="switchLeaveTab('unpaid')" id="tabUnpaidBtn">⛔ Fără plată</button>
+      <button id="tabSpecial" class="group-tab"        onclick="switchLeaveTab('special')">🎗️ Zi specială</button>
     </div>
     <div class="modal-sub" id="modalLeaveSub"></div>
     <div id="leaveQuotaBar" style="display:none; margin-bottom:10px"></div>
@@ -1657,6 +1666,10 @@
     <input type="date" id="leaveStart">
     <label>Până la (inclusiv)</label>
     <input type="date" id="leaveEnd">
+    <div id="leaveSpecialReasonRow" style="display:none">
+      <label>Motiv (ex: Înmormântare, Nuntă...)</label>
+      <input type="text" id="leaveSpecialReason" placeholder="Specifică motivul — nu se scade din concediu" maxlength="120">
+    </div>
     <div class="leave-list" id="leaveList"></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modalLeave')">Închide</button>
@@ -2136,10 +2149,11 @@ async function renderExcelImportStatusPanel(){
 
 function finishInit(){
   state.thresholds = {warn:3,crit:5};
-  // Ensure all drivers have krankLeaves and unpaidLeaves arrays
+  // Ensure all drivers have krankLeaves, unpaidLeaves and specialLeaves arrays
   (state.drivers||[]).forEach(dr=>{
     if(!dr.krankLeaves)  dr.krankLeaves  = [];
     if(!dr.unpaidLeaves) dr.unpaidLeaves = [];
+    if(!dr.specialLeaves) dr.specialLeaves = [];
     if(!dr.leaves)       dr.leaves       = [];
   });
   // Migrare automată, idempotentă: pentru orice persoană FĂRĂ dr.group setat
@@ -2495,7 +2509,8 @@ function buildCompleteBackup(){
       archivedAt:    dr.archivedAt||null,
       leaves:        dr.leaves||[],
       krankLeaves:   dr.krankLeaves||[],
-      unpaidLeaves:  dr.unpaidLeaves||[]
+      unpaidLeaves:  dr.unpaidLeaves||[],
+      specialLeaves: dr.specialLeaves||[]
     })),
     prezente: (presState.presence&&Object.keys(presState.presence).length>0)
       ? JSON.parse(JSON.stringify(presState.presence)) : {},
@@ -2524,6 +2539,7 @@ function restoreCompleteBackup(bk){
       dr.leaves        = bkDr.leaves||[];
       dr.krankLeaves   = bkDr.krankLeaves||[];
       dr.unpaidLeaves  = bkDr.unpaidLeaves||[];
+      dr.specialLeaves = bkDr.specialLeaves||[];
       dr.maxDays       = bkDr.maxDays||dr.maxDays||0;
       dr.carryOverDays = bkDr.carryOverDays||0;
       dr.carryOverByYear = bkDr.carryOverByYear||{};
@@ -2591,7 +2607,7 @@ async function triggerAutoBackup(time, customDocId){
         borrowedDays:dr.borrowedDays||[],
         group:dr.group||null,
         startDate:dr.startDate||null, endDate:dr.endDate||null,
-        leaves:dr.leaves||[], krankLeaves:dr.krankLeaves||[], unpaidLeaves:dr.unpaidLeaves||[],
+        leaves:dr.leaves||[], krankLeaves:dr.krankLeaves||[], unpaidLeaves:dr.unpaidLeaves||[], specialLeaves:dr.specialLeaves||[],
         archived:dr.archived||false, archivedAt:dr.archivedAt||null,
         remainingDaysAtArchive:dr.remainingDaysAtArchive!==undefined?dr.remainingDaysAtArchive:null,
         remainingDaysPaid:dr.remainingDaysPaid!==undefined?dr.remainingDaysPaid:null
@@ -3358,6 +3374,7 @@ function enterApp(userKey){
       (state.drivers||[]).forEach(dr=>{
         if(!dr.krankLeaves)  dr.krankLeaves  = [];
         if(!dr.unpaidLeaves) dr.unpaidLeaves = [];
+        if(!dr.specialLeaves) dr.specialLeaves = [];
         if(!dr.leaves)       dr.leaves       = [];
       });
       renderAll();
@@ -3448,14 +3465,29 @@ function countWorkdays(from,to){
 
 function usedDaysThisYear(dr, type, year){
   const y = year || currentDate.getFullYear();
-  const arr = type==="krank" ? (dr.krankLeaves||[]) : type==="unpaid" ? (dr.unpaidLeaves||[]) : (dr.leaves||[]);
-  return arr.reduce((sum,l)=>{
+  const arr = type==="krank" ? (dr.krankLeaves||[]) : type==="unpaid" ? (dr.unpaidLeaves||[]) : type==="special" ? (dr.specialLeaves||[]) : (dr.leaves||[]);
+  let sum = arr.reduce((sum,l)=>{
     const s=parseDate(l.start),e=parseDate(l.end);
     if(e.getFullYear()<y||s.getFullYear()>y)return sum;
     const ys=new Date(y,0,1),ye=new Date(y,11,31);
     const from=s<ys?ys:s, to=e>ye?ye:e;
     return sum+countWorkdays(from,to);
   },0);
+  // Zile jumătate Prezent/Concediu — DOAR grupul Camion (Corina): fiecare
+  // 2 jumătăți de zi marcate în calendar scad 1 zi întreagă din cota de
+  // concediu. Nu se aplică deloc pentru Krank/Fără plată/Special.
+  if(type==="leaves" && dr.group==="camion" && presState && presState.presence){
+    let halfCount=0;
+    Object.keys(presState.presence).forEach(mk=>{
+      const my=parseInt(mk.split("-")[0],10);
+      if(my!==y) return;
+      const drDays=presState.presence[mk][dr.name];
+      if(!drDays) return;
+      Object.keys(drDays).forEach(dn=>{ if(drDays[dn]==="half") halfCount++; });
+    });
+    sum += halfCount*0.5;
+  }
+  return sum;
 }
 
 // Returnează zilele reportate pentru un an specific
@@ -3492,6 +3524,9 @@ function checkDateRangeConflict(dr, startStr, endStr, excludeType){
   if(excludeType!=="unpaid" && overlaps(dr.unpaidLeaves)){
     return {conflict:true, type:"unpaid", label:"Fără plată"};
   }
+  if(excludeType!=="special" && overlaps(dr.specialLeaves)){
+    return {conflict:true, type:"special", label:"Zi specială"};
+  }
   if(excludeType!=="presence"){
     // Verificăm prezența marcată explicit, lună cu lună (perioada poate traversa mai multe luni)
     const s=parseDate(startStr), e=parseDate(endStr);
@@ -3519,8 +3554,14 @@ function getEffectiveMaxDays(dr, year){
   const start = parseDate(dr.startDate);
   const startYear = start.getFullYear();
   if(year < startYear) return 0; // nu era încă angajat în anul respectiv
-  const startMonth = (year === startYear) ? start.getMonth() : 0; // 0-indexed
-  const monthsActive = 12 - startMonth;
+  let startMonth = (year === startYear) ? start.getMonth() : 0; // 0-indexed
+  // Dacă angajarea a avut loc după jumătatea lunii (ziua 15 sau mai târziu),
+  // acea lună nu se mai numără pentru cele 2 zile — se sare direct la luna
+  // următoare. Pe/până în ziua 14 inclusiv, luna se numără integral.
+  if(year === startYear && start.getDate() >= 15){
+    startMonth++;
+  }
+  const monthsActive = Math.max(0, 12 - startMonth);
   return monthsActive * 2;
 }
 
@@ -3665,7 +3706,7 @@ function getDriverListForUser(uk){
 
 function loadDefaultDrivers(){
   const list = getDriverListForUser(window.activeUserKey||"tania");
-  state.drivers = list.map(name=>({id:uid(),name,leaves:[],krankLeaves:[],unpaidLeaves:[],maxDays:0,carryOverDays:0,visibleTo:visibleToForName(name)}));
+  state.drivers = list.map(name=>({id:uid(),name,leaves:[],krankLeaves:[],unpaidLeaves:[],specialLeaves:[],maxDays:0,carryOverDays:0,visibleTo:visibleToForName(name)}));
 }
 
 // ============================================================
@@ -3872,7 +3913,7 @@ function saveDriver(){
       toast("✓ "+name+" actualizat");
     }
   } else {
-    const nd={id:uid(),name,leaves:[],krankLeaves:[],unpaidLeaves:[],maxDays,carryOverDays:0,visibleTo};
+    const nd={id:uid(),name,leaves:[],krankLeaves:[],unpaidLeaves:[],specialLeaves:[],maxDays,carryOverDays:0,visibleTo};
     if(group) nd.group=group;
     if(startDate) nd.startDate=startDate;
     if(endDate) nd.endDate=endDate;
@@ -4199,7 +4240,7 @@ function deleteDriver(id){
 // ============================================================
 function switchLeaveTab(type){
   if(!leaveDriverId) return;
-  ['leaves','krank','unpaid'].forEach(t=>{
+  ['leaves','krank','unpaid','special'].forEach(t=>{
     const btn=document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1));
     if(btn) btn.classList.toggle('active', t===type);
   });
@@ -4212,17 +4253,21 @@ function openLeaveModal(id, leaveType){
   const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
 
   // Activate correct tab
-  ['leaves','krank','unpaid'].forEach(t=>{
+  ['leaves','krank','unpaid','special'].forEach(t=>{
     const btn=document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1));
     if(btn) btn.classList.toggle('active', t===leaveType);
   });
   // Hide unpaid tab for non-admin/tania
   const tabUnpaid=document.getElementById('tabUnpaid');
   if(tabUnpaid) tabUnpaid.style.display=isAdminOrTania()?"block":"none";
-  const typeLabel = leaveType==="krank" ? "Krank" : leaveType==="unpaid" ? "Fără plată" : "Concediu";
+  const typeLabel = leaveType==="krank" ? "Krank" : leaveType==="unpaid" ? "Fără plată" : leaveType==="special" ? "Zi specială" : "Concediu";
   document.getElementById("modalLeaveTitle").textContent=dr.name+" — "+typeLabel;
   document.getElementById("leaveStart").value="";
   document.getElementById("leaveEnd").value="";
+  const specialReasonRow=document.getElementById("leaveSpecialReasonRow");
+  if(specialReasonRow) specialReasonRow.style.display = leaveType==="special" ? "block" : "none";
+  const specialReasonInput=document.getElementById("leaveSpecialReason");
+  if(specialReasonInput) specialReasonInput.value="";
   // Store active leave type
   document.getElementById("modalLeave").dataset.leaveType = leaveType;
 
@@ -4259,6 +4304,10 @@ function openLeaveModal(id, leaveType){
     const u=usedDaysThisYear(dr,"unpaid");
     quotaBar.style.display="block";
     quotaBar.innerHTML=`<div style="font-size:12px;color:var(--text-dim)">Zile fără plată ${new Date().getFullYear()}: <strong style="color:var(--text)">${u}</strong></div>`;
+  } else if(leaveType==="special"){
+    const sp=usedDaysThisYear(dr,"special");
+    quotaBar.style.display="block";
+    quotaBar.innerHTML=`<div style="font-size:12px;color:var(--text-dim)">Zile speciale ${new Date().getFullYear()}: <strong style="color:var(--text)">${sp}</strong> <span style="color:var(--text-dim)">(nu se scad din concediu)</span></div>`;
   } else {
     quotaBar.style.display="block";
     quotaBar.innerHTML=`<div style="font-size:12px;color:var(--text-dim)">Zile folosite ${new Date().getFullYear()}: <strong>${used}</strong></div>`;
@@ -4284,7 +4333,7 @@ function openLeaveModal(id, leaveType){
     if(cr)cr.style.display="none";
   }
 
-  const arrKey2 = leaveType==="krank"?"krankLeaves":leaveType==="unpaid"?"unpaidLeaves":"leaves";
+  const arrKey2 = leaveType==="krank"?"krankLeaves":leaveType==="unpaid"?"unpaidLeaves":leaveType==="special"?"specialLeaves":"leaves";
   const arr = dr[arrKey2]||[];
   const total2=arr.reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end)),0);
   document.getElementById("modalLeaveSub").textContent=arr.length+" perioadă(e) · "+total2+" zile lucrătoare";
@@ -4308,15 +4357,16 @@ function saveCarryOver(){
 }
 
 function renderLeaveList(dr, leaveType){
-  const arrKey = leaveType==="krank"?"krankLeaves":leaveType==="unpaid"?"unpaidLeaves":"leaves";
+  const arrKey = leaveType==="krank"?"krankLeaves":leaveType==="unpaid"?"unpaidLeaves":leaveType==="special"?"specialLeaves":"leaves";
   const arr = dr[arrKey]||[];
   const list=document.getElementById("leaveList");
   if(!arr.length){list.innerHTML='<div class="empty">Nicio perioadă</div>';return;}
   const sorted=[...arr].sort((a,b)=>a.start.localeCompare(b.start));
   list.innerHTML=sorted.map(l=>{
     const days=countWorkdays(parseDate(l.start),parseDate(l.end));
+    const reasonHtml = (leaveType==="special"&&l.reason) ? `<div style="font-size:11px;color:var(--text-dim);margin-top:2px">🎗️ ${escapeHtml(l.reason)}</div>` : "";
     return `<div class="leave-row">
-      <span>${formatDateRO(l.start)} → ${formatDateRO(l.end)} <span style="color:var(--text-dim);font-size:11px">(${days}z lucr.)</span></span>
+      <span>${formatDateRO(l.start)} → ${formatDateRO(l.end)} <span style="color:var(--text-dim);font-size:11px">(${days}z lucr.)</span>${reasonHtml}</span>
       <button class="icon-btn" onclick="deleteLeave('${dr.id}','${l.start}','${l.end}','${leaveType}')">🗑</button>
     </div>`;
   }).join("");
@@ -4331,6 +4381,12 @@ function addLeave(){
   if(start>end){toast("Data început după data sfârșit",true);return;}
   const dr=state.drivers.find(d=>d.id===leaveDriverId);if(!dr)return;
   const newDays=countWorkdays(parseDate(start),parseDate(end));
+
+  let specialReason="";
+  if(leaveType==="special"){
+    specialReason=(document.getElementById("leaveSpecialReason").value||"").trim();
+    if(!specialReason){ toast("Introdu un motiv pentru ziua specială (ex: Înmormântare)",true); return; }
+  }
 
   if(leaveType==="leaves"){
     // Avertizare simetrică: dacă persoana are DEJA dată de plecare setată,
@@ -4348,8 +4404,8 @@ function addLeave(){
     }
   }
 
-  // Block leave/krank/unpaid if presence exists
-  if(leaveType==="leaves"||leaveType==="krank"||leaveType==="unpaid"){
+  // Block leave/krank/unpaid/special if presence exists
+  if(leaveType==="leaves"||leaveType==="krank"||leaveType==="unpaid"||leaveType==="special"){
     const mk0=currentDate.getFullYear()+"-"+String(currentDate.getMonth()+1).padStart(2,"0");
     const drP0=(presState.presence&&presState.presence[mk0]&&presState.presence[mk0][dr.name])||{};
     const startD=parseDate(start),endD=parseDate(end);
@@ -4384,6 +4440,20 @@ function addLeave(){
   if(leaveType==="unpaid"){
     const krankOverlap2=(dr.krankLeaves||[]).some(l=>l.start<=end&&l.end>=start);
     if(krankOverlap2){ toast("⛔ "+dr.name+" are deja Krank în această perioadă.",true); return; }
+  }
+  // Zi specială nu se poate suprapune cu Concediu/Krank/Fără plată, și invers
+  if(leaveType==="special"){
+    const hasLeaveOverlap=(dr.leaves||[]).some(l=>l.start<=end&&l.end>=start);
+    const hasKrankOverlap3=(dr.krankLeaves||[]).some(l=>l.start<=end&&l.end>=start);
+    const hasUnpaidOverlap3=(dr.unpaidLeaves||[]).some(l=>l.start<=end&&l.end>=start);
+    if(hasLeaveOverlap||hasKrankOverlap3||hasUnpaidOverlap3){
+      toast("⛔ "+dr.name+" are deja un alt status (Concediu/Krank/Fără plată) în această perioadă.",true); return;
+    }
+  } else {
+    const specialOverlap=(dr.specialLeaves||[]).some(l=>l.start<=end&&l.end>=start);
+    if(specialOverlap){
+      toast("⛔ "+dr.name+" are deja o Zi specială în această perioadă — șterge mai întâi statusul existent.",true); return;
+    }
   }
 
   if(leaveType==="krank"||leaveType==="unpaid"){
@@ -4439,6 +4509,11 @@ function addLeave(){
     if(!dr.unpaidLeaves) dr.unpaidLeaves=[];
     dr.unpaidLeaves.push({start,end});
     dr.unpaidLeaves = splitLeavesFromHolidaysOnly(dr.unpaidLeaves);
+  } else if(leaveType==="special"){
+    if(!dr.specialLeaves) dr.specialLeaves=[];
+    // NU trece prin splitLeavesFromHolidaysOnly — acea funcție reconstruiește
+    // segmentele doar cu {start,end} și ar pierde câmpul "reason".
+    dr.specialLeaves.push({start,end,reason:specialReason});
   } else {
     if(!dr.leaves) dr.leaves=[];
     dr.leaves.push({start,end});
@@ -4447,10 +4522,10 @@ function addLeave(){
   clearPlanificareForLeave(dr.name,start,end);
   openLeaveModal(leaveDriverId,leaveType);
   renderMain();scheduleSave();
-  const _typeLabel=leaveType==="krank"?"Krank":leaveType==="unpaid"?"Fără plată":"Concediu";
-  logActivity("➕ "+_typeLabel+" adăugat",dr.name,start+" → "+end+" ("+newDays+"z)","concedii");
-  toast("✓ "+newDays+" zile lucrătoare adăugate ("+
-    (leaveType==="krank"?"krank":leaveType==="unpaid"?"fără plată":"concediu")+")");
+  const _typeLabel=leaveType==="krank"?"Krank":leaveType==="unpaid"?"Fără plată":leaveType==="special"?"Zi specială":"Concediu";
+  logActivity("➕ "+_typeLabel+" adăugat"+(leaveType==="special"?" ("+specialReason+")":""),dr.name,start+" → "+end+" ("+newDays+"z)","concedii");
+  toast("✓ "+newDays+" zile adăugate ("+
+    (leaveType==="krank"?"krank":leaveType==="unpaid"?"fără plată":leaveType==="special"?"zi specială — nu se scade din concediu":"concediu")+")");
 }
 
 function deleteLeave(driverId,start,end,leaveType){
@@ -4458,7 +4533,7 @@ function deleteLeave(driverId,start,end,leaveType){
   if(!leaveType)leaveType="leaves";
   const dr=state.drivers.find(d=>d.id===driverId);if(!dr)return;
   // Map leaveType to correct array name
-  const arrKey = leaveType==="krank"?"krankLeaves":leaveType==="unpaid"?"unpaidLeaves":"leaves";
+  const arrKey = leaveType==="krank"?"krankLeaves":leaveType==="unpaid"?"unpaidLeaves":leaveType==="special"?"specialLeaves":"leaves";
   if(!dr[arrKey]) dr[arrKey]=[];
   dr[arrKey]=dr[arrKey].filter(l=>!(l.start===start&&l.end===end));
   // Dacă am șters concediu (nu krank/unpaid, care nu afectează cota),
@@ -4530,7 +4605,7 @@ function selectComboOption(id){
 }
 function createDriverFromCombo(name){
   name=name.trim();if(!name)return;
-  const nd={id:uid(),name,leaves:[],krankLeaves:[],unpaidLeaves:[],maxDays:0,carryOverDays:0,visibleTo:["tania"]};
+  const nd={id:uid(),name,leaves:[],krankLeaves:[],unpaidLeaves:[],specialLeaves:[],maxDays:0,carryOverDays:0,visibleTo:["tania"]};
   state.drivers.push(nd);
   comboSelectedId=nd.id;document.getElementById("comboInput").value=name;
   document.getElementById("comboList").classList.remove("show");
@@ -4708,6 +4783,7 @@ function importBackup(e){
         leaves: d.leaves||[],
         krankLeaves: d.krankLeaves||[],
         unpaidLeaves: d.unpaidLeaves||[],
+        specialLeaves: d.specialLeaves||[],
         archived: d.archived||false,
         archivedAt: d.archivedAt||null,
         remainingDaysAtArchive: d.remainingDaysAtArchive!==undefined?d.remainingDaysAtArchive:null,
@@ -4800,7 +4876,7 @@ async function loadLastFirestoreBackup(){
       state.drivers.forEach(dr=>{
         if(selected.leaves[dr.name]){
           const bk=selected.leaves[dr.name];
-          dr.leaves=bk.leaves||[];dr.krankLeaves=bk.krankLeaves||[];dr.unpaidLeaves=bk.unpaidLeaves||[];
+          dr.leaves=bk.leaves||[];dr.krankLeaves=bk.krankLeaves||[];dr.unpaidLeaves=bk.unpaidLeaves||[];dr.specialLeaves=bk.specialLeaves||[];
           restored++;
         }
       });
@@ -4833,14 +4909,15 @@ function uploadLocalBackup(e){
           group:          d.group||null,
           leaves:         d.leaves||[],
           krankLeaves:    d.krankLeaves||[],
-          unpaidLeaves:   d.unpaidLeaves||[]
+          unpaidLeaves:   d.unpaidLeaves||[],
+          specialLeaves:  d.specialLeaves||[]
         }));
         restored = state.drivers.length;
       } else if(bk.leaves){
         Object.entries(bk.leaves).forEach(([name,data])=>{
           let dr=state.drivers.find(d=>d.name===name);
-          if(!dr){ dr={id:uid(),name,visibleTo:["tania"],maxDays:0,carryOverDays:0,carryOverByYear:{},leaves:[],krankLeaves:[],unpaidLeaves:[]}; state.drivers.push(dr); }
-          dr.leaves=data.leaves||[]; dr.krankLeaves=data.krankLeaves||[]; dr.unpaidLeaves=data.unpaidLeaves||[];
+          if(!dr){ dr={id:uid(),name,visibleTo:["tania"],maxDays:0,carryOverDays:0,carryOverByYear:{},leaves:[],krankLeaves:[],unpaidLeaves:[],specialLeaves:[]}; state.drivers.push(dr); }
+          dr.leaves=data.leaves||[]; dr.krankLeaves=data.krankLeaves||[]; dr.unpaidLeaves=data.unpaidLeaves||[]; dr.specialLeaves=data.specialLeaves||[];
           restored++;
         });
       } else throw new Error("Format necunoscut");
@@ -4882,7 +4959,7 @@ async function downloadBackupNow(){
       borrowedDays:dr.borrowedDays||[],
       group:dr.group||null,
       startDate:dr.startDate||null, endDate:dr.endDate||null,
-      leaves:dr.leaves||[], krankLeaves:dr.krankLeaves||[], unpaidLeaves:dr.unpaidLeaves||[],
+      leaves:dr.leaves||[], krankLeaves:dr.krankLeaves||[], unpaidLeaves:dr.unpaidLeaves||[], specialLeaves:dr.specialLeaves||[],
       archived:dr.archived||false, archivedAt:dr.archivedAt||null,
       remainingDaysAtArchive:dr.remainingDaysAtArchive!==undefined?dr.remainingDaysAtArchive:null,
       remainingDaysPaid:dr.remainingDaysPaid!==undefined?dr.remainingDaysPaid:null
@@ -5524,6 +5601,8 @@ function renderTimeline(){
       const onLeave=!isSun&&(dr.leaves||[]).some(l=>dateInLeave(d,l));
       const onKrank=!isSun&&(dr.krankLeaves||[]).some(l=>dateInLeave(d,l));
       const onUnpaid=!isSun&&isAdminOrTania()&&(dr.unpaidLeaves||[]).some(l=>dateInLeave(d,l));
+      const specialEntry=!isSun?(dr.specialLeaves||[]).find(l=>dateInLeave(d,l)):null;
+      const onSpecial=!!specialEntry;
       const cls=["tl-cell"];
       if(isSun)cls.push("sunday");
       if(holiday)cls.push("holiday");
@@ -5538,15 +5617,19 @@ function renderTimeline(){
       const presVal=drPres[String(dn)];
       const isPresP=presVal==="prezent";
       const isPresA=presVal==="absent";
+      // Jumătate zi Prezent/Concediu — doar pentru grupul Camion (Corina)
+      const isPresH=presVal==="half";
       // Apply colors — presence overrides leave
       if(isPresP){ cls.push("pres-p"); if(onLeave&&!holiday)cls.push("in-leave"); }
       else if(isPresA){ cls.push("pres-a"); if(onLeave&&!holiday)cls.push("in-leave"); }
+      else if(isPresH){ cls.push("pres-h"); }
       else if(onKrank&&!holiday) cls.push("in-krank");
       else if(onUnpaid&&!holiday) cls.push("in-unpaid");
+      else if(onSpecial&&!holiday) cls.push("in-special");
       else if(onLeave&&!holiday) cls.push("in-leave");
       if(onLeave&&!isPresP&&!isPresA&&!holiday) dailyCounts[dn]++;
       const ds=fmtDate(d);
-      const isOccupied=onLeave||onKrank||onUnpaid;
+      const isOccupied=onLeave||onKrank||onUnpaid||onSpecial;
       const isBlocked=isSun||!!holiday||!contractActive;
       // Verificăm dacă această celulă are un conflict detectat la import Excel
       const conflictKey=dr.id+"_"+ds;
@@ -5554,11 +5637,11 @@ function renderTimeline(){
       if(hasConflict) cls.push("conflict");
       const canEditPres=!isBlocked&&["admin","tania","raluca","madalina","corina"].includes(window.activeUserKey||"");
       const safeName2=dr.name.replace(/"/g,"&quot;");
-      // Concedii timeline: stânga=drag concediu(U), dreapta=prezent(✓)
+      // Concedii timeline: stânga=drag concediu(U), dreapta=prezent(✓) [+jumătate pentru Camion]
       let mousedown="";
       if(!isBlocked){
         if(canEditPres){
-          // stânga: drag concediu normal; dreapta: drag prezent
+          // stânga: drag concediu normal; dreapta: drag prezent (Camion: ciclu prezent→jumătate→gol)
           mousedown=`onmousedown="if(event.button===2){event.preventDefault();presDragStart('`+safeName2+`',${dn})}else{tlDragStart('${dr.id}',${dn},false,${isOccupied})}" `;
         } else {
           mousedown=`onmousedown="if(event.button!==2)tlDragStart('${dr.id}',${dn},false,${isOccupied})" `;
@@ -5569,10 +5652,10 @@ function renderTimeline(){
         (canEditPres?`if(event.buttons===2&&_presDrag.active)presDragMove('`+safeName2+`',${dn})`:"")+`" `;
       const rightClick=canEditPres?`oncontextmenu="event.preventDefault()" `:"";
       const conflictClick=hasConflict?`onclick="openConflictModal('${conflictKey}')" `:"";
-      const tipPres=isPresP?" · ✗Prezent":isPresA?" · ✗Absent":"";
-      const tipLabel=onKrank?"Krank":onUnpaid?"Fără plată":onLeave?"Concediu":"";
+      const tipPres=isPresP?" · ✗Prezent":isPresA?" · ✗Absent":isPresH?" · ½ Prezent/Concediu":"";
+      const tipLabel=onKrank?"Krank":onUnpaid?"Fără plată":onSpecial?"Zi specială ("+(specialEntry.reason||"")+")":onLeave?"Concediu":"";
       const tipText=hasConflict?"⚠️ CONFLICT — click pentru rezolvare":(isBlocked?"Zi liberă":(isOccupied?"Drag stânga=șterge ("+tipLabel+") · Click/drag dreapta=prezent":"Drag stânga=concediu (U) · Click/drag dreapta=prezent")+tipPres);
-      const cellLabel=hasConflict?"":isPresP?"✗":isPresA?"✗":onKrank?"K":onUnpaid?"S":onLeave?"U":"";
+      const cellLabel=hasConflict?"":isPresP?"✗":isPresA?"✗":isPresH?"½":onKrank?"K":onUnpaid?"S":onSpecial?"E":onLeave?"U":"";
       gridHtml+=`<div class='${cls.join(" ")}' ${hasConflict?conflictClick:mousedown}${hasConflict?"":mousemoveAttr}${rightClick}title="${escapeHtml(dr.name+" · "+formatDateRO(ds)+(holiday?" · "+holiday:"")+" — "+tipText)}" data-driver='${dr.id}' data-day='${dn}'>${cellLabel}</div>`;
     }
     gridHtml+="</div>";
@@ -5674,7 +5757,7 @@ async function cleanStalePlanificare(){
       (weekData[name]||[]).forEach((val,dow)=>{
         if(val!==1) return;
         const date = new Date(monday); date.setDate(monday.getDate()+dow);
-        const onLeave = (concDr.leaves||[]).some(l=>dateInLeave(date,l)) || (concDr.krankLeaves||[]).some(l=>dateInLeave(date,l)) || (concDr.unpaidLeaves||[]).some(l=>dateInLeave(date,l));
+        const onLeave = (concDr.leaves||[]).some(l=>dateInLeave(date,l)) || (concDr.krankLeaves||[]).some(l=>dateInLeave(date,l)) || (concDr.unpaidLeaves||[]).some(l=>dateInLeave(date,l)) || (concDr.specialLeaves||[]).some(l=>dateInLeave(date,l));
         if(onLeave) toClean.push({wkKey, name, dow, date});
       });
     });
@@ -5717,7 +5800,7 @@ function cleanStaleSortPresence(){
       if(!concDr) return;
       Object.keys(monthPres[name]||{}).forEach(dayStr=>{
         const date = new Date(y, m-1, parseInt(dayStr));
-        const onLeave = (concDr.leaves||[]).some(l=>dateInLeave(date,l)) || (concDr.krankLeaves||[]).some(l=>dateInLeave(date,l)) || (concDr.unpaidLeaves||[]).some(l=>dateInLeave(date,l));
+        const onLeave = (concDr.leaves||[]).some(l=>dateInLeave(date,l)) || (concDr.krankLeaves||[]).some(l=>dateInLeave(date,l)) || (concDr.unpaidLeaves||[]).some(l=>dateInLeave(date,l)) || (concDr.specialLeaves||[]).some(l=>dateInLeave(date,l));
         if(onLeave) toClean.push({mk, name, dayStr});
       });
     });
@@ -5949,7 +6032,7 @@ async function initYearFromBase(uk, year){
     snaps.forEach((snap,i)=>{
       const dk=docKeys[i];
       if(snap.exists)(snap.data().drivers||[]).forEach(d=>{
-        byDoc[dk].push({id:d.id,name:d.name,visibleTo:d.visibleTo||[],maxDays:d.maxDays||0,carryOverDays:0,carryOverByYear:{},leaves:[],krankLeaves:[],unpaidLeaves:[]});
+        byDoc[dk].push({id:d.id,name:d.name,visibleTo:d.visibleTo||[],maxDays:d.maxDays||0,carryOverDays:0,carryOverByYear:{},leaves:[],krankLeaves:[],unpaidLeaves:[],specialLeaves:[]});
       });
     });
     const newColl=concediiColl();
@@ -6431,6 +6514,7 @@ function getAutoStatus(name, day, y, m){
   if((dr.leaves||[]).some(l=>dateInLeave(d,l))) return "concediu";
   if((dr.krankLeaves||[]).some(l=>dateInLeave(d,l))) return "krank";
   if((dr.unpaidLeaves||[]).some(l=>dateInLeave(d,l))) return "unpaid";
+  if((dr.specialLeaves||[]).some(l=>dateInLeave(d,l))) return "special";
   return null;
 }
 
@@ -6506,6 +6590,9 @@ function renderLibere(){
     driverHtml+=`<div class='tl-driver-row' style='font-size:12px'>${escapeHtml(name)}</div>`;
     gridHtml+=`<div class='tl-row' style='grid-template-columns:${gridCols}'>`;
 
+    // Persoana din Concedii — folosită doar pentru data de angajare (startDate)
+    const concediuDrLib = state.drivers.find(d=>d.name===name);
+
     let monthLibere=0, monthLucrat=0;
     const weekLibere={}; // weekKey -> count
     const weekLucrat={};
@@ -6522,13 +6609,18 @@ function renderLibere(){
       const manualSt=(dayData[name]||{})[String(dn)];
       const status=autoSt||manualSt||null;
 
+      // Zi dinainte de data de angajare — gri închis, nebifabilă
+      const beforeHireLib = concediuDrLib && !isDriverActiveOnDay(concediuDrLib, d);
+
       let bg="var(--bg)", title="", cls=["tl-cell"];
       if(isSun||hol){ cls.push(isSun?"sunday":"holiday"); bg=hol?"rgba(168,85,247,0.15)":""; }
+      else if(beforeHireLib){ cls.push("tl-inactive-day"); }
       else if(status==="lucrat")  { bg="#10b981"; cls.push("lib-lucrat"); }
       else if(status==="liber")   { bg="#ef4444"; cls.push("lib-liber"); }
       else if(status==="concediu"){ bg="rgba(251,191,36,0.55)"; cls.push("lib-concediu"); }
       else if(status==="krank")   { bg="rgba(239,68,68,0.3)"; cls.push("lib-krank"); }
       else if(status==="unpaid")  { bg="rgba(59,130,246,0.3)"; }
+      else if(status==="special") { bg="rgba(139,92,246,0.4)"; }
       if(isTd) cls.push("today-col");
 
       // Verificăm dacă această celulă are un conflict detectat la import Excel
@@ -6545,11 +6637,11 @@ function renderLibere(){
         if(status==="lucrat"){ monthLucrat++; weekLucrat[wkKey]++; }
       }
 
-      const evts = (canEditLibere()&&!isSun&&!hol&&!autoSt&&!hasLibConflict)
+      const evts = (canEditLibere()&&!isSun&&!hol&&!autoSt&&!hasLibConflict&&!beforeHireLib)
         ? `onmousedown="libereDragStart('${name.replace(/'/g,"\\'")}',${dn},event)" onmouseenter="libereDragMove('${name.replace(/'/g,"\\'")}',${dn})"`
         : "";
       const conflictClick = hasLibConflict ? `onclick="openLibereConflictModal('${libConflictKey.replace(/'/g,"\\'")}')" ` : "";
-      const lbl = hasLibConflict ? "" : (isSun||hol) ? "" : (status==="lucrat"?"✓":status==="liber"?"✗":status==="concediu"?"U":status==="krank"?"K":status==="unpaid"?"S":"");
+      const lbl = hasLibConflict ? "" : (isSun||hol) ? "" : (status==="lucrat"?"✓":status==="liber"?"✗":status==="concediu"?"U":status==="krank"?"K":status==="unpaid"?"S":status==="special"?"E":"");
       const txtCol = (status==="lucrat"||status==="liber")?"#fff":"";
       gridHtml+=`<div class='${cls.join(" ")}' style='background:${bg};${txtCol?"color:"+txtCol:""}' ${hasLibConflict?conflictClick:evts} title="${hasLibConflict?"⚠️ CONFLICT — click pentru rezolvare":""}">${lbl}</div>`;
     }
@@ -7380,19 +7472,26 @@ function makeSortRow(dr, presence, daysInMonth, y, m, gridCols, canAdd, canEdit)
     if(getHoliday(d))cls.push("holiday");
     if(sameDay(d,new Date()))cls.push("today-col");
 
-    // Verifică dacă persoana este în concediu/krank/unpaid în această zi
+    // Verifică dacă persoana este în concediu/krank/unpaid/special în această zi
     const onLeave  = concediuDr && !blocked && (concediuDr.leaves||[]).some(l=>dateInLeave(d,l));
     const onKrank  = concediuDr && !blocked && (concediuDr.krankLeaves||[]).some(l=>dateInLeave(d,l));
     const onUnpaid = concediuDr && !blocked && (concediuDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l));
-    const onAbsent = onLeave||onKrank||onUnpaid;
+    const onSpecial = concediuDr && !blocked && (concediuDr.specialLeaves||[]).some(l=>dateInLeave(d,l));
+    const onAbsent = onLeave||onKrank||onUnpaid||onSpecial;
+
+    // Zi dinainte de data de angajare — gri închis, nebifabilă (la fel ca
+    // în Concedii Timeline)
+    const beforeHire = concediuDr && !isDriverActiveOnDay(concediuDr, d);
+    if(beforeHire && !isSunday(d)) cls.push("tl-inactive-day");
 
     if(isP) cls.push("sort-p");
     else if(isA) cls.push("sort-a");
     else if(onKrank) cls.push("in-krank");
     else if(onUnpaid) cls.push("in-unpaid");
+    else if(onSpecial) cls.push("in-special");
     else if(onLeave) cls.push("in-leave"); // U galben din concedii
 
-    const cellBlocked = blocked || onAbsent; // nu se poate bifa peste concediu
+    const cellBlocked = blocked || onAbsent || beforeHire; // nu se poate bifa peste concediu / înainte de angajare
     const _sn=dr.name.replace(/"/g,"&quot;");
     const interactions = cellBlocked ? "" :
       `data-n="${_sn}" data-d="${dn}" `+
@@ -7400,7 +7499,7 @@ function makeSortRow(dr, presence, daysInMonth, y, m, gridCols, canAdd, canEdit)
       `onmousemove="if(event.buttons>0)sortDragMove(this.dataset.n,this.dataset.d)" `+
       `oncontextmenu="event.preventDefault()"`;
 
-    const label = isP?"✓":isA?"✗":onLeave?"U":onKrank?"K":onUnpaid?"S":"";
+    const label = isP?"✓":isA?"✗":onLeave?"U":onKrank?"K":onUnpaid?"S":onSpecial?"E":"";
     gRow+=`<div class='${cls.join(" ")}' ${interactions}>${label}</div>`;
   }
   gRow+="</div>";
@@ -8055,6 +8154,7 @@ function buildPrintHTML(group){
     .c-u{background:#fffde7!important;color:#e65100!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .c-k{background:#ffcdd2!important;color:#b71c1c!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .c-s{background:#bbdefb!important;color:#0d47a1!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .c-e{background:#ede7f6!important;color:#4527a0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .c-p{background:#c8e6c9!important;color:#1b5e20!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .c-a{background:#ffcdd2!important;color:#7f0000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .hdr-row th{background:#e8e8e8!important;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -8099,6 +8199,7 @@ function buildPrintHTML(group){
         const ol=(dr.leaves||[]).some(l=>dateInLeave(d,l));
         const ok=(dr.krankLeaves||[]).some(l=>dateInLeave(d,l));
         const ou=(dr.unpaidLeaves||[]).some(l=>dateInLeave(d,l));
+        const oe=(dr.specialLeaves||[]).some(l=>dateInLeave(d,l));
         const pv=dp[String(dn)];
         const isP=pv==="prezent",isA=pv==="absent";
         let cls="day-cell",lb="";
@@ -8106,6 +8207,7 @@ function buildPrintHTML(group){
         else if(isA){cls+=" c-a";lb="&#10007;";}  // absent = X rosu (backward compat)
         else if(ok){cls+=" c-k";lb="K";}
         else if(ou){cls+=" c-s";lb="S";}
+        else if(oe){cls+=" c-e";lb="E";}
         else if(ol){cls+=" c-u";lb="U";}
         html+=`<td class="${cls}">${lb}</td>`;
       }
@@ -8116,6 +8218,7 @@ function buildPrintHTML(group){
       <span><span class="lb" style="background:#fffde7"></span>U = Concediu</span>
       <span><span class="lb" style="background:#ffcdd2"></span>K = Krank (medical)</span>
       <span><span class="lb" style="background:#bbdefb"></span>S = Fără plată</span>
+      <span><span class="lb" style="background:#ede7f6"></span>E = Zi specială</span>
       <span><span class="lb" style="background:#c8e6c9;color:#1b5e20">&#10007;</span> X = Prezent</span>
       <span><span class="lb" style="background:#eee"></span>Duminică / Sărbătoare</span>
     </div></div>`;
@@ -8136,6 +8239,7 @@ function buildPrintHTML(group){
     <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#ffcdd2!important">Krank total (${y})</th>
     <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#bbdefb!important">Fără plată în ${MONTHS[m]}</th>
     <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#bbdefb!important">Fără plată total (${y})</th>
+    <th style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#ede7f6!important">Zile speciale total (${y})</th>
   </tr></thead><tbody>`;
   drivers.forEach((dr,idx)=>{
     const vy=currentDate.getFullYear();
@@ -8147,6 +8251,7 @@ function buildPrintHTML(group){
     const rem=total>0?(total-usedYearly):"-";
     const kYearly=usedDaysThisYear(dr,"krank",vy);
     const sYearly=usedDaysThisYear(dr,"unpaid",vy);
+    const eYearly=usedDaysThisYear(dr,"special",vy);
     // This month only
     const usedMonth=(dr.leaves||[]).reduce((sum,l)=>{
       const ls=parseDate(l.start),le=parseDate(l.end);
@@ -8200,6 +8305,7 @@ function buildPrintHTML(group){
       <td style="background:#ffcdd2!important;-webkit-print-color-adjust:exact;print-color-adjust:exact">${kYearly||"-"}</td>
       <td style="background:#bbdefb!important;-webkit-print-color-adjust:exact;print-color-adjust:exact">${sMonth||"-"}</td>
       <td style="background:#bbdefb!important;-webkit-print-color-adjust:exact;print-color-adjust:exact">${sYearly||"-"}</td>
+      <td style="background:#ede7f6!important;-webkit-print-color-adjust:exact;print-color-adjust:exact">${eYearly||"-"}</td>
     </tr>`;
   });
   html+=`</tbody></table></div>`;
@@ -8256,6 +8362,11 @@ function loadPresState(){
     // datele soseau puțin prea devreme (înainte ca interfața să fie
     // complet afișată), re-randarea era sărită silențios, definitiv.
     renderTimeline();
+    // Re-randăm și panoul din stânga (lista de persoane cu zile rămase) —
+    // pentru Camion, jumătățile de zi din prezență afectează direct cota
+    // de concediu (usedDaysThisYear), deci panoul trebuie să reflecte asta
+    // imediat ce sosesc date noi de prezență, nu doar când se deschide modalul.
+    if(document.getElementById("driverList")) renderDrivers();
   }, err=>console.error("pres snap",err));
 }
 
@@ -8279,9 +8390,11 @@ function togglePresenta(driverName, day){
     const onLeave=(dr.leaves||[]).some(l=>dateInLeave(d,l));
     const onKrankDay=(dr.krankLeaves||[]).some(l=>dateInLeave(d,l));
     const onUnpaidDay=(dr.unpaidLeaves||[]).some(l=>dateInLeave(d,l));
+    const onSpecialDay=(dr.specialLeaves||[]).some(l=>dateInLeave(d,l));
     if(onLeave){ toast("Nu se poate marca prezența în zilele de concediu (U)",true); return; }
     if(onKrankDay){ toast("Nu se poate marca prezența în zilele de krank (K)",true); return; }
     if(onUnpaidDay){ toast("Nu se poate marca prezența în zilele fără plată (S)",true); return; }
+    if(onSpecialDay){ toast("Nu se poate marca prezența în zilele speciale (E)",true); return; }
   }
   const mk=getPresMonthKey();
   if(!presState.presence[mk]) presState.presence[mk]={};
@@ -8297,14 +8410,25 @@ function togglePresenta(driverName, day){
 
 // ---- Drag prezență concedii timeline ----
 // Concedii: dreapta = prezent/șterge (fără absent în acest tab)
+// EXCEPȚIE — grupul Camion (Corina): ciclu pe 3 stări, prezent → jumătate
+// (½ prezent/½ concediu) → gol, ca să poată marca ziua respectivă drept
+// jumătate de zi lucrată / jumătate de zi de concediu (2 astfel de zile
+// scad automat 1 zi întreagă din cota de concediu — vezi usedDaysThisYear).
 let _presDrag = {active:false, driverName:null, mode:null};
 
 function presDragStart(driverName, day){
   if(!canEdit()) return; // Tania read-only
   const mk=getPresMonthKey();
   const cur=(presState.presence[mk]&&presState.presence[mk][driverName]&&presState.presence[mk][driverName][String(day)]);
-  // Dreapta în concedii = prezent toggle (prezent↔gol, fără absent)
-  _presDrag={active:true, driverName, mode: cur==="prezent"?"clear":"prezent", days:[day]};
+  const dr=state.drivers.find(d=>d.name===driverName);
+  const isCamion=dr&&dr.group==="camion";
+  let nextMode;
+  if(isCamion){
+    nextMode = cur==="prezent" ? "half" : cur==="half" ? "clear" : "prezent";
+  } else {
+    nextMode = cur==="prezent" ? "clear" : "prezent";
+  }
+  _presDrag={active:true, driverName, mode: nextMode, days:[day]};
   presDragApply(driverName, day);
 }
 
@@ -8322,6 +8446,7 @@ function presDragApply(driverName, day){
     if((dr.leaves||[]).some(l=>dateInLeave(d,l))) return;
     if((dr.krankLeaves||[]).some(l=>dateInLeave(d,l))) return;
     if((dr.unpaidLeaves||[]).some(l=>dateInLeave(d,l))) return;
+    if((dr.specialLeaves||[]).some(l=>dateInLeave(d,l))) return;
   }
   const mk=getPresMonthKey();
   if(!presState.presence[mk]) presState.presence[mk]={};
@@ -8339,6 +8464,10 @@ function presDragEnd(){
   const dateList = days.map(d=>mk+"-"+String(d).padStart(2,"0")).join(", ");
   _presDrag={active:false, driverName:null, mode:null, days:[]};
   logActivity("✓ Prezență drag",name,dateList||("lună "+mk),"concedii");
+  // Panoul din stânga (zile rămase) depinde de prezență DOAR pentru Camion
+  // (jumătăți de zi) — îl re-randăm imediat local, fără să așteptăm
+  // round-trip-ul prin Firestore, ca userul să vadă cota actualizată pe loc.
+  if(document.getElementById("driverList")) renderDrivers();
   savePresState();
 }
 
@@ -8604,8 +8733,8 @@ function computeBackupDiff(bd){
     }
     if(!bdByName[name]){ newDrivers.push(name); return; }
     const lv=liveByName[name], bk=bdByName[name];
-    ["leaves","krankLeaves","unpaidLeaves"].forEach(field=>{
-      const label = field==="leaves"?"Concediu":field==="krankLeaves"?"Krank":"Fără plată";
+    ["leaves","krankLeaves","unpaidLeaves","specialLeaves"].forEach(field=>{
+      const label = field==="leaves"?"Concediu":field==="krankLeaves"?"Krank":field==="unpaidLeaves"?"Fără plată":"Zi specială";
       const liveArr=lv[field]||[], bdArr=bk[field]||[];
       const liveSet=new Set(liveArr.map(periodKey)), bdSet=new Set(bdArr.map(periodKey));
       liveArr.forEach(l=>{ if(!bdSet.has(periodKey(l))) leaveChanges.push({type:"add",label,name,period:l}); });
@@ -8825,7 +8954,7 @@ function previewBackup(idx){
   let driversArr=Array.isArray(driversObj)?driversObj:Object.values(driversObj);
   // Format vechi (v1/v2): bd.leaves = {nume: {leaves,krankLeaves,unpaidLeaves}}
   if(driversArr.length===0 && bd.leaves){
-    driversArr = Object.entries(bd.leaves).map(([name,v])=>({name,leaves:v.leaves||[],krankLeaves:v.krankLeaves||[],unpaidLeaves:v.unpaidLeaves||[],maxDays:0,carryOverByYear:{}}));
+    driversArr = Object.entries(bd.leaves).map(([name,v])=>({name,leaves:v.leaves||[],krankLeaves:v.krankLeaves||[],unpaidLeaves:v.unpaidLeaves||[],specialLeaves:v.specialLeaves||[],maxDays:0,carryOverByYear:{}}));
   }
   driversArr = [...driversArr].sort((a,b)=>(a.name||"").localeCompare(b.name||"","ro"));
 
@@ -8939,7 +9068,7 @@ async function confirmRestoreBackup(){
     const driversObj=bd.drivers||{};
     let driversArr=Array.isArray(driversObj)?driversObj:Object.values(driversObj);
     if(driversArr.length===0 && bd.leaves){
-      driversArr = Object.entries(bd.leaves).map(([name,v])=>({name,leaves:v.leaves||[],krankLeaves:v.krankLeaves||[],unpaidLeaves:v.unpaidLeaves||[],maxDays:0,carryOverByYear:{}}));
+      driversArr = Object.entries(bd.leaves).map(([name,v])=>({name,leaves:v.leaves||[],krankLeaves:v.krankLeaves||[],unpaidLeaves:v.unpaidLeaves||[],specialLeaves:v.specialLeaves||[],maxDays:0,carryOverByYear:{}}));
     }
     // Recreăm COMPLET lista de persoane din backup — nu doar actualizăm
     // persoane existente. Dacă state.drivers e gol (ex: după un dezastru
@@ -8960,6 +9089,7 @@ async function confirmRestoreBackup(){
       leaves: d.leaves||[],
       krankLeaves: d.krankLeaves||[],
       unpaidLeaves: d.unpaidLeaves||[],
+      specialLeaves: d.specialLeaves||[],
       archived: d.archived||false,
       archivedAt: d.archivedAt||null,
       remainingDaysAtArchive: d.remainingDaysAtArchive!==undefined?d.remainingDaysAtArchive:null,
@@ -9127,7 +9257,7 @@ function parseExcelForImport(wb,fileName){
     }
     if(runType)flush(runType,runStart,new Date(yearVal,monthNum,0).getDate());
 
-    const existing={leaves:(dr.leaves||[]),krank:(dr.krankLeaves||[]),unpaid:(dr.unpaidLeaves||[])};
+    const existing={leaves:(dr.leaves||[]),krank:(dr.krankLeaves||[]),unpaid:(dr.unpaidLeaves||[]),special:(dr.specialLeaves||[])};
     // Verificăm la nivel de ZI dacă e deja acoperită de orice tip de absență existentă —
     // nu doar dacă perioada exactă (start/end) se potrivește. Asta previne duplicarea
     // când Excel-ul produce un interval cu alte limite decât cel deja salvat (ex: deja
@@ -9135,7 +9265,8 @@ function parseExcelForImport(wb,fileName){
     const isDayCovered = (dateStr) => {
       return existing.leaves.some(l=>dateStr>=l.start&&dateStr<=l.end)
           || existing.krank.some(l=>dateStr>=l.start&&dateStr<=l.end)
-          || existing.unpaid.some(l=>dateStr>=l.start&&dateStr<=l.end);
+          || existing.unpaid.some(l=>dateStr>=l.start&&dateStr<=l.end)
+          || existing.special.some(l=>dateStr>=l.start&&dateStr<=l.end);
     };
     // Pentru fiecare interval propus de Excel, păstrăm doar zilele necoperite,
     // apoi le regrupăm în sub-intervale consecutive (ca să nu se piardă unirea firească).
@@ -9474,7 +9605,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.09.24-09";
+const APP_VERSION = "2026.10.02-01";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -9765,7 +9896,7 @@ function renderPlanificare(){
       (getMonthDrivers()||[]).filter(dr=>dr.group==="ruhstorf"&&(cat.key==="permanent"?(!dr.category||dr.category==="permanent"):dr.category===cat.key)).forEach(dr=>{
         const wkData=(planState[wkKey]&&planState[wkKey][dr.name])||[0,0,0,0,0,0,0];
         const concDr=findConcDriverByName(dr.name);
-        const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)));
+        const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.specialLeaves||[]).some(l=>dateInLeave(d,l)));
         if(!onLeave&&wkData[dow]===1) cnt++;
       });
     });
@@ -9865,13 +9996,15 @@ function renderPlanificare(){
           const isOnLeave=concDr&&(concDr.leaves||[]).some(l=>dateInLeave(d,l));
           const isOnKrank=concDr&&(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l));
           const isOnUnpaid=concDr&&(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l));
-          const onLeave=isOnLeave||isOnKrank||isOnUnpaid;
+          const isOnSpecial=concDr&&(concDr.specialLeaves||[]).some(l=>dateInLeave(d,l));
+          const onLeave=isOnLeave||isOnKrank||isOnUnpaid||isOnSpecial;
           const isToday=sameDay(d,today);
           const val=wkData[dow];
           let bg,color,label,cursor;
           if(isBlocked){bg="rgba(239,68,68,0.06)";color="";label="";cursor="not-allowed";}
           else if(isOnKrank){bg="rgba(239,68,68,0.3)";color="#7a1a1a";label="K";cursor="not-allowed";}
           else if(isOnUnpaid){bg="rgba(59,130,246,0.3)";color="#1e3a8a";label="S";cursor="not-allowed";}
+          else if(isOnSpecial){bg="rgba(139,92,246,0.35)";color="#3b1e7a";label="E";cursor="not-allowed";}
           else if(isOnLeave){bg="rgba(255,220,0,0.25)";color="#7a5800";label="U";cursor="not-allowed";}
           else if(val===1){bg="#10b981";color="#fff";label="✓";cursor="pointer";}
           else{bg=isToday?"rgba(37,99,235,0.12)":rowBg;color="";label="";cursor="pointer";}
@@ -9948,7 +10081,7 @@ function renderPlanCompliance(){
       // persoana nu era disponibilă pentru sortat, indiferent ce mai există
       // rezidual în datele de prezență din Sortatori (marcat înainte să
       // apară Concediul).
-      const onLeave = concDr && ((concDr.leaves||[]).some(l=>dateInLeave(d,l)) || (concDr.krankLeaves||[]).some(l=>dateInLeave(d,l)) || (concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)));
+      const onLeave = concDr && ((concDr.leaves||[]).some(l=>dateInLeave(d,l)) || (concDr.krankLeaves||[]).some(l=>dateInLeave(d,l)) || (concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)) || (concDr.specialLeaves||[]).some(l=>dateInLeave(d,l)));
       if(onLeave) return;
       const dow=(d.getDay()+6)%7;
       const wkKey=d.getFullYear()+"-W"+String(getISOWeek(d)).padStart(2,"0");
@@ -10109,7 +10242,7 @@ function openWhatsAppExport(){
       const dw=weekData[dr.name]||[0,0,0,0,0,0,0];
       const pz=workDayIdxs.filter(i=>{
         const d=dates[i];
-        const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)));
+        const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.specialLeaves||[]).some(l=>dateInLeave(d,l)));
         return dw[i]===1&&!onLeave;
       });
       if(!pz.length) return;
@@ -10126,7 +10259,7 @@ function openWhatsAppExport(){
     const hasAny=workDayIdxs.some(i=>{
       const d=dates[i];
       const concDr=findConcDriverByName(dr.name);
-      const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)));
+      const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.specialLeaves||[]).some(l=>dateInLeave(d,l)));
       return dw[i]===1&&!onLeave;
     });
     if(hasAny){camionName=dr.name;break;}
@@ -10193,7 +10326,7 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
     return workDays.map((d,i)=>{
       const dow=(d.getDay()+6)%7;
       const concDr=state.drivers.find(sd=>sd.name===name);
-      const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)));
+      const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.specialLeaves||[]).some(l=>dateInLeave(d,l)));
       return dw[dow]===1&&!onLeave;
     });
   }
@@ -10298,7 +10431,7 @@ function generatePlanImage(wkKey, dates, weekData, cats, wkNum){
     for(const dr of cDrivers){
       const dw=weekData[dr.name]||[0,0,0,0,0,0,0];
       const concDr=findConcDriverByName(dr.name);
-      const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l)));
+      const onLeave=concDr&&((concDr.leaves||[]).some(l=>dateInLeave(d,l))||(concDr.krankLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l))||(concDr.specialLeaves||[]).some(l=>dateInLeave(d,l)));
       if(dw[dow]===1&&!onLeave) return dr.name;
     }
     return null;
@@ -10547,6 +10680,7 @@ function openSortPrintModal(){
     .c-p{background:#c8e6c9!important;color:#1b5e20!important;font-weight:700}
     .c-a{background:#ffcdd2!important;color:#7f0000!important;font-weight:700}
     .c-lv{background:#fffde7!important;color:#e65100!important}
+    .c-e{background:#ede7f6!important;color:#4527a0!important;font-weight:700}
     .cat-hdr td{background:#f0f0f0!important;font-weight:700;font-size:8px;text-transform:uppercase;letter-spacing:0.5px;color:#555;text-align:left;padding:2px 6px}
     .legend{display:flex;gap:10px;margin-top:3mm;flex-wrap:wrap;font-size:8px;align-items:center}
     .lb{width:13px;height:13px;border:1px solid #999;display:inline-block;vertical-align:middle;margin-right:2px}
@@ -10602,11 +10736,13 @@ function openSortPrintModal(){
           const onLeave=concediuDr&&(concediuDr.leaves||[]).some(l=>dateInLeave(d,l));
           const onKrank=concediuDr&&(concediuDr.krankLeaves||[]).some(l=>dateInLeave(d,l));
           const onUnpaid=concediuDr&&(concediuDr.unpaidLeaves||[]).some(l=>dateInLeave(d,l));
+          const onSpecial=concediuDr&&(concediuDr.specialLeaves||[]).some(l=>dateInLeave(d,l));
           if(val==="prezent")      html+=`<td class="c-p">✓</td>`;
           else if(val==="absent")  html+=`<td class="c-a">✗</td>`;
           else if(onLeave)         html+=`<td class="c-lv">U</td>`;
           else if(onKrank)         html+=`<td class="c-lv">K</td>`;
           else if(onUnpaid)        html+=`<td class="c-lv">S</td>`;
+          else if(onSpecial)       html+=`<td class="c-e">E</td>`;
           else                     html+=`<td></td>`;
         }
         html+=`</tr>`;
@@ -10617,6 +10753,7 @@ function openSortPrintModal(){
       <span><span class="lb" style="background:#c8e6c9"></span>✓ = Prezent</span>
       <span><span class="lb" style="background:#ffcdd2;color:#7f0000">✗</span> ✗ = Absent</span>
       <span><span class="lb" style="background:#fffde7"></span>U/K/S = Concediu/Krank/Fără plată</span>
+      <span><span class="lb" style="background:#ede7f6"></span>E = Zi specială</span>
       <span><span class="lb" style="background:#b0b0b0"></span>Duminică / Sărbătoare</span>
     </div></div>`;
   }
@@ -10799,7 +10936,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.09.24-09</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.02-01</div>
 
 </body>
 </html>
