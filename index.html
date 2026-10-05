@@ -7922,6 +7922,7 @@ function renderActivityLog(){
 // EXCEL VERIFY MODULE
 // ============================================================
 function verifyExcelFile(e){
+  if(!isAdmin()){ try{e.target.value="";}catch(_){} return; } // Verificare Excel — DOAR Admin
   const file = e.target.files[0];
   if(!file) return;
   e.target.value="";
@@ -8440,6 +8441,25 @@ async function savePresState(){
   }catch(e){ console.error("pres save",e); }
 }
 
+// Salvare AMÂNATĂ (debounce) — folosită la click/drag rapid pe prezențe
+// (togglePresenta / presDragEnd). Dacă userul bifează multe persoane rapid,
+// fiecare click rescrie presState local (feedback vizual instant, vezi
+// renderDrivers()/renderTimeline() din funcțiile de mai sus), dar NU mai
+// trimitem câte o scriere Firestore separată pentru fiecare click — asta
+// cauza lag-ul (fiecare scriere declanșa și propriul onSnapshot, care
+// re-randa din nou totul) ȘI putea "debifa" prezențe: scrierile concurente,
+// netrimise în ordine garantată, puteau ajunge pe server în ordine inversă
+// față de cum au fost făcute click-urile, iar o scriere mai veche (cu mai
+// puține bife) ajunsă ULTIMA pe server suprascria o scriere mai nouă.
+// Cu debounce, click-urile rapide sunt "coalescate" într-o singură scriere
+// finală (cu toate bifele acumulate), la 500ms după ultimul click — nu mai
+// există scrieri concurente care să se poată întrece.
+let presSaveTimer = null;
+function schedulePresSave(){
+  if(presSaveTimer) clearTimeout(presSaveTimer);
+  presSaveTimer = setTimeout(()=>{ presSaveTimer=null; savePresState(); }, 500);
+}
+
 function togglePresenta(driverName, day){
   // Block presence on concediu days
   const dr=state.drivers.find(d=>d.name===driverName);
@@ -8463,7 +8483,7 @@ function togglePresenta(driverName, day){
   else delete presState.presence[mk][driverName][String(day)];
   logActivity("✓ Prezență",driverName,fmtDate(new Date(currentDate.getFullYear(),currentDate.getMonth(),parseInt(day)))+" — "+(presState.presence[mk]&&presState.presence[mk][driverName]&&presState.presence[mk][driverName][String(day)]?"prezent":"șters"),"concedii");
   renderTimeline();
-  savePresState();
+  schedulePresSave();
 }
 
 // ---- Drag prezență concedii timeline ----
@@ -8526,7 +8546,7 @@ function presDragEnd(){
   // (jumătăți de zi) — îl re-randăm imediat local, fără să așteptăm
   // round-trip-ul prin Firestore, ca userul să vadă cota actualizată pe loc.
   if(document.getElementById("driverList")) renderDrivers();
-  savePresState();
+  schedulePresSave();
 }
 
 // ============================================================
@@ -9213,6 +9233,7 @@ let _importPending=[];
 let _importAlreadyOk=[];
 
 function importExcelFile(e){
+  if(!isAdmin()){ try{e.target.value="";}catch(_){} return; } // Import Excel — DOAR Admin
   const files=[...e.target.files]; e.target.value="";
   if(!files.length) return;
   _importPending=[];
@@ -9515,6 +9536,7 @@ function renderImportPreview(results){
 }
 
 async function confirmImportExcel(){
+  if(!isAdmin()) return; // Import Excel — DOAR Admin
   if(!_importPending.length && !_importAlreadyOk.length) return;
   const totalPersoane = _importPending.length;
   const totalIntrari = _importPending.reduce((s,r)=>s+(r.totalNew||0),0);
@@ -9665,7 +9687,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.02-02";
+const APP_VERSION = "2026.10.05-01";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -10996,7 +11018,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.02-02</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.05-01</div>
 
 </body>
 </html>
