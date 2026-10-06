@@ -1226,6 +1226,7 @@
     <input type="file" id="importExcelFile" accept=".xlsx,.xlsm,.xls" style="display:none" multiple onchange="importExcelFile(event)">
     <button class="btn btn-secondary btn-small" id="actLogBtn" onclick="openActivityLog()" style="width:100%; margin-bottom:6px; display:none; border-color:#818cf8; color:#818cf8">📋 Istoric activitate</button>
     <button class="btn btn-secondary btn-small" id="excelStatusBtn" onclick="openExcelImportStatusPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📊 Status Import Excel</button>
+    <button class="btn btn-secondary btn-small" id="absenceReportBtn" onclick="openAbsenceReport()" style="width:100%; margin-bottom:6px; display:none; border-color:#14b8a6; color:#14b8a6">🗓️ Raport absențe lunare</button>
     <button class="btn btn-secondary btn-small" id="carryOverBtn" onclick="runCarryOverCalculation()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">🔄 Calculează report an nou</button>
     <button class="btn btn-secondary btn-small" id="borrowedDaysBtn" onclick="openBorrowedDaysManager()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📌 Zile împrumutate din anul viitor</button>
     <button class="btn btn-secondary btn-small" id="cleanStalePresenceBtn" onclick="cleanStaleSortPresence()" style="width:100%; margin-bottom:6px; display:none; border-color:#ef4444; color:#ef4444">🧹 Curăță prezențe reziduale (Sortatori)</button>
@@ -1795,6 +1796,37 @@
   </div>
 </div>
 
+<div class="modal-bg" id="modalAbsenceReport">
+  <div class="modal" style="max-width:1000px;max-height:90vh;overflow-y:auto">
+    <h3>🗓️ Raport absențe lunare</h3>
+    <div class="modal-sub">Doar persoanele cu Urlaub, Krank, Fără plată sau Zi specială în luna aleasă.</div>
+    <div style="display:flex;gap:8px;align-items:center;margin:10px 0">
+      <button onclick="changeAbsenceMonth(-1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--text-dim)">◀</button>
+      <span id="absMonthNav" style="font-weight:700;flex:1;text-align:center"></span>
+      <button onclick="changeAbsenceMonth(1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--text-dim)">▶</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:10px;font-size:13px">
+      <select id="absGroupSel" onchange="renderAbsenceReport()" style="padding:4px 8px">
+        <option value="all">Toate grupurile</option>
+        <option value="ruhstorf">Ruhstorf</option>
+        <option value="eiselfing">Eiselfing</option>
+        <option value="camion">Camion</option>
+        <option value="paketshop">Paketshop</option>
+        <option value="sortat">Sortat</option>
+      </select>
+      <label><input type="checkbox" id="absType_leaves" checked onchange="renderAbsenceReport()"> Urlaub</label>
+      <label><input type="checkbox" id="absType_krankLeaves" checked onchange="renderAbsenceReport()"> Krank</label>
+      <label><input type="checkbox" id="absType_unpaidLeaves" checked onchange="renderAbsenceReport()"> Fără plată</label>
+      <label><input type="checkbox" id="absType_specialLeaves" checked onchange="renderAbsenceReport()"> Zi specială</label>
+    </div>
+    <div id="absList"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="printAbsenceReport()">🖨️ Print</button>
+      <button class="btn btn-secondary" onclick="closeModal('modalAbsenceReport')">Închide</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modalActivityLog">
   <div class="modal" style="max-width:900px;max-height:92vh;overflow-y:auto">
     <h3>📋 Manager Istoric Activitate</h3>
@@ -2097,6 +2129,132 @@ async function checkExcelImportReminder(){
 // ============================================================
 // PANOU STATUS IMPORT EXCEL — vizualizare/gestionare per persoană, per lună
 // ============================================================
+// ============================================================
+// RAPORT ABSENȚE LUNARE — DOAR Admin. Listează, pentru o lună aleasă,
+// exclusiv persoanele care au avut Urlaub / Krank / Fără plată / Zi specială
+// (orice altceva decât prezent), cu perioadele și numărul de zile lucrătoare.
+// Are propriul print, separat de print-ul din calendar.
+// ============================================================
+let _absRep = null; // {y, m}
+const ABS_TYPES = [
+  {key:"leaves",        label:"Urlaub",      color:"#2563eb"},
+  {key:"krankLeaves",   label:"Krank",       color:"#dc2626"},
+  {key:"unpaidLeaves",  label:"Fără plată",  color:"#7c3aed"},
+  {key:"specialLeaves", label:"Zi specială", color:"#059669"}
+];
+const ABS_GROUP_LABEL = {ruhstorf:"Ruhstorf",eiselfing:"Eiselfing",camion:"Camion",paketshop:"Paketshop",sortat:"Sortat"};
+const ABS_MON_SHORT = ["Ian","Feb","Mar","Apr","Mai","Iun","Iul","Aug","Sep","Oct","Nov","Dec"];
+
+function openAbsenceReport(){
+  if(!isAdmin()) return;
+  if(!_absRep){ _absRep = {y:currentDate.getFullYear(), m:currentDate.getMonth()}; }
+  openModal("modalAbsenceReport");
+  renderAbsenceReport();
+}
+function changeAbsenceMonth(delta){
+  if(!isAdmin()||!_absRep) return;
+  let m=_absRep.m+delta, y=_absRep.y;
+  if(m<0){m=11;y--;} else if(m>11){m=0;y++;}
+  _absRep={y,m};
+  renderAbsenceReport();
+}
+function absSelectedTypes(){
+  return ABS_TYPES.filter(t=>{
+    const el=document.getElementById("absType_"+t.key);
+    return el ? el.checked : true;
+  });
+}
+function absRangeLabel(from,to){
+  const a=from.getDate(), b=to.getDate();
+  return a===b ? String(a) : a+"–"+b;
+}
+// Întoarce [{name, group, perType:{key:{ranges:[{label,days}], days}}, total}]
+function buildAbsenceData(y,m,groupFilter,types){
+  const mStart=new Date(y,m,1), mEnd=new Date(y,m+1,0);
+  const rows=[];
+  state.drivers.forEach(dr=>{
+    if(groupFilter && groupFilter!=="all" && dr.group!==groupFilter) return;
+    const perType={}; let total=0;
+    types.forEach(t=>{
+      const ranges=[]; let days=0;
+      (dr[t.key]||[]).slice().sort((a,b)=>a.start<b.start?-1:1).forEach(l=>{
+        const s=parseDate(l.start), e=parseDate(l.end);
+        if(e<mStart||s>mEnd) return;
+        const from=s<mStart?mStart:s, to=e>mEnd?mEnd:e;
+        const wd=countWorkdays(from,to);
+        if(wd<=0) return;
+        const rl={label:absRangeLabel(from,to), days:wd};
+        if(t.key==="specialLeaves" && l.reason) rl.reason=l.reason;
+        ranges.push(rl); days+=wd;
+      });
+      if(ranges.length){ perType[t.key]={ranges,days}; total+=days; }
+    });
+    if(total>0) rows.push({name:dr.name, group:dr.group||"", perType, total});
+  });
+  rows.sort((a,b)=>a.name.localeCompare(b.name,"ro"));
+  return rows;
+}
+function absCellHTML(info,color){
+  if(!info) return '<span style="color:#bbb">—</span>';
+  return info.ranges.map(r=>
+    '<span style="display:inline-block;margin:1px 4px 1px 0;padding:1px 7px;border-radius:10px;background:'+color+'22;color:'+color+';font-weight:700;font-size:12px;white-space:nowrap">'+
+    escapeHtml(r.label)+(r.reason?' · '+escapeHtml(r.reason):'')+'</span>'
+  ).join("")+'<span style="font-weight:800;font-size:12px"> = '+info.days+' z</span>';
+}
+function renderAbsenceReport(){
+  if(!isAdmin()||!_absRep) return;
+  const {y,m}=_absRep;
+  document.getElementById("absMonthNav").textContent=MONTHS[m]+" "+y;
+  const types=absSelectedTypes();
+  const grp=document.getElementById("absGroupSel").value;
+  const rows=buildAbsenceData(y,m,grp,types);
+  const box=document.getElementById("absList");
+  if(!types.length){ box.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-dim)">Bifează cel puțin un tip.</div>'; return; }
+  if(!rows.length){ box.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-dim)">Nicio persoană cu absențe în '+MONTHS[m]+' '+y+'.</div>'; return; }
+  let h='<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left;border-bottom:2px solid var(--border)"><th style="padding:6px">Persoană</th><th style="padding:6px">Grup</th>';
+  types.forEach(t=>{h+='<th style="padding:6px;color:'+t.color+'">'+t.label+'</th>';});
+  h+='<th style="padding:6px;text-align:right">Total</th></tr></thead><tbody>';
+  const sums={}; types.forEach(t=>sums[t.key]=0);
+  rows.forEach(r=>{
+    h+='<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px;font-weight:700">'+escapeHtml(r.name)+'</td><td style="padding:6px;color:var(--text-dim)">'+escapeHtml(ABS_GROUP_LABEL[r.group]||"")+'</td>';
+    types.forEach(t=>{ h+='<td style="padding:6px">'+absCellHTML(r.perType[t.key],t.color)+'</td>'; if(r.perType[t.key]) sums[t.key]+=r.perType[t.key].days; });
+    h+='<td style="padding:6px;text-align:right;font-weight:800">'+r.total+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  h+='<div style="margin-top:10px;font-size:12px;color:var(--text-dim)"><b>'+rows.length+'</b> persoane · '+types.map(t=>t.label+': <b>'+sums[t.key]+'</b> z').join(' · ')+' <span style="opacity:.8">(zile lucrătoare, fără duminici/sărbători)</span></div>';
+  box.innerHTML=h;
+}
+function printAbsenceReport(){
+  if(!isAdmin()||!_absRep) return;
+  const {y,m}=_absRep;
+  const types=absSelectedTypes();
+  if(!types.length){ toast("Bifează cel puțin un tip",true); return; }
+  const grp=document.getElementById("absGroupSel").value;
+  const rows=buildAbsenceData(y,m,grp,types);
+  const grpLabel = grp==="all" ? "Toate grupurile" : (ABS_GROUP_LABEL[grp]||grp);
+  const sums={}; types.forEach(t=>sums[t.key]=0);
+  let body='';
+  rows.forEach((r,i)=>{
+    body+='<tr><td>'+(i+1)+'</td><td class="nm">'+escapeHtml(r.name)+'</td><td>'+escapeHtml(ABS_GROUP_LABEL[r.group]||"")+'</td>';
+    types.forEach(t=>{
+      const info=r.perType[t.key];
+      if(info){ sums[t.key]+=info.days;
+        body+='<td>'+info.ranges.map(x=>escapeHtml(x.label)+(x.reason?' ('+escapeHtml(x.reason)+')':'')).join(', ')+' <b>= '+info.days+' z</b></td>';
+      } else body+='<td class="e">—</td>';
+    });
+    body+='<td class="tot">'+r.total+'</td></tr>';
+  });
+  if(!rows.length) body='<tr><td colspan="'+(4+types.length)+'" style="text-align:center;padding:20px">Nicio persoană cu absențe.</td></tr>';
+  const head='<tr><th>#</th><th>Persoană</th><th>Grup</th>'+types.map(t=>'<th>'+t.label+'</th>').join('')+'<th>Total zile</th></tr>';
+  const foot=rows.length?'<tr class="sum"><td></td><td colspan="2">TOTAL ('+rows.length+' persoane)</td>'+types.map(t=>'<td>'+sums[t.key]+' z</td>').join('')+'<td>'+types.reduce((a,t)=>a+sums[t.key],0)+'</td></tr>':'';
+  const css='body{font-family:Arial,sans-serif;margin:18px;color:#111}h1{font-size:18px;margin:0 0 2px}.sub{font-size:12px;color:#555;margin-bottom:12px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #999;padding:5px 7px;text-align:left;vertical-align:top}th{background:#eee}td.nm{font-weight:700}td.e{color:#aaa;text-align:center}td.tot{text-align:right;font-weight:800}tr.sum td{background:#f3f3f3;font-weight:800}.note{margin-top:8px;font-size:10px;color:#666}@media print{@page{size:A4 landscape;margin:10mm}}';
+  const w=window.open("","_blank","width=1100,height=800");
+  if(!w){ toast("Permite ferestrele pop-up pentru print",true); return; }
+  w.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Absențe "+MONTHS[m]+" "+y+"</title><style>"+css+"</style></head><body><h1>Raport absențe — "+MONTHS[m]+" "+y+"</h1><div class='sub'>"+escapeHtml(grpLabel)+" · "+types.map(t=>t.label).join(" / ")+" · generat "+new Date().toLocaleDateString("ro-RO")+"</div><table><thead>"+head+"</thead><tbody>"+body+foot+"</tbody></table><div class='note'>Zile lucrătoare (fără duminici și sărbători legale). Numerele din celule = zilele lunii.</div></body></html>");
+  w.document.close();
+  setTimeout(()=>{w.focus();w.print();},500);
+}
+
 let _excelStatusMonth = null; // {y, m}
 
 async function openExcelImportStatusPanel(monthKey){
@@ -3305,6 +3463,8 @@ function enterApp(userKey){
   if(copyPrevMonthBtn2) copyPrevMonthBtn2.style.display = isAdm?"inline-flex":"none";
   const actLogBtn2 = document.getElementById("actLogBtn");
   if(actLogBtn2) actLogBtn2.style.display = isAdm?"block":"none";
+  const absenceReportBtn2 = document.getElementById("absenceReportBtn");
+  if(absenceReportBtn2) absenceReportBtn2.style.display = isAdm?"block":"none";
   const excelStatusBtn2 = document.getElementById("excelStatusBtn");
   if(excelStatusBtn2) excelStatusBtn2.style.display = isAdm?"block":"none";
   const carryOverBtn2 = document.getElementById("carryOverBtn");
@@ -4462,15 +4622,18 @@ function addLeave(){
 
   // Block leave/krank/unpaid/special if presence exists
   if(leaveType==="leaves"||leaveType==="krank"||leaveType==="unpaid"||leaveType==="special"){
-    const mk0=currentDate.getFullYear()+"-"+String(currentDate.getMonth()+1).padStart(2,"0");
-    const drP0=(presState.presence&&presState.presence[mk0]&&presState.presence[mk0][dr.name])||{};
+    // Cheia lunii se calculează pentru FIECARE zi din perioadă (nu din luna
+    // afișată în calendar) — altfel prezența unei alte luni, cu aceeași
+    // cifră a zilei, producea un blocaj fals.
     const startD=parseDate(start),endD=parseDate(end);
-    let presOverlap=false;
+    const presDays=[];
     for(let dd=new Date(startD);dd<=endD;dd.setDate(dd.getDate()+1)){
-      if(drP0[String(dd.getDate())]){presOverlap=true;break;}
+      const mkd=dd.getFullYear()+"-"+String(dd.getMonth()+1).padStart(2,"0");
+      const v=presState.presence&&presState.presence[mkd]&&presState.presence[mkd][dr.name]&&presState.presence[mkd][dr.name][String(dd.getDate())];
+      if(v) presDays.push(fmtDateStr(dd));
     }
-    if(presOverlap){
-      toast("⛔ "+dr.name+" are prezență marcată în această perioadă.",true); return;
+    if(presDays.length){
+      toast("⛔ "+dr.name+" are prezență marcată în: "+presDays.slice(0,6).join(", ")+(presDays.length>6?" …(+"+(presDays.length-6)+")":"")+" — scoate prezența din calendar mai întâi.",true); return;
     }
   }
   // Block leave if unpaid exists
@@ -4499,11 +4662,12 @@ function addLeave(){
   }
   // Zi specială nu se poate suprapune cu Concediu/Krank/Fără plată, și invers
   if(leaveType==="special"){
-    const hasLeaveOverlap=(dr.leaves||[]).some(l=>l.start<=end&&l.end>=start);
+    // Concediul NU blochează: Zi specială îl suprascrie (conversie mai jos,
+    // cu confirmare), iar zilele de concediu se restituie automat în cotă.
     const hasKrankOverlap3=(dr.krankLeaves||[]).some(l=>l.start<=end&&l.end>=start);
     const hasUnpaidOverlap3=(dr.unpaidLeaves||[]).some(l=>l.start<=end&&l.end>=start);
-    if(hasLeaveOverlap||hasKrankOverlap3||hasUnpaidOverlap3){
-      toast("⛔ "+dr.name+" are deja un alt status (Concediu/Krank/Fără plată) în această perioadă.",true); return;
+    if(hasKrankOverlap3||hasUnpaidOverlap3){
+      toast("⛔ "+dr.name+" are deja Krank/Fără plată în această perioadă — șterge mai întâi statusul existent.",true); return;
     }
   } else {
     const specialOverlap=(dr.specialLeaves||[]).some(l=>l.start<=end&&l.end>=start);
@@ -4512,7 +4676,7 @@ function addLeave(){
     }
   }
 
-  if(leaveType==="krank"||leaveType==="unpaid"){
+  if(leaveType==="krank"||leaveType==="unpaid"||leaveType==="special"){
     // Verifică dacă există perioade de concediu care se suprapun
     const overlapping = (dr.leaves||[]).filter(l=>l.start<=end&&l.end>=start);
     if(overlapping.length>0){
@@ -4522,7 +4686,7 @@ function addLeave(){
         const to=l.end<end?l.end:end;
         return sum+countWorkdays(parseDate(from),parseDate(to));
       },0);
-      const typeLabel=leaveType==="krank"?"krank":"fără plată";
+      const typeLabel=leaveType==="krank"?"krank":leaveType==="special"?"zi specială":"fără plată";
       const action=leaveType==="krank"?"restaurate la disponibile":"restaurate la disponibile";
       const ok=confirm(
         "⚠️ Suprapunere cu concediu existent!\n\n"+
@@ -9687,7 +9851,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.05-01";
+const APP_VERSION = "2026.10.06-02";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -11018,7 +11182,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.05-01</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.06-02</div>
 
 </body>
 </html>
