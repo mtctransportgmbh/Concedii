@@ -758,6 +758,11 @@
     background: rgba(154,52,18,0.6) !important;
     color: rgba(253,186,116,0.95) !important;
   }
+  /* Special-day names — purple tint (la fel ca celula din timeline) */
+  .cal-name.special {
+    background: rgba(109,40,217,0.6) !important;
+    color: rgba(221,214,254,0.97) !important;
+  }
   /* Timeline krank cell */
   .tl-cell.in-krank { background: #dc2626 !important; color:#fff !important; }
   .tl-cell.in-krank:hover { background: #b91c1c !important; }
@@ -3863,6 +3868,13 @@ function unpaidOnDate(date){
   return getVisibleDrivers().filter(dr=>(dr.unpaidLeaves||[]).some(l=>dateInLeave(date,l)));
 }
 
+// Zi specială — vizibilă în calendar exact ca „Fără plată” (doar Admin /
+// cei cu acces de vizualizare la Concedii).
+function specialOnDate(date){
+  if(!isAdmin()&&!hasModuleView(window.activeUserKey||"","concedii")) return [];
+  return getVisibleDrivers().filter(dr=>(dr.specialLeaves||[]).some(l=>dateInLeave(date,l)));
+}
+
 function visibleToForName(name){
   const vis=["tania"];
   if(DRIVERS_RALUCA.includes(name))   vis.push("raluca");
@@ -5309,6 +5321,7 @@ function renderCalDay(d,otherMonth,today){
   const drivers=(otherMonth||isSun||!!holiday)?[]:driversOnDate(d);
   const kDriversCal=(otherMonth||isSun||!!holiday)?[]:krankOnDate(d);
   const uDriversCal=(otherMonth||isSun||!!holiday)?[]:unpaidOnDate(d);
+  const sDriversCal=(otherMonth||isSun||!!holiday)?[]:specialOnDate(d);
   const hasKrank=kDriversCal.length>0;
   const hasUnpaid=uDriversCal.length>0;
   const classes=["cal-day"];
@@ -5326,6 +5339,7 @@ function renderCalDay(d,otherMonth,today){
     const combined=[];
     kDriversCal.forEach(dr=>combined.push({dr,type:"krank"}));
     uDriversCal.forEach(dr=>{ if(!combined.find(x=>x.dr.id===dr.id)) combined.push({dr,type:"unpaid"}); });
+    sDriversCal.forEach(dr=>{ if(!combined.find(x=>x.dr.id===dr.id)) combined.push({dr,type:"special"}); });
     drivers.forEach(dr=>{ if(!combined.find(x=>x.dr.id===dr.id)) combined.push({dr,type:"leave"}); });
     const visible=combined.slice(0,MAX_SHOW);
     const rest=combined.length-visible.length;
@@ -5334,8 +5348,8 @@ function renderCalDay(d,otherMonth,today){
       const left=visible.slice(0,COL);
       const right=visible.slice(COL,COL*2);
       const makeCell=({dr,type})=>{
-        const cls=type==="krank"?" krank":type==="unpaid"?" unpaid":"";
-        const suffix=type==="krank"?" K":type==="unpaid"?" U":"";
+        const cls=type==="krank"?" krank":type==="unpaid"?" unpaid":type==="special"?" special":"";
+        const suffix=type==="krank"?" K":type==="unpaid"?" U":type==="special"?" E":"";
         const parts=dr.name.trim().split(/\s+/);
         // Afișăm: NumeFamilie + inițiala prenumelui (dacă există)
         const familyName=parts[0];
@@ -5362,7 +5376,12 @@ function renderCalDay(d,otherMonth,today){
   if(isSun)inner=`<div class="cal-day-num">${dnum}</div>`+(holiday?`<div class="holiday-name">${escapeHtml(holiday.split("(")[0].trim())}</div>`:"")+`<div class="sunday-mark">${holiday?"":"Liber"}</div>`;
   else if(holiday)inner=`<div class="cal-day-num">${dnum}</div>`+(drivers.length>0?`<div class="cal-day-count">${drivers.length}</div>`:"")+`<div class="holiday-name">${escapeHtml(holiday.split("(")[0].trim())}</div>`+namesHtml;
   else inner=`<div class="cal-day-num">${dnum}</div>`+(drivers.length>0?`<div class="cal-day-count">${drivers.length}</div>`:"")+namesHtml;
-  const titleAttr=drivers.length>0?`title="${escapeHtml(drivers.map(dr=>dr.name).join(", ")+(holiday?" • "+holiday:""))}"`:( holiday?`title="${escapeHtml(holiday)}"`:""  );
+  const tipLines=[];
+  drivers.forEach(dr=>tipLines.push(dr.name));
+  kDriversCal.forEach(dr=>tipLines.push(dr.name+" (Krank)"));
+  uDriversCal.forEach(dr=>tipLines.push(dr.name+" (Fără plată)"));
+  sDriversCal.forEach(dr=>tipLines.push(dr.name+" (Zi specială)"));
+  const titleAttr=tipLines.length>0?`title="${escapeHtml(tipLines.join(", ")+(holiday?" • "+holiday:""))}"`:( holiday?`title="${escapeHtml(holiday)}"`:""  );
   const uk = window.activeUserKey||"?";
   const visibleReminders = (!isSun && !otherMonth) ? (_calendarReminders||[]).filter(r=>r.dateStr===ds && canSeeReminder(r,uk)) : [];
   let reminderMark = "";
@@ -5555,25 +5574,37 @@ async function renderDayReminders(dateStr){
 function openDayDetail(dateStr){
   const d=parseDate(dateStr);if(isSunday(d))return;
   _currentDayDetailDate = dateStr;
-  const drivers=driversOnDate(d),holiday=getHoliday(d);
+  const holiday=getHoliday(d);
   document.getElementById("modalDayTitle").textContent=formatDateRO(dateStr);
   const dowName=["Duminică","Luni","Marți","Miercuri","Joi","Vineri","Sâmbătă"][d.getDay()];
-  let sub=dowName+" • "+drivers.length+" persoane în concediu";if(holiday)sub+=" • 🎉 "+holiday;
+  // TOATE tipurile de absență din ziua respectivă: Concediu, Krank, Fără plată, Zi specială
+  const TYPES=[
+    {key:"leave",  label:"Concediu",    arr:"leaves",        list:driversOnDate(d),  color:"#f59e0b"},
+    {key:"krank",  label:"Krank",       arr:"krankLeaves",   list:krankOnDate(d),    color:"#3b82f6"},
+    {key:"unpaid", label:"Fără plată",  arr:"unpaidLeaves",  list:unpaidOnDate(d),   color:"#fb923c"},
+    {key:"special",label:"Zi specială", arr:"specialLeaves", list:specialOnDate(d),  color:"#8b5cf6"}
+  ];
+  const total=TYPES.reduce((a,t)=>a+t.list.length,0);
+  let sub=dowName+" • "+TYPES.filter(t=>t.list.length).map(t=>t.list.length+" "+t.label.toLowerCase()).join(" • ");
+  if(!total) sub=dowName+" • nicio absență";
+  if(holiday)sub+=" • 🎉 "+holiday;
   document.getElementById("modalDaySub").textContent=sub;
   const list=document.getElementById("dayDriversList");
-  if(!drivers.length){list.innerHTML="<div class=\"empty\">Nicio persoană în concediu</div>";}
+  if(!total){list.innerHTML="<div class=\"empty\">Nicio persoană absentă</div>";}
   else{
-    list.innerHTML=drivers.map(dr=>{
-      // Colectăm toate perioadele pentru această persoană (concediu normal)
-      const allLeaves = (dr.leaves||[]).filter(l=>dateInLeave(d,l));
-      // Sortăm după start
-      allLeaves.sort((a,b)=>a.start.localeCompare(b.start));
-      // Fuzionăm perioadele consecutive sau suprapuse
-      const merged = mergeLeaves(dr.leaves||[]);
-      // Găsim perioada fuzionată care acoperă ziua d
-      const covering = merged.find(l=>dateInLeave(d,l));
-      const rangeStr = covering ? formatDateRO(covering.start)+" → "+formatDateRO(covering.end) : "";
-      return `<div class="day-driver"><span>${escapeHtml(dr.name)}</span><span style="color:var(--text-dim);font-size:11px">${rangeStr}</span></div>`;
+    list.innerHTML=TYPES.filter(t=>t.list.length).map(t=>{
+      const rows=[...t.list].sort((a,b)=>a.name.localeCompare(b.name,"ro")).map(dr=>{
+        let rangeStr="";
+        if(t.key==="special"){
+          const e=(dr.specialLeaves||[]).find(l=>dateInLeave(d,l));
+          if(e) rangeStr=formatDateRO(e.start)+" → "+formatDateRO(e.end)+(e.reason?" · "+e.reason:"");
+        } else {
+          const covering=mergeLeaves(dr[t.arr]||[]).find(l=>dateInLeave(d,l));
+          if(covering) rangeStr=formatDateRO(covering.start)+" → "+formatDateRO(covering.end);
+        }
+        return `<div class="day-driver"><span>${escapeHtml(dr.name)}</span><span style="color:var(--text-dim);font-size:11px">${escapeHtml(rangeStr)}</span></div>`;
+      }).join("");
+      return `<div style="margin:8px 0 2px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:${t.color}">${t.label} (${t.list.length})</div>${rows}`;
     }).join("");
   }
   renderDayReminders(dateStr);
@@ -8226,24 +8257,24 @@ function processExcelWorkbook(wb, fileName){
 
       // *** PREZENȚĂ: Excel are sosire → HTML trebuie să aibă prezent marcat ***
       if(excPresent && !htmlPrezent && !htmlLeave && !htmlKrank && !htmlUnpaid){
-        diffs.push({day, type:"🟠", msg:"Excel: prezent (are sosire) → HTML: prezență nemarcată"});
+        diffs.push({day, cat:"prezente", type:"🟠", msg:"Excel: prezent (are sosire) → HTML: prezență nemarcată"});
       } else if(!excPresent && htmlPrezent && !excUrlaub && !excKrank && !excSonder){
-        diffs.push({day, type:"🟠", msg:"HTML: prezent marcat → Excel: fără sosire"});
+        diffs.push({day, cat:"prezente", type:"🟠", msg:"HTML: prezent marcat → Excel: fără sosire"});
       }
 
       // Check discrepancies
       if(excUrlaub && !htmlLeave){
-        diffs.push({day, type:"⚠️", msg:"Excel: Urlaub → HTML: fără concediu"});
+        diffs.push({day, cat:"leaves", type:"⚠️", msg:"Excel: Urlaub → HTML: fără concediu"});
       } else if(!excUrlaub && htmlLeave && !excPresent && !excKrank && !excSonder){
-        diffs.push({day, type:"⚠️", msg:"HTML: concediu → Excel: fără Urlaub"});
+        diffs.push({day, cat:"leaves", type:"⚠️", msg:"HTML: concediu → Excel: fără Urlaub"});
       }
       if(excKrank && !htmlKrank){
-        diffs.push({day, type:"🔴", msg:"Excel: Krank → HTML: fără krank"});
+        diffs.push({day, cat:"krank", type:"🔴", msg:"Excel: Krank → HTML: fără krank"});
       } else if(!excKrank && htmlKrank){
-        diffs.push({day, type:"🔴", msg:"HTML: krank → Excel: fără Krank"});
+        diffs.push({day, cat:"krank", type:"🔴", msg:"HTML: krank → Excel: fără Krank"});
       }
       if(excSonder && !htmlUnpaid){
-        diffs.push({day, type:"🔵", msg:"Excel: Sonderurlaub → HTML: fără fără-plată"});
+        diffs.push({day, cat:"unpaid", type:"🔵", msg:"Excel: Sonderurlaub → HTML: fără fără-plată"});
       }
     }
 
@@ -8282,18 +8313,29 @@ function renderVerifyResults(results, fileName, total){
     ${skipped.length>0?`<span style="color:var(--text-dim)"> (${skipped.length} sheet-uri au altă lună și au fost ignorate)</span>`:""}
   </div>`;
 
-  // Persons with differences
+  // Diferențe grupate pe TEMĂ → persoană → zilele exacte (cu ziua săptămânii) + problema
   if(withDiffs.length>0){
-    html+=`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.5px">Diferențe găsite</div>`;
-    withDiffs.forEach(r=>{
-      html+=`<div style="background:var(--bg-elev-2);border-radius:6px;padding:10px;margin-bottom:8px;border-left:3px solid var(--orange)">`;
-      html+=`<div style="font-weight:700;font-size:13px;margin-bottom:6px">${escapeHtml(r.name)} <span style="color:var(--text-dim);font-size:11px">${r.monthStr||""} ${r.yearVal||""}</span></div>`;
-      r.diffs.forEach(d=>{
-        html+=`<div style="font-size:12px;padding:2px 0">${d.type} <strong>Ziua ${d.day}</strong>: ${d.msg}</div>`;
+    const CATS=[{k:"prezente",t:"✅ Prezențe"},{k:"leaves",t:"🟡 Concedii (Urlaub)"},{k:"krank",t:"🔵 Krank"},{k:"unpaid",t:"🟣 Fără plată (Sonderurlaub)"}];
+    CATS.forEach(cat=>{
+      const rows=[]; // {name, msg, dates[]}
+      withDiffs.forEach(r=>{
+        r.diffs.filter(d=>d.cat===cat.k).forEach(d=>{
+          const ds=fmtDate(new Date(r.yearVal,r.monthNum-1,d.day));
+          let row=rows.find(x=>x.name===r.name&&x.msg===d.msg);
+          if(!row){row={name:r.name,msg:d.msg,dates:[]};rows.push(row);}
+          row.dates.push(ds);
+        });
       });
+      const nDays=rows.reduce((a,x)=>a+x.dates.length,0);
+      html+=`<div style="background:var(--bg-elev-2);border-radius:8px;padding:10px 14px;margin-bottom:10px;border-left:4px solid ${nDays?"var(--orange)":"#10b981"}">
+        <div style="font-weight:800;font-size:14px;margin-bottom:4px">${cat.t} <span style="font-weight:600;font-size:12px;color:var(--text-dim)">· ${nDays?nDays+" zile cu probleme":"fără probleme"}</span></div>`;
+      if(nDays){
+        html+=`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left;color:var(--text-dim);font-size:11px;border-bottom:1px solid var(--border)"><th style="padding:3px 6px">Persoană</th><th style="padding:3px 6px">Zile exacte</th><th style="padding:3px 6px">Problema</th></tr></thead><tbody>`+
+          rows.map(x=>`<tr style="border-bottom:1px solid var(--border);vertical-align:top"><td style="padding:4px 6px"><b>${escapeHtml(x.name)}</b></td><td style="padding:4px 6px">${escapeHtml(impFmtDates(x.dates))}</td><td style="padding:4px 6px">${escapeHtml(x.msg)}</td></tr>`).join("")+`</tbody></table>`;
+      }
       html+=`</div>`;
     });
-    html+=`</div>`;
+    html+=`<div style="font-size:11px;color:var(--text-dim);margin-bottom:10px">Pentru a corecta: folosește <b>📥 Import Excel → HTML</b> — are butoane separate pentru Concedii, Krank, Fără plată, Prezențe și Libere Springeri.</div>`;
   }
 
   // Not found
@@ -9479,6 +9521,11 @@ function parseExcelForImport(wb,fileName){
         return null;
       };
       let dayType = typeFromStatus(status) || typeFromStatus(statusI);
+      // Text în coloana Abwesenheit pe care nu-l recunoaștem — îl raportăm cu ziua exactă
+      if(!dayType && (rawH||rawI) && d.getDay()!==0 && !getHoliday(d)){
+        if(!changes.unknownStatus) changes.unknownStatus=[];
+        changes.unknownStatus.push({dateStr:fmtDate(d),dayNum,raw:(rawH||rawI)});
+      }
       const isPaketshopDay = dayType==="prezent_paketshop";
       if(isPaketshopDay) dayType="prezent"; // pentru Concedii, P.S se comportă identic cu prezent normal
       if(!dayType&&hasArrival) dayType="prezent";
@@ -9542,7 +9589,12 @@ function parseExcelForImport(wb,fileName){
     const newUnpaid=filterUncoveredDays(changes.unpaid);
     const mk=yearVal+"-"+String(monthNum).padStart(2,"0");
     const existingPres=(presState.presence&&presState.presence[mk]&&presState.presence[mk][dr.name])||{};
-    const newPrezente=changes.prezente.filter(d=>existingPres[String(d)]!=="prezent");
+    // Orice marcaj existent (prezent SAU ½ la Camion) rămâne neatins — nu se suprascrie
+    const newPrezente=changes.prezente.filter(d=>!existingPres[String(d)]);
+    // Zile în care Excel zice prezent, dar aplicația are deja concediu/krank/fără plată/zi specială:
+    // NU se importă automat (e un conflict de rezolvat manual), ca să nu apară prezență peste concediu.
+    const newPrezenteBlocked=newPrezente.filter(d=>isDayCovered(fmtDate(new Date(yearVal,monthNum-1,d))));
+    const newPrezenteSafe=newPrezente.filter(d=>!newPrezenteBlocked.includes(d));
 
     // ── Detecție conflicte zi cu zi ──
     // Un conflict există când Excel și aplicația au stări incompatibile pentru aceeași zi:
@@ -9574,6 +9626,24 @@ function parseExcelForImport(wb,fileName){
           desc:`Excel: ${exLabel} — Aplicație: prezent ✅`
         });
       }
+    });
+    // Conflict C: Excel zice un tip de absență (Urlaub/Krank/Fără plată), iar aplicația are ALT tip
+    // în aceeași zi — înainte nu se raporta deloc, ziua rămânea "acoperită" în tăcere.
+    Object.entries(exDs).forEach(([dateStr,excelType])=>{
+      if(excelType!=="urlaub"&&excelType!=="krank"&&excelType!=="unpaid") return;
+      const d=parseDate(dateStr);
+      if(d.getMonth()!==monthNum-1||d.getFullYear()!==yearVal) return;
+      const appLeave=existing.leaves.some(l=>dateStr>=l.start&&dateStr<=l.end);
+      const appKrank=existing.krank.some(l=>dateStr>=l.start&&dateStr<=l.end);
+      const appUnpaid=existing.unpaid.some(l=>dateStr>=l.start&&dateStr<=l.end);
+      if(!(appLeave||appKrank||appUnpaid)) return;
+      const appType=appLeave?"urlaub":appKrank?"krank":"unpaid";
+      if(appType===excelType) return;
+      const lbl=t=>t==="urlaub"?"Urlaub 🟡":t==="krank"?"Krank 🔵":"Fără plată 🟣";
+      conflicts.push({dateStr,dayNum:d.getDate(),drId:dr.id,drName:dr.name,monthNum,yearVal,
+        excelSays:excelType, appSays:appType,
+        desc:`Excel: ${lbl(excelType)} — Aplicație: ${lbl(appType)}`
+      });
     });
     // ── Detecție conflicte cu Libere Springeri ──
     // Verificăm doar dacă persoana e listată în Libere Springeri pentru luna
@@ -9613,12 +9683,181 @@ function parseExcelForImport(wb,fileName){
         }
       });
     }
-    results.push({name:personName,drId:dr.id,drName:dr.name,monthNum,yearVal,monthStr,fileName,newLeaves,newKrank,newUnpaid,newPrezente,conflicts,libereConflicts,totalNew:newLeaves.length+newKrank.length+newUnpaid.length+newPrezente.length});
+    results.push({name:personName,drId:dr.id,drName:dr.name,monthNum,yearVal,monthStr,fileName,newLeaves,newKrank,newUnpaid,newPrezente,newPrezenteSafe,newPrezenteBlocked,unknownStatus:(changes.unknownStatus||[]),conflicts,libereConflicts,totalNew:newLeaves.length+newKrank.length+newUnpaid.length+newPrezenteSafe.length});
   });
   return results;
 }
 
+
+// ============================================================
+// IMPORT PE TEME — fiecare categorie are zilele exacte, ce zice Excel vs ce
+// zice aplicația, și propriul buton de import (Concedii / Krank / Fără plată /
+// Prezențe / Libere Springeri), independent unul de altul.
+// ============================================================
+const IMP_TOPICS=[
+  {key:"leaves",   icon:"🟡", label:"Concedii (Urlaub)"},
+  {key:"krank",    icon:"🔵", label:"Krank"},
+  {key:"unpaid",   icon:"🟣", label:"Fără plată"},
+  {key:"prezente", icon:"✅", label:"Prezențe"},
+  {key:"libere",   icon:"🟢", label:"Libere Springeri"}
+];
+const IMP_DOW=["Du","Lu","Ma","Mi","Jo","Vi","Sâ"];
+const IMP_MRO=["","Ianuarie","Februarie","Martie","Aprilie","Mai","Iunie","Iulie","August","Septembrie","Octombrie","Noiembrie","Decembrie"];
+function impFmtDay(ds){const d=parseDate(ds);return IMP_DOW[d.getDay()]+" "+String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0");}
+// ["2026-10-03","2026-10-04","2026-10-09"] → "Sâ 03.10 → Du 04.10 (2 zile) · Vi 09.10"
+function impFmtDates(dateStrs){
+  const a=[...new Set(dateStrs)].sort();
+  const groups=[];
+  a.forEach(ds=>{
+    const last=groups[groups.length-1];
+    if(last){const nx=parseDate(last.end);nx.setDate(nx.getDate()+1);if(fmtDate(nx)===ds){last.end=ds;last.n++;return;}}
+    groups.push({start:ds,end:ds,n:1});
+  });
+  return groups.map(g=>g.n===1?impFmtDay(g.start):impFmtDay(g.start)+" → "+impFmtDay(g.end)+" ("+g.n+" zile)").join(" · ");
+}
+function impPeriodDates(p){const out=[];const e=parseDate(p.end);for(let d=parseDate(p.start);d<=e;d.setDate(d.getDate()+1))out.push(fmtDate(d));return out;}
+const IMP_LABEL={urlaub:"Urlaub 🟡",krank:"Krank 🔵",unpaid:"Fără plată 🟣",prezent:"Prezent ✅",lucrat:"Lucrat 🟢",liber:"Liber 🔴",gol:"— (gol)"};
+
+function buildImportTopicData(results){
+  const T={}; IMP_TOPICS.forEach(t=>T[t.key]={imports:[],problems:[]});
+  T.other={problems:[]};
+  const grp=(arr,who,mon,excel,app,ds,extra)=>{
+    const k=who+"|"+mon+"|"+excel+"|"+app;
+    let g=arr.find(x=>x._k===k);
+    if(!g){g={_k:k,who,mon,excel,app,dates:[]};if(extra)Object.assign(g,extra);arr.push(g);}
+    g.dates.push(ds);
+  };
+  results.forEach(r=>{
+    if(r.error||r.skip) return;
+    const who=r.drName||r.name, mon=(IMP_MRO[r.monthNum]||"")+" "+r.yearVal;
+    [["leaves",r.newLeaves],["krank",r.newKrank],["unpaid",r.newUnpaid]].forEach(([k,arr])=>{
+      (arr||[]).forEach(p=>T[k].imports.push({who,mon,dates:impPeriodDates(p),note:"lipsește în aplicație — se adaugă"}));
+    });
+    if((r.newPrezenteSafe||[]).length){
+      T.prezente.imports.push({who,mon,dates:r.newPrezenteSafe.map(d=>fmtDate(new Date(r.yearVal,r.monthNum-1,d))),note:"Excel: prezent — în aplicație nu e marcat — se adaugă"});
+    }
+    (r.conflicts||[]).forEach(c=>{
+      // Fiecare conflict apare la tema a ceea ce spune EXCEL-ul
+      const topic=c.excelSays==="prezent"?"prezente":c.excelSays==="urlaub"?"leaves":c.excelSays;
+      grp(T[topic].problems,who,mon,c.excelSays,c.appSays,c.dateStr);
+    });
+    (r.libereConflicts||[]).forEach(c=>{
+      grp(T.libere.imports,who,mon,c.excelSays,c.appSays,c.dateStr,{libere:true});
+    });
+    (r.unknownStatus||[]).forEach(u=>{
+      grp(T.other.problems,who,mon,u.raw,"necunoscut",u.dateStr);
+    });
+  });
+  return T;
+}
+
+function impRowsTable(rows,cols){
+  if(!rows.length) return "";
+  let h='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px"><thead><tr style="text-align:left;color:var(--text-dim);font-size:11px;border-bottom:1px solid var(--border)">'+cols.map(c=>'<th style="padding:3px 6px">'+c.h+'</th>').join("")+'</tr></thead><tbody>';
+  rows.forEach(r=>{ h+='<tr style="border-bottom:1px solid var(--border);vertical-align:top">'+cols.map(c=>'<td style="padding:4px 6px">'+c.f(r)+'</td>').join("")+'</tr>'; });
+  return h+'</tbody></table>';
+}
+
+function renderImportTopicSections(results){
+  const T=buildImportTopicData(results);
+  const who=r=>'<b>'+escapeHtml(r.who)+'</b><div style="font-size:10px;color:var(--text-dim)">'+escapeHtml(r.mon)+'</div>';
+  const days=r=>escapeHtml(impFmtDates(r.dates));
+  let html='<div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;padding:8px;background:var(--bg-elev-2);border-radius:6px">⚠️ Datele existente <strong>nu se șterg</strong>. Fiecare temă are butonul ei de import — celelalte rămân neatinse. Conflictele (Excel ≠ aplicație) <strong>nu</strong> se importă automat: apar mai jos cu zilele exacte și se rezolvă cu ❓ în timeline.</div>';
+  IMP_TOPICS.forEach(t=>{
+    const d=T[t.key];
+    const nImp=d.imports.reduce((s,x)=>s+new Set(x.dates).size,0);
+    const nProb=d.problems.reduce((s,x)=>s+new Set(x.dates).size,0);
+    const border=nProb>0?"#ef4444":nImp>0?"#10b981":"#666";
+    html+='<div style="background:var(--bg-elev-2);border-radius:8px;padding:10px 14px;margin-bottom:10px;border-left:4px solid '+border+'">';
+    html+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div style="font-weight:800;font-size:14px;flex:1">'+t.icon+' '+t.label+
+      ' <span style="font-weight:600;font-size:12px;color:var(--text-dim)">· de importat: <b style="color:#10b981">'+nImp+'</b> zile'+(t.key==="libere"?'':' · probleme: <b style="color:'+(nProb?'#ef4444':'inherit')+'">'+nProb+'</b> zile')+'</span></div>'+
+      '<button class="btn btn-small" '+(nImp?'':'disabled ')+'onclick="confirmImportExcel(\''+t.key+'\')" style="background:#10b981;border-color:#10b981;color:#fff'+(nImp?'':';opacity:.4;cursor:not-allowed')+'">📥 Importă doar '+t.label+'</button></div>';
+    if(!nImp&&!nProb) html+='<div style="font-size:12px;color:var(--text-dim);padding:6px 0">✅ Nimic de făcut — Excel și aplicația corespund.</div>';
+    if(nImp){
+      if(t.key==="libere"){
+        html+='<div style="font-size:11px;font-weight:700;margin-top:8px;color:#10b981">Zile în care Libere Springeri diferă de Excel (importul pune ce zice Excel):</div>'+
+          impRowsTable(d.imports,[{h:"Persoană",f:who},{h:"Zile exacte",f:days},{h:"Excel zice",f:r=>escapeHtml(IMP_LABEL[r.excel]||r.excel)},{h:"Acum în Libere",f:r=>escapeHtml(IMP_LABEL[r.app]||r.app)}]);
+      } else {
+        html+='<div style="font-size:11px;font-weight:700;margin-top:8px;color:#10b981">Se importă:</div>'+
+          impRowsTable(d.imports,[{h:"Persoană",f:who},{h:"Zile exacte",f:days},{h:"Motiv",f:r=>escapeHtml(r.note)}]);
+      }
+    }
+    if(nProb){
+      html+='<div style="font-size:11px;font-weight:700;margin-top:8px;color:#ef4444">Probleme (necesită decizie):</div>'+
+        impRowsTable(d.problems,[{h:"Persoană",f:who},{h:"Zile exacte",f:days},{h:"Excel zice",f:r=>escapeHtml(IMP_LABEL[r.excel]||r.excel)},{h:"Aplicația are",f:r=>escapeHtml(IMP_LABEL[r.app]||r.app)}]);
+    }
+    html+='</div>';
+  });
+  if(T.other.problems.length){
+    html+='<div style="background:var(--bg-elev-2);border-radius:8px;padding:10px 14px;margin-bottom:10px;border-left:4px solid #f59e0b"><div style="font-weight:800;font-size:14px">❓ Text necunoscut în Excel (ignorat la import)</div>'+
+      impRowsTable(T.other.problems,[{h:"Persoană",f:who},{h:"Zile exacte",f:days},{h:"Ce scrie în Excel",f:r=>'„'+escapeHtml(r.excel)+'”'}])+'</div>';
+  }
+  return html;
+}
+
+// Importă DOAR o temă (leaves / krank / unpaid / prezente / libere)
+async function importExcelTopic(topic){
+  if(!isAdmin()) return;
+  const t=IMP_TOPICS.find(x=>x.key===topic); if(!t) return;
+  const results=_importAllResults.filter(r=>!r.error&&!r.skip);
+  const cnt=r=> topic==="leaves"?(r.newLeaves||[]).length : topic==="krank"?(r.newKrank||[]).length : topic==="unpaid"?(r.newUnpaid||[]).length : topic==="prezente"?(r.newPrezenteSafe||[]).length : (r.libereConflicts||[]).length;
+  const total=results.reduce((s,r)=>s+cnt(r),0);
+  const persons=results.filter(r=>cnt(r)>0).length;
+  if(!total){ toast("Nimic de importat la "+t.label); return; }
+  if(!confirm("Importi DOAR „"+t.label+"” ?\n\n"+persons+" persoane, "+total+" intrări.\nCelelalte teme (Concedii/Krank/Fără plată/Prezențe/Libere) rămân neatinse.\n\nContinui?")) return;
+  const MR=["","Ian","Feb","Mar","Apr","Mai","Iun","Iul","Aug","Sep","Oct","Nov","Dec"];
+  let touchedDrivers=false, touchedPres=false, touchedLib=false;
+  results.forEach(r=>{
+    const dr=state.drivers.find(d=>d.id===r.drId); if(!dr) return;
+    const tag=" ("+MR[r.monthNum]+" "+r.yearVal+")";
+    if(topic==="leaves"||topic==="krank"||topic==="unpaid"){
+      const src=topic==="leaves"?r.newLeaves:topic==="krank"?r.newKrank:r.newUnpaid;
+      const arrKey=topic==="leaves"?"leaves":topic==="krank"?"krankLeaves":"unpaidLeaves";
+      const lbl=topic==="leaves"?"concediu":topic==="krank"?"krank":"S";
+      if(!src||!src.length) return;
+      if(!dr[arrKey]) dr[arrKey]=[];
+      src.forEach(l=>{dr[arrKey].push({start:l.start,end:l.end});clearPlanificareForLeave(dr.name,l.start,l.end);logActivity("📥 Import "+lbl+" (doar temă)",dr.name,l.start+"→"+l.end+tag,"concedii");});
+      dr[arrKey]=splitLeavesFromHolidaysOnly(dr[arrKey]);
+      touchedDrivers=true;
+    } else if(topic==="prezente"){
+      const days=r.newPrezenteSafe||[]; if(!days.length) return;
+      const mk=r.yearVal+"-"+String(r.monthNum).padStart(2,"0");
+      if(!presState.presence[mk]) presState.presence[mk]={};
+      if(!presState.presence[mk][dr.name]) presState.presence[mk][dr.name]={};
+      days.forEach(d=>{ if(!presState.presence[mk][dr.name][String(d)]) presState.presence[mk][dr.name][String(d)]="prezent"; });
+      logActivity("📥 Import prezențe (doar temă)",dr.name,days.length+"z"+tag,"concedii");
+      touchedPres=true;
+    } else if(topic==="libere"){
+      const cs=r.libereConflicts||[]; if(!cs.length) return;
+      if(!libereState.days) libereState.days={};
+      cs.forEach(c=>{
+        if(!libereState.days[c.monthKey]) libereState.days[c.monthKey]={};
+        if(!libereState.days[c.monthKey][c.drName]) libereState.days[c.monthKey][c.drName]={};
+        libereState.days[c.monthKey][c.drName][String(c.dayNum)]=c.excelSays;
+        if(window._libereImportConflicts) delete window._libereImportConflicts[c.drName+"_"+c.dateStr];
+      });
+      logActivity("📥 Import Libere Springeri (doar temă)",dr.name,cs.length+"z"+tag,"libere");
+      touchedLib=true;
+    }
+  });
+  // Scoatem din lista de rezultate ce s-a importat, ca previzualizarea să rămână corectă
+  results.forEach(r=>{
+    if(topic==="leaves") r.newLeaves=[]; else if(topic==="krank") r.newKrank=[]; else if(topic==="unpaid") r.newUnpaid=[];
+    else if(topic==="prezente") r.newPrezenteSafe=[]; else if(topic==="libere") r.libereConflicts=[];
+    r.totalNew=(r.newLeaves||[]).length+(r.newKrank||[]).length+(r.newUnpaid||[]).length+(r.newPrezenteSafe||[]).length;
+  });
+  try{
+    if(touchedDrivers){ renderAll(); await saveDriversNow(); }
+    if(touchedPres){ renderAll(); await savePresState(); }
+    if(touchedLib){ await saveLibereState(); if(typeof renderLibere==="function") renderLibere(); }
+  }catch(e){ console.error("importExcelTopic save",e); toast("⚠️ Eroare la salvare: "+(e.message||e),true); }
+  toast("✅ Importat doar „"+t.label+"”: "+total+" intrări ("+persons+" persoane)");
+  renderImportPreview(_importAllResults);
+}
+
+let _importAllResults=[];
 function renderImportPreview(results){
+  _importAllResults=results;
   _importPending=results.filter(r=>!r.error&&!r.skip&&r.totalNew>0);
   // Persoane a căror lună a fost verificată cu succes, dar nu au avut nimic
   // nou de adăugat (Excel-ul era deja identic cu ce e în aplicație) — tot
@@ -9670,37 +9909,14 @@ function renderImportPreview(results){
     ${errors.length?`<div style="padding:7px 14px;background:rgba(239,68,68,0.15);border-radius:6px;font-size:13px">❌ Erori: <strong>${errors.length}</strong></div>`:""}
     ${(totalConflicts+totalLibereConflicts)>0?`<div style="padding:7px 14px;background:rgba(239,68,68,0.2);border:1px solid #ef4444;border-radius:6px;font-size:13px;font-weight:700;color:#ef4444">⚠️ Conflicte: <strong>${totalConflicts+totalLibereConflicts}</strong>${totalLibereConflicts?" ("+totalConflicts+" Concedii + "+totalLibereConflicts+" Libere Springeri)":""} — vizibile cu ❓</div>`:""}
   </div>`;
-  // Afișăm conflictele grupate
-  const allConflicts=results.flatMap(r=>r.conflicts||[]);
-  if(allConflicts.length){
-    html+=`<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:7px;padding:10px 14px;margin-bottom:12px">
-      <div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#ef4444">⚠️ Conflicte detectate (${allConflicts.length}) — ziua are stări diferite în Excel vs Aplicație</div>
-      ${allConflicts.slice(0,20).map(c=>`<div style="font-size:11px;padding:2px 0;color:var(--text)">
-        • <b>${escapeHtml(c.drName)}</b> — <b>${c.dateStr}</b>: ${c.desc}
-      </div>`).join("")}
-      ${allConflicts.length>20?`<div style="font-size:11px;color:var(--text-dim);margin-top:4px">...și încă ${allConflicts.length-20} conflicte. Click pe ❓ în timeline pentru rezolvare.</div>`:""}
-      <div style="font-size:11px;color:var(--text-dim);margin-top:6px">Apasă pe o casetă <b>❓</b> în timeline pentru a rezolva fiecare conflict.</div>
-    </div>`;
-  }
-  if(_importPending.length===0){html+='<div style="text-align:center;padding:20px;color:var(--text-dim)">Nimic de importat.</div>';}
-  else{
-    html+='<div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;padding:8px;background:var(--bg-elev-2);border-radius:6px">⚠️ Datele existente <strong>nu se șterg</strong> — se adaugă doar ce lipsește.</div>';
-    _importPending.forEach(r=>{
-      html+=`<div style="background:var(--bg-elev-2);border-radius:7px;padding:10px 14px;margin-bottom:8px;border-left:3px solid #10b981">
-        <div style="font-weight:700;font-size:13px;margin-bottom:6px">${escapeHtml(r.drName||r.name)} <span style="color:var(--text-dim);font-size:11px">${MRO[r.monthNum]||""} ${r.yearVal}</span></div>
-        ${r.newLeaves.map(l=>`<div style="font-size:12px;padding:1px 0">🟡 Concediu: ${l.start} → ${l.end}</div>`).join("")}
-        ${r.newKrank.map(l=>`<div style="font-size:12px;padding:1px 0">🔵 Krank: ${l.start} → ${l.end}</div>`).join("")}
-        ${r.newUnpaid.map(l=>`<div style="font-size:12px;padding:1px 0">🟣 Fără plată: ${l.start} → ${l.end}</div>`).join("")}
-        ${r.newPrezente.length?`<div style="font-size:12px;padding:1px 0">✅ Prezențe: ziua ${r.newPrezente.join(", ")}</div>`:""}
-      </div>`;
-    });
-  }
+  html+=renderImportTopicSections(results);
   if(skipped.length){html+=`<div style="background:var(--bg-elev-2);border-radius:6px;padding:8px;margin-top:8px;border-left:3px solid #666"><div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:4px">Sărite:</div>${skipped.map(r=>`<div style="font-size:12px;color:var(--text-dim)">• ${escapeHtml(r.name)} — ${r.skip}</div>`).join("")}</div>`;}
   document.getElementById("importExcelResults").innerHTML=html;
 }
 
-async function confirmImportExcel(){
+async function confirmImportExcel(topic){
   if(!isAdmin()) return; // Import Excel — DOAR Admin
+  if(typeof topic==="string" && topic!=="all") return importExcelTopic(topic);
   if(!_importPending.length && !_importAlreadyOk.length) return;
   const totalPersoane = _importPending.length;
   const totalIntrari = _importPending.reduce((s,r)=>s+(r.totalNew||0),0);
@@ -9719,12 +9935,12 @@ async function confirmImportExcel(){
     r.newLeaves.forEach(l=>{if(!dr.leaves)dr.leaves=[];dr.leaves.push({start:l.start,end:l.end});clearPlanificareForLeave(dr.name,l.start,l.end);logActivity("📥 Import concediu",dr.name,l.start+"→"+l.end+" ("+MRO[r.monthNum]+" "+r.yearVal+")","concedii");});
     r.newKrank.forEach(l=>{if(!dr.krankLeaves)dr.krankLeaves=[];dr.krankLeaves.push({start:l.start,end:l.end});clearPlanificareForLeave(dr.name,l.start,l.end);logActivity("📥 Import krank",dr.name,l.start+"→"+l.end+" ("+MRO[r.monthNum]+" "+r.yearVal+")","concedii");});
     r.newUnpaid.forEach(l=>{if(!dr.unpaidLeaves)dr.unpaidLeaves=[];dr.unpaidLeaves.push({start:l.start,end:l.end});clearPlanificareForLeave(dr.name,l.start,l.end);logActivity("📥 Import S",dr.name,l.start+"→"+l.end+" ("+MRO[r.monthNum]+" "+r.yearVal+")","concedii");});
-    if(r.newPrezente.length){
+    if(r.newPrezenteSafe.length){
       const mk=r.yearVal+"-"+String(r.monthNum).padStart(2,"0");
       if(!presState.presence[mk])presState.presence[mk]={};
       if(!presState.presence[mk][dr.name])presState.presence[mk][dr.name]={};
-      r.newPrezente.forEach(d=>{presState.presence[mk][dr.name][String(d)]="prezent";});
-      logActivity("📥 Import prezențe",dr.name,r.newPrezente.length+"z ("+MRO[r.monthNum]+" "+r.yearVal+")","concedii");
+      r.newPrezenteSafe.forEach(d=>{presState.presence[mk][dr.name][String(d)]="prezent";});
+      logActivity("📥 Import prezențe",dr.name,r.newPrezenteSafe.length+"z ("+MRO[r.monthNum]+" "+r.yearVal+")","concedii");
     }
     // Unim perioadele consecutive și scoatem sărbătorile
     if(r.newLeaves.length) dr.leaves = splitLeavesFromHolidaysOnly(dr.leaves);
@@ -9851,7 +10067,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.06-02";
+const APP_VERSION = "2026.10.08-01";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -11182,7 +11398,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.06-02</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.08-01</div>
 
 </body>
 </html>
