@@ -3465,7 +3465,7 @@ function enterApp(userKey){
   const canEditSort = isAdm || hasModuleEdit(userKey,"sortatori");
   if(sortEditBtn) sortEditBtn.style.display = canEditSort?"inline-flex":"none";
   const copyPrevMonthBtn2 = document.getElementById("copyPrevMonthBtn");
-  if(copyPrevMonthBtn2) copyPrevMonthBtn2.style.display = isAdm?"inline-flex":"none";
+  if(copyPrevMonthBtn2) copyPrevMonthBtn2.style.display = canManagePersonsAny("sortatori")?"inline-flex":"none";
   const actLogBtn2 = document.getElementById("actLogBtn");
   if(actLogBtn2) actLogBtn2.style.display = isAdm?"block":"none";
   const absenceReportBtn2 = document.getElementById("absenceReportBtn");
@@ -3511,7 +3511,7 @@ function enterApp(userKey){
   const sortPrintBtn = document.getElementById("sortPrintBtn");
   if(sortPrintBtn) sortPrintBtn.style.display = canPrint?"block":"none";
   const sortAdm = document.getElementById("sortAdminControls");
-  if(sortAdm) sortAdm.style.display = (isAdm||hasModuleEdit(userKey,"sortatori"))?"inline":"none";
+  if(sortAdm) sortAdm.style.display = (isAdm||hasModuleEdit(userKey,"sortatori")||canManagePersonsAny("sortatori"))?"inline":"none";
 
   // Notificare la login — doar dacă userul are acces la Concedii (altfel n-are sens contextul)
   window._pendingLoginNotif = canConcedii ? userKey : null;
@@ -6483,19 +6483,29 @@ function setLiberePersons(persons, mk){
   }
   libereState.persons[mk]=[...persons].sort((a,b)=>a.localeCompare(b,"ro"));
 }
+// Persoanele pe care userul curent are voie să le aleagă în Libere (Admin: toate).
+// Un nume necunoscut în state.drivers e gestionabil doar de Admin.
+function libereNameManageable(name){
+  if(isAdmin()) return true;
+  const dr=state.drivers.find(d=>d.name===name);
+  if(!dr) return false;
+  return canManagePersons("libere", personGroupOf(dr));
+}
 function copyLiberePersonsFromPrevMonth(){
-  if(!isAdmin()){toast("Doar Admin",true);return;}
+  if(!canManagePersonsAny("libere")){toast("Nu ai permisiunea de a alege persoanele din Libere",true);return;}
   const curKey=libereMonthKey();
   const cur=new Date(libereCurrentDate.getFullYear(),libereCurrentDate.getMonth(),1);
   const prev=new Date(cur.getFullYear(),cur.getMonth()-1,1);
   const prevKey=prev.getFullYear()+"-"+String(prev.getMonth()+1).padStart(2,"0");
-  const prevPersons=getLiberePersons(prevKey);
-  if(!prevPersons.length){ toast("Luna precedentă ("+prevKey+") nu are persoane selectate",true); return; }
-  const curPersons=getLiberePersons(curKey);
+  const prevPersons=getLiberePersons(prevKey).filter(libereNameManageable);
+  if(!prevPersons.length){ toast("Luna precedentă ("+prevKey+") nu are persoane selectate pentru grupul tău",true); return; }
+  const curAllPersons=getLiberePersons(curKey);
+  const curPersons=curAllPersons.filter(libereNameManageable);
+  const curOthers=curAllPersons.filter(n=>!libereNameManageable(n)); // ale altor grupuri — rămân neatinse
   if(curPersons.length>0){
     if(!confirm("Luna "+curKey+" are deja "+curPersons.length+" persoane selectate.\nSuprascriem cu lista din "+prevKey+" ("+prevPersons.length+" persoane)?")) return;
   }
-  setLiberePersons(prevPersons, curKey);
+  setLiberePersons([...curOthers,...prevPersons], curKey);
   saveLibereState();
   renderLibere();
   toast("✅ "+prevPersons.length+" persoane copiate din "+prevKey+" → "+curKey);
@@ -6647,7 +6657,38 @@ const PERM_MODULES = [
   {key:"sortatori",   label:"📦 Sortatori",   groups:["eiselfing","ruhstorf"]},
   {key:"planificare", label:"🗓️ Planificare", groups:null},
   {key:"libere",      label:"🏠 Libere",       groups:["eiselfing","ruhstorf"]},
+  // Permisiuni modulare "Alege persoane" — userul poate selecta singur CINE apare în lista
+  // Sortatori / Libere Springeri, DOAR pentru grupurile bifate (restul rămân neatinse).
+  {key:"sortatori_persoane", label:"👥 Alege persoane Sortatori", groups:["eiselfing","ruhstorf"], editOnly:true},
+  {key:"libere_persoane",    label:"👥 Alege persoane Libere",    groups:["eiselfing","ruhstorf"], editOnly:true},
 ];
+
+// Poate userul curent să aleagă persoanele din Sortatori / Libere (pentru un grup anume)?
+// module: "sortatori" | "libere". Admin: mereu da. Alții: doar dacă Admin le-a acordat
+// permisiunea "<module>_persoane" (Editare) pentru grupul respectiv.
+function canManagePersons(module, group){
+  if(isAdmin()) return true;
+  const uk=window.activeUserKey||"";
+  const key=module+"_persoane";
+  if(!hasModuleEdit(uk,key)) return false;
+  return group ? hasModuleGroup(uk,key,group) : false;
+}
+// Are acces la gestionarea persoanelor pentru cel puțin un grup? (vizibilitate butoane)
+function canManagePersonsAny(module){
+  if(isAdmin()) return true;
+  const uk=window.activeUserKey||"";
+  const key=module+"_persoane";
+  return hasModuleEdit(uk,key) && (permFor(uk,key).groups||[]).length>0;
+}
+// Grupul unei persoane din Concedii (dr.group, cu fallback pe visibleTo pentru cele vechi)
+function personGroupOf(dr){
+  if(!dr) return "";
+  if(dr.group) return dr.group;
+  const vis=dr.visibleTo||[];
+  if(vis.includes("madalina")) return "eiselfing";
+  if(vis.includes("raluca")) return "ruhstorf";
+  return "";
+}
 
 function openPermissionsPanel(){
   if(!isAdmin()) return;
@@ -6664,11 +6705,11 @@ function openPermissionsPanel(){
         </label>`;
       }).join("") : "";
       return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--border);flex-wrap:wrap">
-        <span style="width:120px;font-size:12px;font-weight:600;flex-shrink:0">${mod.label}</span>
+        <span style="width:170px;font-size:12px;font-weight:600;flex-shrink:0">${mod.label}</span>
         <select class="perm-access-select" data-user="${u.key}" data-module="${mod.key}" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text)">
           <option value="none" ${p.access==="none"||!p.access?"selected":""}>Fără acces</option>
-          <option value="view" ${p.access==="view"?"selected":""}>Vizualizare</option>
-          <option value="edit" ${p.access==="edit"?"selected":""}>Editare</option>
+          ${mod.editOnly?"":`<option value="view" ${p.access==="view"?"selected":""}>Vizualizare</option>`}
+          <option value="edit" ${p.access==="edit"?"selected":""}>${mod.editOnly?"Permis (pe grupurile bifate)":"Editare"}</option>
         </select>
         ${groupsHtml}
       </div>`;
@@ -6789,9 +6830,12 @@ function renderLibere(){
   if(label) label.textContent = MONTHS[m]+" "+y;
 
   const selectBtn = document.getElementById("libereSelectBtn");
-  if(selectBtn) selectBtn.style.display = isAdmin()?"inline-block":"none";
+  // Butonul e vizibil pentru Admin și pentru userii cu permisiunea "Alege persoane Libere"
+  // pe grupul din tab-ul curent (Eiselfing / Ruhstorf).
+  const _canPickLib = canManagePersons("libere", libereView);
+  if(selectBtn) selectBtn.style.display = _canPickLib?"inline-block":"none";
   const copyPrevBtn = document.getElementById("libereCopyPrevBtn");
-  if(copyPrevBtn) copyPrevBtn.style.display = isAdmin()?"inline-block":"none";
+  if(copyPrevBtn) copyPrevBtn.style.display = _canPickLib?"inline-block":"none";
 
   // Filtrăm persoanele pe grupul curent (Eiselfing/Ruhstorf), pe baza
   // dr.group (sursă principală) — la fel ca la Sortatori/Concedii.
@@ -6813,7 +6857,7 @@ function renderLibere(){
 
   if(!persons.length){
     tl.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-dim);grid-column:1/-1">
-      ${isAdmin()?'Nicio persoană selectată pentru '+MONTHS[m]+' '+y+'. Apasă ⚙️ <b>Selectează persoane</b> din dreapta sus'+(hasAnyPrevMonthPersons()?' sau <a href="#" onclick="copyLiberePersonsFromPrevMonth();return false;" style="color:var(--accent)">copiază din luna anterioară</a>':'')+'.':'Nicio persoană configurată pentru acest tab, luna aceasta.'}
+      ${canManagePersons("libere",libereView)?'Nicio persoană selectată pentru '+MONTHS[m]+' '+y+'. Apasă ⚙️ <b>Selectează persoane</b> din dreapta sus'+(hasAnyPrevMonthPersons()?' sau <a href="#" onclick="copyLiberePersonsFromPrevMonth();return false;" style="color:var(--accent)">copiază din luna anterioară</a>':'')+'.':'Nicio persoană configurată pentru acest tab, luna aceasta.'}
     </div>`;
     document.getElementById("libereStats").innerHTML = "";
     return;
@@ -7161,17 +7205,18 @@ function copyLiberePersonsFromModalAndRefresh(){
   const cur=new Date(libereCurrentDate.getFullYear(),libereCurrentDate.getMonth(),1);
   const prev=new Date(cur.getFullYear(),cur.getMonth()-1,1);
   const prevKey=prev.getFullYear()+"-"+String(prev.getMonth()+1).padStart(2,"0");
-  const prevPersons=getLiberePersons(prevKey);
-  if(!prevPersons.length){ toast("Luna anterioară nu are persoane selectate",true); return; }
+  const prevPersons=getLiberePersons(prevKey).filter(libereNameManageable);
+  if(!prevPersons.length){ toast("Luna anterioară nu are persoane selectate pentru grupul tău",true); return; }
   _libereSelectChecked = new Set(prevPersons);
   renderLiberePersonList(_libereAllDrivers);
   toast("✓ Bifat "+prevPersons.length+" persoane din luna anterioară — apasă Salvează pentru a confirma");
 }
 
 function openLibereSelect(){
-  if(!isAdmin()) return;
-  _libereAllDrivers=[...(state.drivers||[])].filter(d=>!d.archived).sort((a,b)=>a.name.localeCompare(b.name,"ro"));
-  _libereSelectChecked = new Set(getLiberePersons());
+  if(!canManagePersonsAny("libere")) return;
+  // Admin: toate persoanele. Altcineva: doar cele din grupurile pe care le gestionează.
+  _libereAllDrivers=[...(state.drivers||[])].filter(d=>!d.archived && (isAdmin() || canManagePersons("libere", personGroupOf(d)))).sort((a,b)=>a.name.localeCompare(b.name,"ro"));
+  _libereSelectChecked = new Set(getLiberePersons().filter(libereNameManageable));
   const searchInput=document.getElementById("liberePersonSearch");
   if(searchInput) searchInput.value="";
   const titleEl=document.getElementById("libereSelectMonthLabel");
@@ -7208,8 +7253,11 @@ function filterLiberePersonList(){
 }
 
 async function saveLiberePersons(){
-  const checked=[..._libereSelectChecked];
-  setLiberePersons(checked, libereMonthKey());
+  if(!canManagePersonsAny("libere")) return;
+  const checked=[..._libereSelectChecked].filter(libereNameManageable);
+  // Persoanele altor grupuri (pe care userul nu le gestionează) rămân exact cum erau
+  const keep=getLiberePersons().filter(n=>!libereNameManageable(n));
+  setLiberePersons([...keep,...checked], libereMonthKey());
   const ok=await saveLibereState();
   if(ok){
     closeModal("modalLibereSelect");
@@ -7548,20 +7596,23 @@ async function renderTodayLeaveReminders(weekDates, uk){
 }
 
 function copySortatoriFromPrevMonth(){
-  if(!isAdmin()){toast("Doar Admin",true);return;}
+  if(!canManagePersonsAny("sortatori")){toast("Nu ai permisiunea de a alege persoanele din Sortatori",true);return;}
   const curMk=getSortKey();
   const prev=new Date(sortCurrentDate.getFullYear(),sortCurrentDate.getMonth()-1,1);
   const prevMk=prev.getFullYear()+"-"+String(prev.getMonth()+1).padStart(2,"0");
-  const prevDrivers=getMonthDrivers(prevMk);
+  // Doar persoanele din grupurile pe care userul are voie să le gestioneze (Admin: toate)
+  const mine=d=>canManagePersons("sortatori",d.group);
+  const prevDrivers=getMonthDrivers(prevMk).filter(mine);
   if(!prevDrivers||prevDrivers.length===0){
-    toast("Luna precedentă ("+prevMk+") nu are sortatori salvați",true); return;
+    toast("Luna precedentă ("+prevMk+") nu are sortatori salvați pentru grupul tău",true); return;
   }
-  const curDrivers=getMonthDrivers(curMk);
-  if(curDrivers&&curDrivers.length>0){
-    if(!confirm("Luna "+curMk+" are deja "+curDrivers.length+" sortatori.\nSuprascriem cu lista din "+prevMk+" ("+prevDrivers.length+" persoane)?")) return;
+  const curAll=getMonthDrivers(curMk)||[];
+  const curMine=curAll.filter(mine), curOthers=curAll.filter(d=>!mine(d));
+  if(curMine.length>0){
+    if(!confirm("Luna "+curMk+" are deja "+curMine.length+" sortatori.\nSuprascriem cu lista din "+prevMk+" ("+prevDrivers.length+" persoane)?")) return;
   }
   const copied=prevDrivers.map(d=>({...d,id:uid()}));
-  setMonthDrivers(copied,curMk);
+  setMonthDrivers([...curOthers,...copied],curMk);
   saveSortState();
   renderSortatoriTimeline();
   toast("✅ "+copied.length+" sortatori copiați din "+prevMk+" → "+curMk);
@@ -7624,14 +7675,17 @@ function _finishSortMouseDrag(){
 document.addEventListener("mouseup", ()=>{ if(_sortMouseDrag.active) _finishSortMouseDrag(); });
 
 function openAddSortatorCat(group, cat){
-  if(!isAdmin()){toast("Doar Admin poate adăuga persoane noi",true);return;}
+  if(!canManagePersons("sortatori",group)){toast("Nu ai permisiunea de a adăuga persoane în Sortatori pentru acest grup",true);return;}
   // Colecteaza driveri disponibili din modulul concedii
   const existingNames = new Set(getMonthDrivers().filter(d=>d.group===group).map(d=>d.name));
   const groupKey = group==="eiselfing"?"madalina":"raluca";
   const avail = (state.drivers||[]).filter(d=>{
     if(d.archived) return false;
+    if(existingNames.has(d.name)) return false;
+    // Non-Admin: DOAR persoanele din grupul pe care îl gestionează
+    if(!isAdmin()) return personGroupOf(d)===group;
     const vis = d.visibleTo||[];
-    return (vis.includes(groupKey)||vis.includes("tania")) && !existingNames.has(d.name);
+    return (vis.includes(groupKey)||vis.includes("tania"));
   }).sort((a,b)=>a.name.localeCompare(b.name,"ro"));
   
   if(!avail.length){ toast("Toți șoferii sunt deja în lista de sortatori",true); return; }
@@ -7672,6 +7726,7 @@ function filterSortPickList(){
 }
 
 function confirmSortPick(){
+  if(!canManagePersons("sortatori",_pickGroup)){ toast("Nu ai permisiunea de a adăuga persoane în Sortatori pentru acest grup",true); return; }
   const checked = [...document.querySelectorAll(".sort-pick-cb:checked")];
   if(!checked.length){ toast("Selectează cel puțin o persoană",true); return; }
   checked.forEach(cb=>{
@@ -7685,8 +7740,8 @@ function confirmSortPick(){
 }
 
 function deleteSortator(id){
-  if(!isAdmin()){toast("Doar Admin poate șterge persoane din sortatori",true);return;}
   const _mkDel=getSortKey(); const _drvDel=getMonthDrivers(_mkDel); const dr=_drvDel.find(d=>d.id===id);
+  if(dr && !canManagePersons("sortatori",dr.group)){toast("Nu ai permisiunea de a șterge persoane din Sortatori pentru acest grup",true);return;}
   if(!dr||!confirm("Ștergi "+dr.name+" din sortatori?")) return;
   setMonthDrivers(_drvDel.filter(d=>d.id!==id), _mkDel);
   renderSortatoriTimeline();
@@ -7698,7 +7753,7 @@ function deleteSortator(id){
 function makeSortRow(dr, presence, daysInMonth, y, m, gridCols, canAdd, canEdit){
   if(canEdit===undefined) canEdit=canAdd;
   const dp = presence[dr.name]||{};
-  const delBtn = isAdmin() ? `<span onclick="event.stopPropagation();deleteSortator('${dr.id}')" onmousedown="event.stopPropagation()" style="color:var(--red);cursor:pointer;font-size:10px;margin-left:4px" title="Șterge">✕</span>` : "";
+  const delBtn = canManagePersons("sortatori",dr.group) ? `<span onclick="event.stopPropagation();deleteSortator('${dr.id}')" onmousedown="event.stopPropagation()" style="color:var(--red);cursor:pointer;font-size:10px;margin-left:4px" title="Șterge">✕</span>` : "";
 
   // Badge zile prezente — vizibil pentru Admin, Tania, Mădălina
   const uk = window.activeUserKey||"";
@@ -7760,7 +7815,7 @@ function makeSortRow(dr, presence, daysInMonth, y, m, gridCols, canAdd, canEdit)
 }
 
 function makeCatHeader(label, color, count, gridCols, canEdit, group, cat, daysInMonth){
-  const addBtn = isAdmin()?`<span onclick="event.stopPropagation();openAddSortatorCat('${group}','${cat}')" onmousedown="event.stopPropagation()" style="color:${color};cursor:pointer;font-weight:400;font-size:11px;margin-left:6px">+ Adaugă</span>`:"";
+  const addBtn = canManagePersons("sortatori",group)?`<span onclick="event.stopPropagation();openAddSortatorCat('${group}','${cat}')" onmousedown="event.stopPropagation()" style="color:${color};cursor:pointer;font-weight:400;font-size:11px;margin-left:6px">+ Adaugă</span>`:"";
   const dropAttrs = canEdit
     ? `data-drop-cat="${cat}" onmouseenter="sortCatMouseEnter(event)" onmouseleave="sortCatMouseLeave(event)" onmouseup="sortCatMouseUp(event,'${cat}')"`
     : "";
@@ -10067,7 +10122,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.08-01";
+const APP_VERSION = "2026.10.09-01";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -11398,7 +11453,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.08-01</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.09-01</div>
 
 </body>
 </html>
