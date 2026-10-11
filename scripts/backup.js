@@ -62,7 +62,8 @@ async function fetchAll(){
     group: d.group || null,
     leaves: d.leaves || [],
     krankLeaves: d.krankLeaves || [],
-    unpaidLeaves: d.unpaidLeaves || []
+    unpaidLeaves: d.unpaidLeaves || [],
+    specialLeaves: d.specialLeaves || []
   }));
   const withContract = allDriversFull.filter(d=>d.startDate||d.endDate).length;
   console.log(`Persoane cu dată angajare/plecare setată: ${withContract}`);
@@ -178,8 +179,8 @@ function computeDiff(prev, live){
   Object.keys(liveByName).forEach(name=>{
     if(!prevByName[name]){ newDrivers.push(name); return; }
     const lv=liveByName[name], bk=prevByName[name];
-    ['leaves','krankLeaves','unpaidLeaves'].forEach(field=>{
-      const label = field==='leaves'?'Concediu':field==='krankLeaves'?'Krank':'Fără plată';
+    ['leaves','krankLeaves','unpaidLeaves','specialLeaves'].forEach(field=>{
+      const label = field==='leaves'?'Concediu':field==='krankLeaves'?'Krank':field==='unpaidLeaves'?'Fără plată':'Zi specială';
       const liveArr=lv[field]||[], bdArr=bk[field]||[];
       const liveSet=new Set(liveArr.map(periodKey)), bdSet=new Set(bdArr.map(periodKey));
       liveArr.forEach(l=>{ if(!bdSet.has(periodKey(l))) leaveChanges.push({type:'add',label,name,period:l}); });
@@ -359,13 +360,35 @@ function saveToRepoFiles(backup){
   console.log(`✅ Backup scris local: backups/latest.json + backups/history/${histName}`);
 }
 
+
+// Reîncercare cu pauză la erori trecătoare / de cotă Firestore (RESOURCE_EXHAUSTED).
+// Notă: dacă e epuizată COTA ZILNICĂ (50.000 citiri / 20.000 scrieri pe planul gratuit),
+// reîncercările nu ajută până la resetare (miezul nopții ora Pacificului ≈ 10:00 ora României).
+async function withRetry(fn,label){
+  const delays=[20000,60000,120000];
+  for(let i=0;;i++){
+    try{ return await fn(); }
+    catch(e){
+      const msg=String(e&&e.message||e);
+      const quota=/RESOURCE_EXHAUSTED|Quota exceeded/i.test(msg)||(e&&e.code===8);
+      const transient=quota||/UNAVAILABLE|DEADLINE_EXCEEDED|ABORTED/i.test(msg);
+      if(!transient||i>=delays.length){
+        if(quota) console.error('❌ Cota Firestore epuizată. Verifică Firebase Console → Firestore → Usage (citiri/scrieri azi). Se resetează la miezul nopții ora Pacificului (~10:00 ora României).');
+        throw e;
+      }
+      console.warn(`⚠️ ${label}: ${msg} — reîncerc în ${delays[i]/1000}s (încercarea ${i+2}/${delays.length+1})`);
+      await new Promise(r=>setTimeout(r,delays[i]));
+    }
+  }
+}
+
 (async()=>{
   try{
-    const [live, prevBackup] = await Promise.all([fetchAll(), fetchLatestSavedBackup()]);
+    const [live, prevBackup] = await withRetry(()=>Promise.all([fetchAll(), fetchLatestSavedBackup()]),'citire Firestore');
 
     // Salvăm datele MAI ÎNTÂI, indiferent dacă email-ul va funcționa sau nu —
     // asta e partea critică (nu se pierd date), email-ul e doar o notificare.
-    await saveToFirestore(live);
+    await withRetry(()=>saveToFirestore(live),'salvare Firestore');
     saveToRepoFiles(live);
 
     const diff = computeDiff(prevBackup, live);

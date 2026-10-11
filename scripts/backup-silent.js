@@ -87,7 +87,8 @@ async function fetchAll(){
     group: d.group || null,
     leaves: d.leaves || [],
     krankLeaves: d.krankLeaves || [],
-    unpaidLeaves: d.unpaidLeaves || []
+    unpaidLeaves: d.unpaidLeaves || [],
+    specialLeaves: d.specialLeaves || []
   }));
   const withContract = allDriversFull.filter(d=>d.startDate||d.endDate).length;
   console.log(`Persoane cu dată angajare/plecare setată: ${withContract}`);
@@ -237,11 +238,33 @@ function saveToRepoFiles(backup){
   console.log(`✅ Backup scris local: backups/latest.json + backups/history/${histName}`);
 }
 
+
+// Reîncercare cu pauză la erori trecătoare / de cotă Firestore (RESOURCE_EXHAUSTED).
+// Notă: dacă e epuizată COTA ZILNICĂ (50.000 citiri / 20.000 scrieri pe planul gratuit),
+// reîncercările nu ajută până la resetare (miezul nopții ora Pacificului ≈ 10:00 ora României).
+async function withRetry(fn,label){
+  const delays=[20000,60000,120000];
+  for(let i=0;;i++){
+    try{ return await fn(); }
+    catch(e){
+      const msg=String(e&&e.message||e);
+      const quota=/RESOURCE_EXHAUSTED|Quota exceeded/i.test(msg)||(e&&e.code===8);
+      const transient=quota||/UNAVAILABLE|DEADLINE_EXCEEDED|ABORTED/i.test(msg);
+      if(!transient||i>=delays.length){
+        if(quota) console.error('❌ Cota Firestore epuizată. Verifică Firebase Console → Firestore → Usage (citiri/scrieri azi). Se resetează la miezul nopții ora Pacificului (~10:00 ora României).');
+        throw e;
+      }
+      console.warn(`⚠️ ${label}: ${msg} — reîncerc în ${delays[i]/1000}s (încercarea ${i+2}/${delays.length+1})`);
+      await new Promise(r=>setTimeout(r,delays[i]));
+    }
+  }
+}
+
 (async()=>{
   try{
-    const backup = await fetchAll();
+    const backup = await withRetry(fetchAll,'citire Firestore');
     if(backup){
-      await saveToFirestore(backup);
+      await withRetry(()=>saveToFirestore(backup),'salvare Firestore');
       saveToRepoFiles(backup);
     }
     console.log('✅ Done (silent)');
