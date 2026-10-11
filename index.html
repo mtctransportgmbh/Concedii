@@ -2602,7 +2602,12 @@ async function saveDriversNow(){
 // userii non-admin (ex: Raluca vede doar 59 persoane din grupul ei),
 // dar backup-ul trebuie să conțină ÎNTOTDEAUNA absolut tot ce e pe server.
 // ============================================================
-async function fetchCompleteServerState(){
+// activityLimit = câte înregistrări din Istoricul de activitate se citesc. Fiecare
+// înregistrare = 1 citire Firestore facturată din cota zilnică (50.000/zi pe planul
+// gratuit). Backup-urile frecvente (la fiecare salvare/acțiune) folosesc o valoare MICĂ;
+// backup-urile programate și cele manuale citesc istoricul mai larg (1000).
+async function fetchCompleteServerState(activityLimit){
+  if(activityLimit===undefined) activityLimit=1000;
   const pinKeys=["raluca","madalina","corina","mihaela","tania"];
   const [concSnap, sortSnap, planSnap, presSnap, libSnap, pinSnaps, permSnap,
          excelStatusSnap, backupDiffSnap, planWarnSnap, calRemindSnap, activitySnap] = await Promise.all([
@@ -2617,7 +2622,9 @@ async function fetchCompleteServerState(){
     db.collection("backup_diff_settings").doc("manual_name_links").get(),
     db.collection("planificare_warnings").doc("list").get(),
     db.collection("calendar_reminders").doc("list").get(),
-    db.collection(activityColl()).orderBy("timestamp","desc").limit(1000).get(), // limitat — evită riscul de document Firestore prea mare la restaurare
+    activityLimit>0
+      ? db.collection(activityColl()).orderBy("timestamp","desc").limit(activityLimit).get() // limitat — evită riscul de document Firestore prea mare la restaurare și consumul de citiri
+      : Promise.resolve({docs:[]}),
   ]);
 
   // Merge persoane din TOATE documentele existente în colecție, deduplicat după nume
@@ -2756,7 +2763,29 @@ function scheduleActivityBackup(){
   _activityBackupTimer = setTimeout(fire, waitTime);
 }
 
-async function triggerAutoBackup(time, customDocId){
+// ── Throttling backup-uri automate ──
+// Înainte: FIECARE salvare și FIECARE acțiune declanșau un backup complet (≈1000+ citiri
+// Firestore fiecare, din cauza istoricului de activitate) → cota zilnică de citiri se
+// epuiza (eroare RESOURCE_EXHAUSTED, inclusiv la backup-ul GitHub Actions).
+// Acum: backup-urile frecvente sunt separate de cel puțin 3 minute (o singură rulare
+// finală, cu starea cea mai recentă) și NU mai citesc deloc istoricul de activitate.
+// Backup-urile programate (07/14/20) citesc 300 acțiuni.
+const AUTO_BACKUP_MIN_GAP_MS = 180000;
+const AUTO_BACKUP_ACTIVITY_LIMIT = 0; // istoricul real stă în colecția activity_log (nu se citește niciodată din backup la restaurare)
+let _lastAutoBackupAt = 0;
+let _autoBackupTrailing = null;
+function triggerAutoBackup(time, customDocId, activityLimit){
+  const isScheduled = typeof customDocId==="string" && customDocId.indexOf("_sched")>=0;
+  if(isScheduled) return _runAutoBackup(time, customDocId, activityLimit!==undefined?activityLimit:300);
+  const limit = activityLimit!==undefined ? activityLimit : AUTO_BACKUP_ACTIVITY_LIMIT;
+  const gap = Date.now() - _lastAutoBackupAt;
+  const run = ()=>{ _lastAutoBackupAt = Date.now(); _autoBackupTrailing = null; return _runAutoBackup(time, customDocId, limit); };
+  if(gap >= AUTO_BACKUP_MIN_GAP_MS) return run();
+  if(!_autoBackupTrailing) _autoBackupTrailing = setTimeout(run, AUTO_BACKUP_MIN_GAP_MS - gap);
+  return Promise.resolve();
+}
+
+async function _runAutoBackup(time, customDocId, activityLimit){
   const snapshotUser = window.activeUserKey||"unknown";
   try{
     const now = new Date();
@@ -2768,7 +2797,7 @@ async function triggerAutoBackup(time, customDocId){
     // salvarea, backup-ul trebuie să conțină absolut tot (toate persoanele,
     // nu doar grupul userului curent), sortatori, planificare, prezențe, libere.
     const {allDrivers, sortatoriData, planData, presData, libData, pinsData, permissionsData,
-           excelStatusData, backupDiffData, planWarningsData, calRemindersData, activityData} = await fetchCompleteServerState();
+           excelStatusData, backupDiffData, planWarningsData, calRemindersData, activityData} = await fetchCompleteServerState(activityLimit);
     if(!allDrivers.length){ console.warn("triggerAutoBackup: server gol — ABORTED"); return; }
 
     const driversData={};
@@ -5244,6 +5273,7 @@ async function downloadBackupNow(){
 // și doar dacă există date (guard în triggerAutoBackup previne backup gol)
 const SCHEDULED_BACKUP_HOURS = [7,14,20];
 let _schedBackupInterval = null;
+const _schedDoneSlots = new Set(); // sloturi deja confirmate ca salvate — nu le mai verificăm în fiecare minut (1 citire/min)
 function startScheduledBackups(){
   if(!isAdmin()) return;
   if(_schedBackupInterval) clearInterval(_schedBackupInterval);
@@ -5257,10 +5287,11 @@ function startScheduledBackups(){
     if(!SCHEDULED_BACKUP_HOURS.includes(h)) return;
     const slotTime=String(h).padStart(2,"0")+":00";
     const docId=today+"_sched"+h; // separat de sloturile A/B/C din triggerAutoBackup
+    if(_schedDoneSlots.has(docId)) return;
     try{
       const existing=await db.collection(backupColl()).doc(docId).get();
-      if(existing.exists) return; // deja salvat pentru acest slot din Firestore — sigur, indiferent de device
-      await triggerAutoBackup(slotTime, docId);
+      if(existing.exists){ _schedDoneSlots.add(docId); return; } // deja salvat pentru acest slot din Firestore — sigur, indiferent de device
+      await triggerAutoBackup(slotTime, docId); // slotul se marchează "făcut" abia la următoarea verificare, după ce backup-ul există efectiv
       console.log("Scheduled backup triggered:",today,slotTime);
     }catch(e){ console.warn("scheduled backup check failed",e); }
   };
@@ -7937,6 +7968,7 @@ async function logActivity(action, person, details, module){
       month:     currentDate.getFullYear()+"-"+String(currentDate.getMonth()+1).padStart(2,"0")
     };
     await db.collection(activityColl()).add(entry);
+    _actLogLoadedAt = 0; // o acțiune nouă → cache-ul ferestrei Istoric nu mai e valid
   }catch(e){ console.warn("log err",e); }
 }
 
@@ -7945,6 +7977,8 @@ async function logActivity(action, person, details, module){
 // statistici sumare, grupare pe zi → user → acțiuni
 // ============================================================
 let _actLogAll = [];
+let _actLogLoadedAt = 0; // cache: redeschiderea ferestrei în <2 min nu mai recitește 600 documente
+const ACT_LOG_CACHE_MS = 120000;
 let _actFilters = { period:3, user:"toti", module:"toate", personSearch:"" };
 
 const ACT_USERS = [
@@ -7982,11 +8016,16 @@ async function openActivityLog(){
   if(clearBtn) clearBtn.style.display = "none";
   renderActivityFilterChips();
   try{
+    if(_actLogAll.length && (Date.now()-_actLogLoadedAt) < ACT_LOG_CACHE_MS){
+      renderActivityLog(); // date proaspete din cache — 0 citiri
+      return;
+    }
     const snap = await db.collection(activityColl())
       .orderBy("timestamp","desc")
       .limit(600)
       .get();
     _actLogAll = snap.docs.map(doc=>doc.data());
+    _actLogLoadedAt = Date.now();
     renderActivityLog();
   }catch(err){
     document.getElementById("actLogContent").innerHTML = '<div style="color:var(--red)">Eroare: '+err.message+'</div>';
@@ -10122,7 +10161,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.09-01";
+const APP_VERSION = "2026.10.11-02";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -11453,7 +11492,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.09-01</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.11-02</div>
 
 </body>
 </html>
