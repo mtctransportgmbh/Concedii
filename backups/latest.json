@@ -1,10 +1,10 @@
 {
   "version": 5,
   "year": 2026,
-  "savedAt": "2026-10-13T17:53:43.199Z",
+  "savedAt": "2026-10-13T20:28:35.513Z",
   "date": "2026-10-13",
-  "time": "20:53",
-  "slot": "sched17",
+  "time": "23:28",
+  "slot": "sched20",
   "savedBy": "github-actions-silent",
   "driverCount": 102,
   "thresholds": {
@@ -4120,6 +4120,10 @@
       "leaves": [
         {
           "start": "2026-01-03",
+          "end": "2026-01-03"
+        },
+        {
+          "start": "2026-01-05",
           "end": "2026-01-05"
         },
         {
@@ -4131,24 +4135,36 @@
           "end": "2026-01-26"
         },
         {
-          "end": "2026-04-28",
-          "start": "2026-04-17"
+          "start": "2026-04-17",
+          "end": "2026-04-18"
+        },
+        {
+          "start": "2026-04-20",
+          "end": "2026-04-25"
+        },
+        {
+          "start": "2026-04-27",
+          "end": "2026-04-28"
         },
         {
           "start": "2026-05-29",
           "end": "2026-05-30"
         },
         {
-          "end": "2026-07-25",
-          "start": "2026-07-25"
+          "start": "2026-07-25",
+          "end": "2026-07-25"
         },
         {
-          "end": "2026-08-01",
-          "start": "2026-08-01"
+          "start": "2026-08-01",
+          "end": "2026-08-01"
         },
         {
-          "end": "2026-08-17",
-          "start": "2026-08-17"
+          "start": "2026-08-17",
+          "end": "2026-08-17"
+        },
+        {
+          "start": "2026-10-17",
+          "end": "2026-10-17"
         }
       ],
       "krankLeaves": [],
@@ -26317,9 +26333,18 @@
     }
   },
   "planificare": {
-    "2026-W28": {
-      "Feraru Razvan": [
-        0,
+    "2026-W30": {
+      "Toth Cristina": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Iulian": [
+        1,
         1,
         1,
         1,
@@ -26328,6 +26353,1628 @@
         0
       ],
       "Maies Antonio": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Adrian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Larisa": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stan Ionel": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Badea Madalin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ghebu Andreas": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ferent Simon": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Mereacre Mihail": [
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tuca Valentin": [
+        1,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "Stanciu Dumitru": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Birliba Mihaela": [
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toiu Georgiana": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Feraru Razvan": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Zestrea Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ]
+    },
+    "2026-W29": {
+      "Mereacre Mihail": [
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "Stanciu Anastasia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Ciobotaru Larisa": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Feraru Razvan": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Iulian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ferent Simon": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stanciu Dumitru": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "Tuca Valentin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Adrian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Badea Madalin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stan Ionel": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ghebu Andreas": [
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "Zestrea Mihail": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "Toiu Georgiana": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Maricosu Adelin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Toth Cristina": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Maies Antonio": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ]
+    },
+    "2026-W43": {
+      "Tuca Valentin": [
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Stinga Valeriu": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Iacob Mihai": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Maricosu Adelin": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Feraru Razvan": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Larisa": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Maies Antonio": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Birliba Mihaela": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toth Cristina": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Badea Madalin": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Ciobotaru Iulian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Zestrea Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stanciu Anastasia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toiu Georgiana": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ferent Simon": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Mereacre Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Adrian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stan Ionel": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ]
+    },
+    "2026-W25": {
+      "Toth Cristina": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stanciu Anastasia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Larisa": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tufeanu Claudia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Maricosu Adelin": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0
+      ],
+      "Ferent Simon": [
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Ciobotaru Iulian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stan Ionel": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toiu Georgiana": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Zestrea Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Badea Madalin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Adrian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ghebu Andreas": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Dutescu Daniel": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Mereacre Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tuca Valentin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Birliba Mihaela": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0
+      ],
+      "Stanciu Dumitru": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    "2026-W32": {
+      "Toiu Georgiana": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Zestrea Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ghebu Andreas": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ferent Simon": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Maies Antonio": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toth Cristina": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tufeanu Claudia": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Maricosu Adelin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Feraru Razvan": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Birliba Mihaela": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stanciu Dumitru": [
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        0
+      ],
+      "Stanciu Anastasia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Mereacre Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Adrian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stan Ionel": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stinga Valeriu": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tuca Valentin": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    "2026-W38": {
+      "Iacob Mihai": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tuca Valentin": [
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Feraru Razvan": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Zestrea Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toiu Georgiana": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Donisa Vlad": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tufeanu Claudia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Adrian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Birliba Mihaela": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ferent Simon": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Maies Antonio": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Iulian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Dutescu Daniel": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Mereacre Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ghebu Andreas": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Badea Madalin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Larisa": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ]
+    },
+    "2026-W34": {
+      "Stan Ionel": [
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stanciu Anastasia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Larisa": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tuca Valentin": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "Birliba Mihaela": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stanciu Dumitru": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Stinga Valeriu": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Feraru Razvan": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Ciobotaru Iulian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Maies Antonio": [
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toth Cristina": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Zestrea Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tufeanu Claudia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Maricosu Adelin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ferent Simon": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toiu Georgiana": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Iacob Mihai": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Ghebu Andreas": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ]
+    },
+    "2026-W33": {
+      "Ghebu Andreas": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Iacob Mihai": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Stinga Valeriu": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Maies Antonio": [
+        1,
+        0,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Toth Cristina": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Tufeanu Claudia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Maricosu Adelin": [
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        0
+      ],
+      "Birliba Mihaela": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Stanciu Dumitru": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Feraru Razvan": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Ferent Simon": [
+        1,
+        1,
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Ciobotaru Larisa": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Tuca Valentin": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Mereacre Mihail": [
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "Zestrea Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Ciobotaru Iulian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Toiu Georgiana": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Stan Ionel": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Stanciu Anastasia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    "2026-W31": {
+      "Feraru Razvan": [
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Adrian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Maricosu Adelin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tufeanu Claudia": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Toiu Georgiana": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tuca Valentin": [
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        0
+      ],
+      "Zestrea Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Mereacre Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stanciu Anastasia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stan Ionel": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Ferent Simon": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ghebu Andreas": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Badea Madalin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Birliba Mihaela": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stanciu Dumitru": [
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "Maies Antonio": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toth Cristina": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ]
+    },
+    "2026-W27": {
+      "Maricosu Adelin": [
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tufeanu Claudia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toiu Georgiana": [
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Stan Ionel": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Feraru Razvan": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tuca Valentin": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Larisa": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ghebu Andreas": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Badea Madalin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Mereacre Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Iulian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stanciu Anastasia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toth Cristina": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Birliba Mihaela": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stanciu Dumitru": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Maies Antonio": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Adrian": [
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "2026-W28": {
+      "Mereacre Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Adrian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ferent Simon": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Iulian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ghebu Andreas": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Badea Madalin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Birliba Mihaela": [
         1,
         1,
         1,
@@ -26345,16 +27992,7 @@
         1,
         0
       ],
-      "Tuca Valentin": [
-        0,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Badea Madalin": [
+      "Maies Antonio": [
         1,
         1,
         1,
@@ -26364,6 +28002,188 @@
         0
       ],
       "Toth Cristina": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stanciu Anastasia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Larisa": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Feraru Razvan": [
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stan Ionel": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tufeanu Claudia": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Maricosu Adelin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tuca Valentin": [
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    "2026-W44": {
+      "Ciobotaru Larisa": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stan Ionel": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stinga Valeriu": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Iulian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stanciu Anastasia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Adrian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Feraru Razvan": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toiu Georgiana": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Mereacre Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toth Cristina": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Maies Antonio": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Zestrea Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ferent Simon": [
         1,
         1,
         1,
@@ -26381,88 +28201,7 @@
         1,
         0
       ],
-      "Ciobotaru Larisa": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Iulian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Adrian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
       "Birliba Mihaela": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maricosu Adelin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Tufeanu Claudia": [
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Stan Ionel": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stanciu Anastasia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ferent Simon": [
-        0,
-        0,
-        0,
-        0,
-        1,
-        1,
-        0
-      ],
-      "Mereacre Mihail": [
         1,
         1,
         1,
@@ -26472,53 +28211,8 @@
         0
       ]
     },
-    "2026-W39": {
-      "Zestrea Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toiu Georgiana": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Iulian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Larisa": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stanciu Anastasia": [
-        0,
-        0,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Dutescu Daniel": [
+    "2026-W42": {
+      "Stan Ionel": [
         0,
         0,
         0,
@@ -26527,25 +28221,7 @@
         0,
         0
       ],
-      "Birliba Mihaela": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maricosu Adelin": [
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toth Cristina": [
+      "Feraru Razvan": [
         1,
         1,
         1,
@@ -26563,12 +28239,66 @@
         1,
         0
       ],
+      "Iacob Mihai": [
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
       "Stinga Valeriu": [
         0,
         0,
         0,
         0,
         0,
+        0,
+        0
+      ],
+      "Maricosu Adelin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toiu Georgiana": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Birliba Mihaela": [
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        0
+      ],
+      "Ferent Simon": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ghebu Andreas": [
+        1,
+        1,
+        1,
+        1,
+        1,
         0,
         0
       ],
@@ -26581,25 +28311,7 @@
         1,
         0
       ],
-      "Donisa Vlad": [
-        1,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0
-      ],
-      "Ferent Simon": [
-        1,
-        1,
-        1,
-        1,
-        0,
-        1,
-        0
-      ],
-      "Mereacre Mihail": [
+      "Ciobotaru Larisa": [
         1,
         1,
         1,
@@ -26608,45 +28320,7 @@
         1,
         0
       ],
-      "Iacob Mihai": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Adrian": [
-        1,
-        1,
-        1,
-        1,
-        0,
-        1,
-        0
-      ],
-      "Feraru Razvan": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Tufeanu Claudia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ]
-    },
-    "2026-W41": {
-      "Toiu Georgiana": [
+      "Stanciu Anastasia": [
         1,
         1,
         1,
@@ -26664,11 +28338,67 @@
         1,
         0
       ],
-      "Iacob Mihai": [
+      "Ciobotaru Adrian": [
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Iulian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Maies Antonio": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toth Cristina": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ]
+    },
+    "2026-W36": {
+      "Feraru Razvan": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Maricosu Adelin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tufeanu Claudia": [
         1,
         0,
         0,
-        1,
+        0,
         0,
         0,
         0
@@ -26682,39 +28412,120 @@
         1,
         0
       ],
-      "Ciobotaru Iulian": [
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stanciu Anastasia": [
+      "Stan Ionel": [
         1,
         1,
         1,
         1,
         1,
         1,
-        0
-      ],
-      "Feraru Razvan": [
-        1,
-        1,
-        1,
-        1,
-        0,
-        0,
         0
       ],
       "Ciobotaru Adrian": [
         1,
         1,
         1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Zestrea Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toiu Georgiana": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Iulian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tuca Valentin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ferent Simon": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Mereacre Mihail": [
+        0,
         0,
         1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stinga Valeriu": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Badea Madalin": [
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ghebu Andreas": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Toth Cristina": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Iacob Mihai": [
+        0,
+        1,
+        0,
+        0,
+        0,
         1,
         0
       ],
@@ -26728,15 +28539,6 @@
         0
       ],
       "Maies Antonio": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Maricosu Adelin": [
         1,
         1,
         1,
@@ -26745,52 +28547,7 @@
         1,
         0
       ],
-      "Tuca Valentin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Badea Madalin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ghebu Andreas": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toth Cristina": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Mereacre Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ferent Simon": [
+      "Stanciu Anastasia": [
         1,
         1,
         1,
@@ -26801,6 +28558,78 @@
       ]
     },
     "2026-W35": {
+      "Iacob Mihai": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Ciobotaru Adrian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Maies Antonio": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stinga Valeriu": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Toth Cristina": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Ciobotaru Iulian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ghebu Andreas": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Maricosu Adelin": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0
+      ],
       "Tufeanu Claudia": [
         1,
         1,
@@ -26810,7 +28639,7 @@
         1,
         0
       ],
-      "Stinga Valeriu": [
+      "Ciobotaru Larisa": [
         1,
         1,
         1,
@@ -26826,6 +28655,15 @@
         1,
         1,
         1,
+        0
+      ],
+      "Ferent Simon": [
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
         0
       ],
       "Stan Ionel": [
@@ -26837,79 +28675,7 @@
         1,
         0
       ],
-      "Toth Cristina": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Ghebu Andreas": [
-        0,
-        0,
-        0,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Feraru Razvan": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maies Antonio": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Larisa": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Iulian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
       "Birliba Mihaela": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maricosu Adelin": [
-        0,
-        0,
-        0,
-        0,
-        1,
-        1,
-        0
-      ],
-      "Stanciu Anastasia": [
         1,
         1,
         1,
@@ -26936,403 +28702,10 @@
         1,
         0
       ],
-      "Ciobotaru Adrian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Iacob Mihai": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Ferent Simon": [
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-        0
-      ]
-    },
-    "2026-W42": {
-      "Ghebu Andreas": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Toth Cristina": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Tuca Valentin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Badea Madalin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maricosu Adelin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Birliba Mihaela": [
-        1,
-        1,
-        1,
-        0,
-        1,
-        1,
-        0
-      ],
-      "Stinga Valeriu": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Ciobotaru Larisa": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Iulian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maies Antonio": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
       "Feraru Razvan": [
         1,
         1,
         1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ferent Simon": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Adrian": [
-        1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stan Ionel": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0
-      ],
-      "Stanciu Anastasia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toiu Georgiana": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Zestrea Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Iacob Mihai": [
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0
-      ]
-    },
-    "2026-W40": {
-      "Donisa Vlad": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Iacob Mihai": [
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Ciobotaru Adrian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Feraru Razvan": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Tufeanu Claudia": [
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Stanciu Anastasia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Zestrea Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Ferent Simon": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Ciobotaru Larisa": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Ciobotaru Iulian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Toiu Georgiana": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Maies Antonio": [
-        0,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Mereacre Mihail": [
-        1,
-        1,
-        1,
-        1,
-        0,
-        0,
-        0
-      ],
-      "Badea Madalin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Tuca Valentin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Dutescu Daniel": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Birliba Mihaela": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Ghebu Andreas": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Maricosu Adelin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Toth Cristina": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ]
-    },
-    "2026-W43": {
-      "Badea Madalin": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Birliba Mihaela": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maricosu Adelin": [
-        0,
-        0,
-        0,
         1,
         1,
         1,
@@ -27345,146 +28718,11 @@
         1,
         1,
         1,
-        0
-      ],
-      "Tuca Valentin": [
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Toth Cristina": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Zestrea Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Mereacre Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Feraru Razvan": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toiu Georgiana": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Larisa": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Iulian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maies Antonio": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stan Ionel": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ferent Simon": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Adrian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stinga Valeriu": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Iacob Mihai": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
         0
       ]
     },
     "2026-W26": {
-      "Tufeanu Claudia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Zestrea Mihail": [
+      "Stanciu Anastasia": [
         1,
         1,
         1,
@@ -27502,45 +28740,9 @@
         1,
         0
       ],
-      "Mereacre Mihail": [
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Ciobotaru Adrian": [
-        1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maricosu Adelin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
       "Birliba Mihaela": [
         1,
         0,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maies Antonio": [
-        1,
-        1,
         1,
         1,
         1,
@@ -27556,7 +28758,7 @@
         0,
         0
       ],
-      "Feraru Razvan": [
+      "Maies Antonio": [
         1,
         1,
         1,
@@ -27565,34 +28767,7 @@
         1,
         0
       ],
-      "Ciobotaru Larisa": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Iulian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stan Ionel": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stanciu Anastasia": [
+      "Zestrea Mihail": [
         1,
         1,
         1,
@@ -27619,54 +28794,16 @@
         1,
         0
       ],
-      "Tuca Valentin": [
+      "Mereacre Mihail": [
+        0,
         1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ]
-    },
-    "2026-W30": {
-      "Toiu Georgiana": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
+        0,
+        0,
+        0,
+        0,
         0
       ],
-      "Zestrea Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Feraru Razvan": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ferent Simon": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maies Antonio": [
+      "Stan Ionel": [
         1,
         1,
         1,
@@ -27676,42 +28813,6 @@
         0
       ],
       "Tuca Valentin": [
-        1,
-        1,
-        0,
-        0,
-        0,
-        1,
-        0
-      ],
-      "Stanciu Dumitru": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Badea Madalin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toth Cristina": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ghebu Andreas": [
         1,
         1,
         1,
@@ -27738,83 +28839,9 @@
         1,
         0
       ],
-      "Birliba Mihaela": [
-        0,
-        0,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
       "Ciobotaru Adrian": [
         1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Mereacre Mihail": [
         0,
-        0,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stan Ionel": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ]
-    },
-    "2026-W32": {
-      "Stanciu Dumitru": [
-        1,
-        1,
-        1,
-        0,
-        1,
-        1,
-        0
-      ],
-      "Tuca Valentin": [
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0
-      ],
-      "Stan Ionel": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ghebu Andreas": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toth Cristina": [
-        1,
-        1,
         1,
         1,
         1,
@@ -27822,87 +28849,6 @@
         0
       ],
       "Feraru Razvan": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toiu Georgiana": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Zestrea Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maies Antonio": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ferent Simon": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Tufeanu Claudia": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Ciobotaru Adrian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stanciu Anastasia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Mereacre Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stinga Valeriu": [
         1,
         1,
         1,
@@ -27920,7 +28866,7 @@
         1,
         0
       ],
-      "Birliba Mihaela": [
+      "Tufeanu Claudia": [
         1,
         1,
         1,
@@ -27941,153 +28887,9 @@
         0
       ]
     },
-    "2026-W25": {
-      "Zestrea Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Mereacre Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toiu Georgiana": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Larisa": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
+    "2026-W41": {
       "Ciobotaru Iulian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Tufeanu Claudia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ferent Simon": [
-        1,
-        1,
-        1,
         0,
-        0,
-        0,
-        0
-      ],
-      "Birliba Mihaela": [
-        0,
-        0,
-        0,
-        0,
-        1,
-        1,
-        0
-      ],
-      "Badea Madalin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maricosu Adelin": [
-        0,
-        0,
-        0,
-        0,
-        1,
-        1,
-        0
-      ],
-      "Tuca Valentin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toth Cristina": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Dutescu Daniel": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Ghebu Andreas": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Stanciu Anastasia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stanciu Dumitru": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0
-      ],
-      "Stan Ionel": [
-        1,
         1,
         1,
         1,
@@ -28099,114 +28901,13 @@
         1,
         1,
         1,
-        1,
-        1,
-        1,
-        0
-      ]
-    },
-    "2026-W34": {
-      "Maies Antonio": [
         0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stanciu Dumitru": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Iacob Mihai": [
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Stan Ionel": [
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Feraru Razvan": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Stanciu Anastasia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Zestrea Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ghebu Andreas": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toiu Georgiana": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toth Cristina": [
-        1,
-        1,
-        1,
-        1,
         1,
         1,
         0
       ],
       "Tuca Valentin": [
         1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0
-      ],
-      "Tufeanu Claudia": [
-        1,
         1,
         1,
         1,
@@ -28214,87 +28915,31 @@
         1,
         0
       ],
-      "Ciobotaru Iulian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Larisa": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maricosu Adelin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Birliba Mihaela": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ferent Simon": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stinga Valeriu": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ]
-    },
-    "2026-W33": {
       "Mereacre Mihail": [
         1,
         1,
         1,
         1,
+        1,
+        1,
+        0
+      ],
+      "Feraru Razvan": [
+        1,
+        1,
+        1,
+        1,
         0,
         0,
         0
       ],
-      "Stan Ionel": [
+      "Ciobotaru Larisa": [
         1,
         1,
         1,
         1,
         1,
-        0,
-        0
-      ],
-      "Tufeanu Claudia": [
         1,
-        1,
-        1,
-        1,
-        1,
-        0,
         0
       ],
       "Birliba Mihaela": [
@@ -28303,79 +28948,43 @@
         1,
         1,
         1,
-        0,
-        0
-      ],
-      "Maricosu Adelin": [
-        0,
         1,
-        1,
-        0,
-        1,
-        0,
-        0
-      ],
-      "Stanciu Anastasia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Zestrea Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
         0
       ],
       "Iacob Mihai": [
         1,
+        0,
+        0,
         1,
-        1,
-        1,
-        1,
+        0,
         0,
         0
       ],
-      "Toiu Georgiana": [
-        1,
-        1,
-        1,
-        1,
-        1,
+      "Maies Antonio": [
+        0,
+        0,
+        0,
+        0,
+        0,
         0,
         0
       ],
-      "Ciobotaru Iulian": [
+      "Ferent Simon": [
         1,
         1,
         1,
         1,
         1,
-        0,
+        1,
         0
       ],
-      "Ciobotaru Larisa": [
+      "Maricosu Adelin": [
         1,
         1,
         1,
         1,
         1,
-        0,
-        0
-      ],
-      "Tuca Valentin": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
+        1,
         0
       ],
       "Toth Cristina": [
@@ -28384,66 +28993,10 @@
         1,
         1,
         1,
-        0,
+        1,
         0
       ],
-      "Stanciu Dumitru": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Ghebu Andreas": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Feraru Razvan": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Stinga Valeriu": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Maies Antonio": [
-        1,
-        0,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Ferent Simon": [
-        1,
-        1,
-        0,
-        1,
-        1,
-        0,
-        0
-      ]
-    },
-    "2026-W29": {
-      "Feraru Razvan": [
+      "Toiu Georgiana": [
         1,
         1,
         1,
@@ -28452,34 +29005,7 @@
         1,
         0
       ],
-      "Maies Antonio": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stanciu Dumitru": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0
-      ],
-      "Ciobotaru Larisa": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Iulian": [
+      "Stanciu Anastasia": [
         1,
         1,
         1,
@@ -28497,224 +29023,6 @@
         1,
         0
       ],
-      "Tuca Valentin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toth Cristina": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Ghebu Andreas": [
-        0,
-        1,
-        0,
-        0,
-        0,
-        1,
-        0
-      ],
-      "Mereacre Mihail": [
-        1,
-        0,
-        1,
-        1,
-        0,
-        1,
-        0
-      ],
-      "Ciobotaru Adrian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Zestrea Mihail": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0
-      ],
-      "Toiu Georgiana": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ferent Simon": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maricosu Adelin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Stanciu Anastasia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Stan Ionel": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ]
-    },
-    "2026-W38": {
-      "Ciobotaru Larisa": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Iulian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Iacob Mihai": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Donisa Vlad": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Mereacre Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ferent Simon": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toiu Georgiana": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maies Antonio": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Zestrea Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Feraru Razvan": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Tufeanu Claudia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Adrian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Birliba Mihaela": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
       "Ghebu Andreas": [
         1,
         1,
@@ -28724,25 +29032,7 @@
         1,
         0
       ],
-      "Dutescu Daniel": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Tuca Valentin": [
-        1,
-        1,
-        0,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Badea Madalin": [
+      "Zestrea Mihail": [
         1,
         1,
         1,
@@ -28753,33 +29043,6 @@
       ]
     },
     "2026-W37": {
-      "Ciobotaru Adrian": [
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Tufeanu Claudia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ghebu Andreas": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
       "Tuca Valentin": [
         1,
         1,
@@ -28789,34 +29052,7 @@
         1,
         0
       ],
-      "Mereacre Mihail": [
-        1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Badea Madalin": [
-        1,
-        1,
-        1,
-        1,
-        0,
-        1,
-        0
-      ],
-      "Maies Antonio": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ferent Simon": [
+      "Tufeanu Claudia": [
         1,
         1,
         1,
@@ -28834,24 +29070,6 @@
         0,
         0
       ],
-      "Feraru Razvan": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Birliba Mihaela": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
       "Stan Ionel": [
         1,
         1,
@@ -28859,24 +29077,6 @@
         1,
         1,
         0,
-        0
-      ],
-      "Stanciu Anastasia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Toiu Georgiana": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
         0
       ],
       "Zestrea Mihail": [
@@ -28888,12 +29088,66 @@
         1,
         0
       ],
+      "Toiu Georgiana": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Feraru Razvan": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Stanciu Anastasia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
       "Iacob Mihai": [
         0,
         0,
         0,
         0,
         0,
+        1,
+        0
+      ],
+      "Ciobotaru Larisa": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Maies Antonio": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Mereacre Mihail": [
+        1,
+        0,
+        1,
+        1,
+        1,
         1,
         0
       ],
@@ -28906,64 +29160,8 @@
         1,
         0
       ],
-      "Ciobotaru Larisa": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Iulian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ]
-    },
-    "2026-W31": {
-      "Stanciu Dumitru": [
-        1,
-        0,
-        1,
-        1,
-        0,
-        1,
-        0
-      ],
       "Ciobotaru Adrian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Tufeanu Claudia": [
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Toth Cristina": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stanciu Anastasia": [
-        1,
         1,
         1,
         1,
@@ -28972,51 +29170,6 @@
         0
       ],
       "Ghebu Andreas": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stan Ionel": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0
-      ],
-      "Tuca Valentin": [
-        1,
-        1,
-        1,
-        0,
-        1,
-        1,
-        0
-      ],
-      "Toiu Georgiana": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Zestrea Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Mereacre Mihail": [
         1,
         1,
         1,
@@ -29030,16 +29183,7 @@
         1,
         1,
         1,
-        1,
-        1,
-        0
-      ],
-      "Maies Antonio": [
-        1,
-        1,
-        1,
-        1,
-        1,
+        0,
         1,
         0
       ],
@@ -29047,86 +29191,12 @@
         1,
         1,
         1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maricosu Adelin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Feraru Razvan": [
-        1,
-        1,
-        0,
         1,
         1,
         1,
         0
       ],
       "Birliba Mihaela": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ]
-    },
-    "2026-W44": {
-      "Maies Antonio": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Mereacre Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ferent Simon": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Feraru Razvan": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stan Ionel": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Larisa": [
         1,
         1,
         1,
@@ -29143,8 +29213,192 @@
         1,
         1,
         0
+      ]
+    },
+    "2026-W40": {
+      "Birliba Mihaela": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Ciobotaru Adrian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Toiu Georgiana": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Ciobotaru Iulian": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Feraru Razvan": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Zestrea Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Mereacre Mihail": [
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "Tuca Valentin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Ferent Simon": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Stanciu Anastasia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Ciobotaru Larisa": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
       ],
       "Ghebu Andreas": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Badea Madalin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Iacob Mihai": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Dutescu Daniel": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Donisa Vlad": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Toth Cristina": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Tufeanu Claudia": [
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Maricosu Adelin": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "Maies Antonio": [
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    "2026-W39": {
+      "Badea Madalin": [
         1,
         1,
         1,
@@ -29153,7 +29407,7 @@
         1,
         0
       ],
-      "Toth Cristina": [
+      "Mereacre Mihail": [
         1,
         1,
         1,
@@ -29163,188 +29417,24 @@
         0
       ],
       "Stinga Valeriu": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Dutescu Daniel": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
         0
       ],
       "Birliba Mihaela": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Adrian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stanciu Anastasia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toiu Georgiana": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Zestrea Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ]
-    },
-    "2026-W27": {
-      "Stanciu Anastasia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stanciu Dumitru": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toiu Georgiana": [
-        1,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Ciobotaru Adrian": [
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Mereacre Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Feraru Razvan": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Iulian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Larisa": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maies Antonio": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Tufeanu Claudia": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stan Ionel": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Birliba Mihaela": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maricosu Adelin": [
-        0,
-        0,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Tuca Valentin": [
-        0,
-        0,
-        0,
-        0,
-        1,
-        1,
-        0
-      ],
-      "Badea Madalin": [
         1,
         1,
         1,
@@ -29354,116 +29444,6 @@
         0
       ],
       "Toth Cristina": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ghebu Andreas": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ]
-    },
-    "2026-W36": {
-      "Birliba Mihaela": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Maricosu Adelin": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ferent Simon": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Ciobotaru Adrian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Mereacre Mihail": [
-        0,
-        0,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Toiu Georgiana": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Tufeanu Claudia": [
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "Zestrea Mihail": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Iulian": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Ciobotaru Larisa": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Feraru Razvan": [
         1,
         1,
         1,
@@ -29473,48 +29453,57 @@
         0
       ],
       "Iacob Mihai": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Tufeanu Claudia": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Maricosu Adelin": [
         0,
         1,
-        0,
-        0,
-        0,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Larisa": [
+        1,
+        1,
+        1,
+        1,
+        1,
         1,
         0
       ],
       "Stanciu Anastasia": [
-        1,
-        1,
+        0,
+        0,
         1,
         1,
         1,
         1,
         0
       ],
-      "Stan Ionel": [
+      "Feraru Razvan": [
         1,
         1,
         1,
         1,
         1,
         1,
-        0
-      ],
-      "Maies Antonio": [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0
-      ],
-      "Stinga Valeriu": [
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
         0
       ],
       "Tuca Valentin": [
@@ -29526,8 +29515,8 @@
         1,
         0
       ],
-      "Badea Madalin": [
-        0,
+      "Ciobotaru Iulian": [
+        1,
         1,
         1,
         1,
@@ -29535,22 +29524,49 @@
         1,
         0
       ],
-      "Toth Cristina": [
+      "Zestrea Mihail": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Donisa Vlad": [
+        1,
         0,
         0,
         0,
-        0,
-        0,
+        1,
         0,
         0
       ],
-      "Ghebu Andreas": [
-        1,
+      "Ferent Simon": [
         1,
         1,
         1,
         1,
         0,
+        1,
+        0
+      ],
+      "Toiu Georgiana": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "Ciobotaru Adrian": [
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
         0
       ]
     }
@@ -29578,24 +29594,6 @@
         "Rimoczi Florin",
         "Sandulescu Adrian",
         "Sparios Eduard"
-      ],
-      "2026-07": [
-        "Aremia Aurel",
-        "Badea Madalin",
-        "Bainoczi Razvan",
-        "Bejenaru Ioan",
-        "Birliba Mihaela",
-        "Bruma Alexandru",
-        "Burlacu Andrei",
-        "Donisa Vlad",
-        "Ghebu Andreas",
-        "Gruia Raul",
-        "Lacatus Sebastian",
-        "Maies Antonio",
-        "Margau Rafael",
-        "Pana Alexandru",
-        "Perna Pasquale",
-        "Rimoczi Florin"
       ],
       "2026-09": [
         "Bainoczi Razvan",
@@ -29638,471 +29636,243 @@
         "Pana Alexandru",
         "Perna Pasquale",
         "Rimoczi Florin"
+      ],
+      "2026-07": [
+        "Aremia Aurel",
+        "Badea Madalin",
+        "Bainoczi Razvan",
+        "Bejenaru Ioan",
+        "Birliba Mihaela",
+        "Bruma Alexandru",
+        "Burlacu Andrei",
+        "Donisa Vlad",
+        "Ghebu Andreas",
+        "Gruia Raul",
+        "Lacatus Sebastian",
+        "Maies Antonio",
+        "Margau Rafael",
+        "Pana Alexandru",
+        "Perna Pasquale",
+        "Rimoczi Florin"
       ]
     },
     "days": {
-      "2026-08": {
-        "Bejenaru Ioan": {
+      "2026-10": {
+        "Macarie Paul": {
           "1": "liber",
-          "3": "liber",
-          "4": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "liber",
-          "8": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "12": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "20": "lucrat",
-          "21": "liber",
-          "22": "lucrat",
-          "24": "liber",
-          "25": "lucrat",
-          "26": "lucrat",
-          "27": "lucrat",
-          "28": "liber",
-          "29": "lucrat",
-          "31": "lucrat"
-        },
-        "Maies Antonio": {
-          "1": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "12": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "24": "lucrat",
-          "25": "liber",
-          "26": "lucrat",
-          "27": "liber",
-          "28": "lucrat",
-          "29": "lucrat",
-          "31": "lucrat"
-        },
-        "Bruma Alexandru": {
-          "1": "lucrat",
-          "3": "liber",
-          "4": "liber",
+          "2": "liber",
           "5": "liber",
           "6": "liber",
-          "7": "liber",
+          "7": "lucrat",
           "8": "liber",
-          "31": "liber"
-        },
-        "Donisa Vlad": {
-          "1": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
+          "9": "liber",
           "10": "lucrat",
-          "11": "lucrat",
-          "12": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "24": "liber",
-          "25": "lucrat",
-          "26": "lucrat",
-          "27": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat",
-          "31": "lucrat"
+          "12": "liber",
+          "13": "liber"
         },
-        "Lacatus Stefanel": {
-          "1": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
+        "Maies Antonio": {
+          "1": "liber",
+          "2": "lucrat",
           "12": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "24": "liber",
-          "26": "lucrat",
-          "27": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat",
-          "31": "lucrat"
-        },
-        "Perna Pasquale": {
-          "1": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "12": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "24": "liber",
-          "25": "lucrat",
-          "26": "lucrat",
-          "27": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat",
-          "31": "lucrat"
-        },
-        "Burlacu Andrei": {
-          "1": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "12": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "26": "lucrat",
-          "27": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat"
+          "13": "lucrat"
         },
         "Costache Daniel": {
           "1": "lucrat",
-          "3": "liber",
-          "4": "lucrat",
+          "2": "lucrat",
           "5": "lucrat",
           "6": "lucrat",
           "7": "lucrat",
           "8": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "12": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "26": "lucrat",
-          "27": "lucrat",
-          "28": "liber",
-          "29": "lucrat",
-          "31": "liber"
+          "9": "lucrat"
         },
         "Birliba Mihaela": {
           "1": "liber",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "10": "liber",
-          "11": "lucrat",
-          "12": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "26": "lucrat",
-          "27": "liber",
-          "28": "lucrat",
-          "29": "lucrat",
-          "31": "lucrat"
-        },
-        "Margau Rafael": {
-          "1": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "12": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "26": "lucrat",
-          "27": "lucrat",
-          "28": "liber",
-          "29": "lucrat",
-          "31": "lucrat"
-        },
-        "Badea Madalin": {
-          "1": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat"
-        },
-        "Aremia Aurel": {},
-        "Bainoczi Razvan": {
-          "1": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "12": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "26": "lucrat",
-          "27": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat",
-          "31": "lucrat"
-        },
-        "Lacatus Sebastian": {
-          "1": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat"
-        },
-        "Pana Alexandru": {
-          "1": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
+          "2": "liber",
+          "5": "liber",
           "6": "liber",
-          "31": "lucrat"
-        },
-        "Rimoczi Florin": {
-          "1": "lucrat",
-          "19": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "26": "lucrat",
-          "27": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat",
-          "31": "liber"
-        },
-        "Macarie Paul": {
+          "7": "lucrat",
+          "8": "liber",
+          "9": "liber",
           "10": "liber",
-          "11": "lucrat",
-          "12": "lucrat",
-          "13": "liber",
-          "14": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "liber",
-          "20": "liber",
-          "21": "lucrat",
-          "22": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "26": "lucrat",
-          "27": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat",
-          "31": "lucrat"
+          "12": "liber",
+          "13": "liber"
         },
         "Ghebu Andreas": {
           "1": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
+          "2": "liber",
+          "5": "liber",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "12": "lucrat",
+          "13": "lucrat"
+        },
+        "Lacatus Stefanel": {
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "12": "lucrat",
+          "13": "lucrat"
+        },
+        "Neagu Ramon": {
+          "1": "lucrat",
+          "2": "liber",
+          "5": "liber",
+          "6": "liber",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "12": "lucrat",
+          "13": "lucrat"
+        },
+        "Pana Alexandru": {
+          "1": "lucrat",
+          "2": "lucrat",
           "5": "lucrat",
           "6": "lucrat",
           "7": "lucrat",
           "8": "lucrat",
+          "9": "lucrat",
           "10": "lucrat",
-          "11": "lucrat",
           "12": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "24": "lucrat",
-          "25": "liber",
-          "26": "lucrat",
-          "27": "lucrat",
-          "28": "liber",
-          "29": "lucrat",
-          "31": "lucrat"
+          "13": "lucrat"
+        },
+        "Perna Pasquale": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "12": "liber",
+          "13": "lucrat"
+        },
+        "Bainoczi Razvan": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "12": "liber",
+          "13": "lucrat"
+        },
+        "Donisa Vlad": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "5": "liber",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "12": "lucrat",
+          "13": "liber"
+        },
+        "Bruma Alexandru": {
+          "1": "liber",
+          "2": "liber",
+          "5": "liber",
+          "7": "lucrat",
+          "8": "liber",
+          "9": "liber",
+          "10": "lucrat",
+          "12": "liber",
+          "13": "liber"
         },
         "Gruia Raul": {
           "1": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
+          "2": "lucrat",
           "5": "lucrat",
           "6": "lucrat",
           "7": "lucrat",
           "8": "lucrat",
+          "9": "lucrat",
           "10": "lucrat",
-          "11": "lucrat",
           "12": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "liber",
-          "24": "lucrat",
-          "25": "lucrat",
-          "26": "lucrat",
-          "27": "lucrat",
-          "28": "lucrat",
-          "29": "liber",
-          "31": "lucrat"
+          "13": "lucrat"
+        },
+        "Rimoczi Florin": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "12": "lucrat",
+          "13": "liber"
+        },
+        "Sandulescu Adrian": {
+          "1": "liber",
+          "2": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "12": "liber",
+          "13": "lucrat"
+        },
+        "Sparios Eduard": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "12": "lucrat",
+          "13": "lucrat"
+        },
+        "Bejenaru Ioan": {
+          "1": "liber",
+          "2": "liber",
+          "5": "liber",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "liber",
+          "9": "liber",
+          "10": "lucrat",
+          "12": "liber",
+          "13": "liber"
+        },
+        "Jekal Norbert": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "12": "lucrat",
+          "13": "liber"
+        },
+        "Burlacu Andrei": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "12": "lucrat",
+          "13": "liber"
         }
       },
       "2026-09": {
-        "Macarie Paul": {
-          "1": "liber",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "7": "liber",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "liber",
-          "11": "lucrat",
-          "14": "liber",
-          "15": "lucrat",
-          "17": "liber",
-          "18": "lucrat",
-          "19": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "23": "liber",
-          "24": "liber",
-          "25": "liber",
-          "26": "lucrat",
-          "28": "liber",
-          "29": "liber",
-          "30": "liber"
-        },
-        "Lacatus Stefanel": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "7": "lucrat",
-          "8": "liber",
-          "9": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "12": "lucrat",
-          "14": "lucrat",
-          "15": "lucrat",
-          "16": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "liber"
-        },
-        "Birliba Mihaela": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "7": "liber",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "12": "lucrat",
-          "14": "liber",
-          "15": "lucrat",
-          "16": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "21": "liber",
-          "22": "lucrat",
-          "24": "lucrat",
-          "25": "liber",
-          "26": "lucrat",
-          "28": "lucrat",
-          "29": "liber",
-          "30": "liber"
-        },
         "Costache Daniel": {
           "1": "lucrat",
           "2": "lucrat",
@@ -30131,110 +29901,39 @@
           "29": "lucrat",
           "30": "lucrat"
         },
-        "Gruia Raul": {
+        "Birliba Mihaela": {
           "1": "lucrat",
           "2": "lucrat",
           "3": "lucrat",
           "4": "lucrat",
           "5": "lucrat",
-          "7": "lucrat",
+          "7": "liber",
           "8": "lucrat",
           "9": "lucrat",
           "10": "lucrat",
           "11": "lucrat",
           "12": "lucrat",
-          "14": "lucrat",
+          "14": "liber",
           "15": "lucrat",
           "16": "lucrat",
           "17": "lucrat",
           "18": "lucrat",
           "19": "lucrat",
-          "21": "lucrat",
+          "21": "liber",
           "22": "lucrat",
-          "23": "lucrat",
           "24": "lucrat",
-          "25": "lucrat",
+          "25": "liber",
           "26": "lucrat",
           "28": "lucrat",
-          "29": "lucrat",
-          "30": "lucrat"
-        },
-        "Burlacu Andrei": {
-          "15": "lucrat",
-          "16": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "23": "lucrat",
-          "24": "liber",
-          "25": "lucrat",
-          "26": "liber",
-          "28": "lucrat",
           "29": "liber",
-          "30": "lucrat"
+          "30": "liber"
         },
-        "Perna Pasquale": {
+        "Margau Rafael": {
           "1": "lucrat",
           "2": "lucrat",
           "3": "lucrat",
           "4": "lucrat",
           "5": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "12": "lucrat",
-          "14": "lucrat",
-          "15": "lucrat",
-          "16": "lucrat",
-          "17": "lucrat",
-          "18": "liber",
-          "19": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "23": "liber",
-          "24": "lucrat",
-          "25": "lucrat",
-          "26": "lucrat",
-          "28": "liber",
-          "29": "liber",
-          "30": "lucrat"
-        },
-        "Donisa Vlad": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "11": "liber",
-          "12": "lucrat",
-          "14": "lucrat",
-          "15": "lucrat",
-          "16": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "21": "lucrat",
-          "22": "liber",
-          "23": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "26": "lucrat",
-          "28": "liber",
-          "29": "lucrat",
-          "30": "lucrat"
-        },
-        "Ghebu Andreas": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
           "7": "lucrat",
           "8": "lucrat",
           "9": "lucrat",
@@ -30247,6 +29946,67 @@
           "17": "lucrat",
           "18": "lucrat",
           "19": "lucrat",
+          "21": "lucrat",
+          "22": "liber",
+          "23": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "26": "lucrat",
+          "28": "liber",
+          "29": "lucrat",
+          "30": "liber"
+        },
+        "Sandulescu Adrian": {
+          "16": "liber",
+          "17": "liber",
+          "18": "liber",
+          "19": "liber",
+          "21": "liber",
+          "22": "lucrat",
+          "23": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "26": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "30": "lucrat"
+        },
+        "Neagu Ramon": {
+          "21": "liber",
+          "22": "lucrat",
+          "23": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "26": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "30": "lucrat"
+        },
+        "Pana Alexandru": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "liber",
+          "11": "lucrat",
+          "12": "lucrat",
+          "14": "lucrat",
+          "15": "lucrat",
+          "16": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "liber",
+          "21": "lucrat",
+          "22": "lucrat",
+          "23": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "26": "lucrat",
+          "28": "lucrat",
           "29": "lucrat",
           "30": "lucrat"
         },
@@ -30270,6 +30030,126 @@
           "29": "liber",
           "30": "lucrat"
         },
+        "Bejenaru Ioan": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "7": "liber",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "11": "liber",
+          "12": "lucrat",
+          "14": "liber",
+          "15": "liber",
+          "16": "lucrat",
+          "17": "lucrat",
+          "18": "liber",
+          "19": "liber",
+          "21": "liber",
+          "22": "liber",
+          "23": "liber",
+          "24": "liber",
+          "25": "liber",
+          "26": "liber",
+          "28": "liber",
+          "29": "liber",
+          "30": "liber"
+        },
+        "Gruia Raul": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "12": "lucrat",
+          "14": "lucrat",
+          "15": "lucrat",
+          "16": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "23": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "26": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "30": "lucrat"
+        },
+        "Badea Madalin": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "12": "lucrat",
+          "14": "lucrat",
+          "15": "lucrat",
+          "16": "lucrat"
+        },
+        "Bainoczi Razvan": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "liber",
+          "11": "lucrat",
+          "12": "lucrat",
+          "14": "lucrat",
+          "15": "lucrat",
+          "16": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "21": "lucrat",
+          "22": "liber",
+          "23": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "26": "liber",
+          "28": "lucrat",
+          "29": "liber",
+          "30": "liber"
+        },
+        "Maies Antonio": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "7": "liber",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "12": "lucrat",
+          "14": "lucrat",
+          "15": "lucrat",
+          "16": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "29": "lucrat",
+          "30": "lucrat"
+        },
         "Bruma Alexandru": {
           "1": "lucrat",
           "2": "lucrat",
@@ -30298,27 +30178,37 @@
           "29": "liber",
           "30": "lucrat"
         },
-        "Badea Madalin": {
-          "1": "lucrat",
+        "Macarie Paul": {
+          "1": "liber",
           "2": "lucrat",
           "3": "lucrat",
           "4": "lucrat",
           "5": "lucrat",
-          "7": "lucrat",
+          "7": "liber",
           "8": "lucrat",
           "9": "lucrat",
-          "10": "lucrat",
-          "12": "lucrat",
-          "14": "lucrat",
+          "10": "liber",
+          "11": "lucrat",
+          "14": "liber",
           "15": "lucrat",
-          "16": "lucrat"
+          "17": "liber",
+          "18": "lucrat",
+          "19": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "23": "liber",
+          "24": "liber",
+          "25": "liber",
+          "26": "lucrat",
+          "28": "liber",
+          "29": "liber",
+          "30": "liber"
         },
-        "Margau Rafael": {
+        "Ghebu Andreas": {
           "1": "lucrat",
           "2": "lucrat",
           "3": "lucrat",
           "4": "lucrat",
-          "5": "lucrat",
           "7": "lucrat",
           "8": "lucrat",
           "9": "lucrat",
@@ -30331,26 +30221,43 @@
           "17": "lucrat",
           "18": "lucrat",
           "19": "lucrat",
-          "21": "lucrat",
-          "22": "liber",
-          "23": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "26": "lucrat",
-          "28": "liber",
-          "29": "lucrat",
-          "30": "liber"
-        },
-        "Neagu Ramon": {
-          "21": "liber",
-          "22": "lucrat",
-          "23": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "26": "lucrat",
-          "28": "lucrat",
           "29": "lucrat",
           "30": "lucrat"
+        },
+        "Burlacu Andrei": {
+          "15": "lucrat",
+          "16": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "23": "lucrat",
+          "24": "liber",
+          "25": "lucrat",
+          "26": "liber",
+          "28": "lucrat",
+          "29": "liber",
+          "30": "lucrat"
+        },
+        "Lacatus Stefanel": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "7": "lucrat",
+          "8": "liber",
+          "9": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "12": "lucrat",
+          "14": "lucrat",
+          "15": "lucrat",
+          "16": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "liber"
         },
         "Rimoczi Florin": {
           "1": "lucrat",
@@ -30379,446 +30286,64 @@
           "28": "liber",
           "29": "lucrat",
           "30": "liber"
-        },
-        "Sandulescu Adrian": {
-          "16": "liber",
-          "17": "liber",
-          "18": "liber",
-          "19": "liber",
-          "21": "liber",
-          "22": "lucrat",
-          "23": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "26": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat",
-          "30": "lucrat"
-        },
-        "Pana Alexandru": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "liber",
-          "11": "lucrat",
-          "12": "lucrat",
-          "14": "lucrat",
-          "15": "lucrat",
-          "16": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "liber",
-          "21": "lucrat",
-          "22": "lucrat",
-          "23": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "26": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat",
-          "30": "lucrat"
-        },
-        "Maies Antonio": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "7": "liber",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "12": "lucrat",
-          "14": "lucrat",
-          "15": "lucrat",
-          "16": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "29": "lucrat",
-          "30": "lucrat"
-        },
-        "Bainoczi Razvan": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "liber",
-          "11": "lucrat",
-          "12": "lucrat",
-          "14": "lucrat",
-          "15": "lucrat",
-          "16": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "19": "lucrat",
-          "21": "lucrat",
-          "22": "liber",
-          "23": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "26": "liber",
-          "28": "lucrat",
-          "29": "liber",
-          "30": "liber"
-        },
-        "Bejenaru Ioan": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "5": "lucrat",
-          "7": "liber",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "11": "liber",
-          "12": "lucrat",
-          "14": "liber",
-          "15": "liber",
-          "16": "lucrat",
-          "17": "lucrat",
-          "18": "liber",
-          "19": "liber",
-          "21": "liber",
-          "22": "liber",
-          "23": "liber",
-          "24": "liber",
-          "25": "liber",
-          "26": "liber",
-          "28": "liber",
-          "29": "liber",
-          "30": "liber"
-        }
-      },
-      "2026-07": {
-        "Donisa Vlad": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "15": "liber",
-          "16": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "23": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "27": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat",
-          "30": "lucrat",
-          "31": "lucrat"
-        },
-        "Maies Antonio": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "13": "liber",
-          "14": "lucrat",
-          "15": "lucrat",
-          "16": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "liber",
-          "23": "lucrat",
-          "24": "liber",
-          "25": "lucrat",
-          "27": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat",
-          "30": "lucrat",
-          "31": "lucrat"
-        },
-        "Bejenaru Ioan": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "27": "liber",
-          "28": "lucrat",
-          "29": "lucrat",
-          "30": "lucrat",
-          "31": "liber"
-        },
-        "Burlacu Andrei": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "liber",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "13": "lucrat",
-          "14": "liber",
-          "15": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "23": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "27": "liber",
-          "29": "lucrat",
-          "30": "lucrat",
-          "31": "lucrat"
         },
         "Perna Pasquale": {
           "1": "lucrat",
           "2": "lucrat",
           "3": "lucrat",
           "4": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
+          "5": "lucrat",
           "8": "lucrat",
           "9": "lucrat",
           "10": "lucrat",
           "11": "lucrat",
-          "13": "lucrat",
-          "14": "liber",
-          "15": "lucrat",
-          "16": "lucrat",
-          "17": "liber",
-          "18": "liber",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "23": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "29": "lucrat",
-          "30": "lucrat",
-          "31": "lucrat"
-        },
-        "Aremia Aurel": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "liber",
-          "4": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "16": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "23": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "27": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat",
-          "30": "lucrat",
-          "31": "lucrat"
-        },
-        "Badea Madalin": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "liber",
-          "10": "lucrat",
-          "11": "lucrat",
-          "13": "liber",
+          "12": "lucrat",
           "14": "lucrat",
           "15": "lucrat",
           "16": "lucrat",
           "17": "lucrat",
           "18": "liber",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "23": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "27": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat",
-          "30": "lucrat",
-          "31": "lucrat"
-        },
-        "Margau Rafael": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "liber",
-          "11": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "15": "lucrat",
-          "16": "liber",
-          "17": "lucrat",
-          "18": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "23": "lucrat",
-          "24": "liber",
-          "25": "lucrat",
-          "27": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat",
-          "30": "lucrat",
-          "31": "lucrat"
-        },
-        "Bainoczi Razvan": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "liber",
-          "11": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "15": "lucrat",
-          "16": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "20": "liber",
-          "21": "lucrat",
-          "22": "lucrat",
-          "23": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "27": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat",
-          "30": "lucrat",
-          "31": "liber"
-        },
-        "Lacatus Sebastian": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "15": "lucrat",
-          "16": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "20": "lucrat",
-          "21": "lucrat",
-          "22": "lucrat",
-          "23": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "27": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat",
-          "30": "lucrat",
-          "31": "lucrat"
-        },
-        "Gruia Raul": {
-          "1": "liber",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "6": "liber",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "11": "lucrat",
-          "13": "lucrat",
-          "14": "lucrat",
-          "15": "lucrat",
-          "16": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "20": "lucrat",
+          "19": "lucrat",
           "21": "lucrat",
           "22": "lucrat",
           "23": "liber",
           "24": "lucrat",
-          "25": "liber",
-          "27": "lucrat",
-          "28": "lucrat",
-          "29": "lucrat",
-          "30": "lucrat",
-          "31": "liber"
+          "25": "lucrat",
+          "26": "lucrat",
+          "28": "liber",
+          "29": "liber",
+          "30": "lucrat"
         },
-        "Birliba Mihaela": {
+        "Donisa Vlad": {
           "1": "lucrat",
           "2": "lucrat",
           "3": "lucrat",
-          "4": "liber",
-          "6": "lucrat",
-          "7": "liber",
-          "8": "liber",
+          "4": "lucrat",
+          "5": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
           "9": "lucrat",
-          "10": "liber",
+          "10": "lucrat",
           "11": "liber",
+          "12": "lucrat",
+          "14": "lucrat",
+          "15": "lucrat",
+          "16": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "21": "lucrat",
           "22": "liber",
-          "23": "liber",
-          "24": "liber",
+          "23": "lucrat",
+          "24": "lucrat",
           "25": "lucrat",
-          "27": "lucrat",
-          "28": "lucrat",
+          "26": "lucrat",
+          "28": "liber",
           "29": "lucrat",
-          "30": "lucrat",
-          "31": "lucrat"
-        },
+          "30": "lucrat"
+        }
+      },
+      "2026-07": {
         "Pana Alexandru": {
           "1": "lucrat",
           "2": "lucrat",
@@ -30843,35 +30368,6 @@
           "24": "liber",
           "25": "lucrat",
           "27": "liber",
-          "28": "lucrat",
-          "29": "lucrat",
-          "30": "lucrat",
-          "31": "lucrat"
-        },
-        "Rimoczi Florin": {
-          "1": "liber",
-          "2": "lucrat",
-          "3": "lucrat",
-          "4": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "11": "liber",
-          "13": "lucrat",
-          "14": "lucrat",
-          "15": "lucrat",
-          "16": "lucrat",
-          "17": "lucrat",
-          "18": "lucrat",
-          "20": "liber",
-          "21": "lucrat",
-          "22": "lucrat",
-          "23": "lucrat",
-          "24": "lucrat",
-          "25": "lucrat",
-          "27": "lucrat",
           "28": "lucrat",
           "29": "lucrat",
           "30": "lucrat",
@@ -30906,6 +30402,93 @@
           "30": "liber",
           "31": "liber"
         },
+        "Gruia Raul": {
+          "1": "liber",
+          "2": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "6": "liber",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "15": "lucrat",
+          "16": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "23": "liber",
+          "24": "lucrat",
+          "25": "liber",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "30": "lucrat",
+          "31": "liber"
+        },
+        "Donisa Vlad": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "15": "liber",
+          "16": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "23": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "30": "lucrat",
+          "31": "lucrat"
+        },
+        "Bainoczi Razvan": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "liber",
+          "11": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "15": "lucrat",
+          "16": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "20": "liber",
+          "21": "lucrat",
+          "22": "lucrat",
+          "23": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "30": "lucrat",
+          "31": "liber"
+        },
         "Ghebu Andreas": {
           "1": "lucrat",
           "2": "lucrat",
@@ -30934,221 +30517,654 @@
           "29": "lucrat",
           "30": "lucrat",
           "31": "lucrat"
-        }
-      },
-      "2026-10": {
-        "Macarie Paul": {
-          "1": "liber",
-          "2": "liber",
-          "5": "liber",
-          "6": "liber",
-          "7": "lucrat",
-          "8": "liber",
-          "9": "liber",
-          "10": "lucrat",
-          "12": "liber",
-          "13": "liber"
-        },
-        "Jekal Norbert": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "12": "lucrat",
-          "13": "liber"
-        },
-        "Sandulescu Adrian": {
-          "1": "liber",
-          "2": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "12": "liber",
-          "13": "lucrat"
-        },
-        "Pana Alexandru": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "12": "lucrat",
-          "13": "lucrat"
-        },
-        "Rimoczi Florin": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "12": "lucrat",
-          "13": "liber"
-        },
-        "Donisa Vlad": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "5": "liber",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "12": "lucrat",
-          "13": "liber"
-        },
-        "Gruia Raul": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "12": "lucrat",
-          "13": "lucrat"
-        },
-        "Ghebu Andreas": {
-          "1": "lucrat",
-          "2": "liber",
-          "5": "liber",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "12": "lucrat",
-          "13": "lucrat"
-        },
-        "Bainoczi Razvan": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "12": "liber",
-          "13": "lucrat"
-        },
-        "Bejenaru Ioan": {
-          "1": "liber",
-          "2": "liber",
-          "5": "liber",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "liber",
-          "9": "liber",
-          "10": "lucrat",
-          "12": "liber",
-          "13": "liber"
-        },
-        "Birliba Mihaela": {
-          "1": "liber",
-          "2": "liber",
-          "5": "liber",
-          "6": "liber",
-          "7": "lucrat",
-          "8": "liber",
-          "9": "liber",
-          "10": "liber",
-          "12": "liber",
-          "13": "liber"
-        },
-        "Costache Daniel": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat"
-        },
-        "Sparios Eduard": {
-          "1": "lucrat",
-          "2": "lucrat",
-          "5": "lucrat",
-          "6": "lucrat",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "12": "liber",
-          "13": "lucrat"
-        },
-        "Neagu Ramon": {
-          "1": "lucrat",
-          "2": "liber",
-          "5": "liber",
-          "6": "liber",
-          "7": "lucrat",
-          "8": "lucrat",
-          "9": "lucrat",
-          "10": "lucrat",
-          "12": "lucrat",
-          "13": "lucrat"
         },
         "Maies Antonio": {
-          "1": "liber",
+          "1": "lucrat",
           "2": "lucrat",
-          "12": "lucrat",
-          "13": "lucrat"
+          "3": "lucrat",
+          "4": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "13": "liber",
+          "14": "lucrat",
+          "15": "lucrat",
+          "16": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "liber",
+          "23": "lucrat",
+          "24": "liber",
+          "25": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "30": "lucrat",
+          "31": "lucrat"
         },
         "Burlacu Andrei": {
           "1": "lucrat",
           "2": "lucrat",
-          "5": "lucrat",
+          "3": "lucrat",
+          "4": "liber",
           "6": "lucrat",
           "7": "lucrat",
           "8": "lucrat",
           "9": "lucrat",
           "10": "lucrat",
-          "12": "lucrat",
-          "13": "liber"
+          "11": "lucrat",
+          "13": "lucrat",
+          "14": "liber",
+          "15": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "23": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "27": "liber",
+          "29": "lucrat",
+          "30": "lucrat",
+          "31": "lucrat"
+        },
+        "Badea Madalin": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "liber",
+          "10": "lucrat",
+          "11": "lucrat",
+          "13": "liber",
+          "14": "lucrat",
+          "15": "lucrat",
+          "16": "lucrat",
+          "17": "lucrat",
+          "18": "liber",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "23": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "30": "lucrat",
+          "31": "lucrat"
+        },
+        "Aremia Aurel": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "3": "liber",
+          "4": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "16": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "23": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "30": "lucrat",
+          "31": "lucrat"
+        },
+        "Birliba Mihaela": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "3": "lucrat",
+          "4": "liber",
+          "6": "lucrat",
+          "7": "liber",
+          "8": "liber",
+          "9": "lucrat",
+          "10": "liber",
+          "11": "liber",
+          "22": "liber",
+          "23": "liber",
+          "24": "liber",
+          "25": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "30": "lucrat",
+          "31": "lucrat"
+        },
+        "Bejenaru Ioan": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "27": "liber",
+          "28": "lucrat",
+          "29": "lucrat",
+          "30": "lucrat",
+          "31": "liber"
+        },
+        "Margau Rafael": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "liber",
+          "11": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "15": "lucrat",
+          "16": "liber",
+          "17": "lucrat",
+          "18": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "23": "lucrat",
+          "24": "liber",
+          "25": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "30": "lucrat",
+          "31": "lucrat"
         },
         "Perna Pasquale": {
           "1": "lucrat",
           "2": "lucrat",
-          "5": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
           "6": "lucrat",
           "7": "lucrat",
           "8": "lucrat",
           "9": "lucrat",
           "10": "lucrat",
-          "12": "liber",
-          "13": "lucrat"
+          "11": "lucrat",
+          "13": "lucrat",
+          "14": "liber",
+          "15": "lucrat",
+          "16": "lucrat",
+          "17": "liber",
+          "18": "liber",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "23": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "29": "lucrat",
+          "30": "lucrat",
+          "31": "lucrat"
         },
-        "Bruma Alexandru": {
-          "1": "liber",
-          "2": "liber",
-          "5": "liber",
+        "Lacatus Sebastian": {
+          "1": "lucrat",
+          "2": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "6": "lucrat",
           "7": "lucrat",
-          "8": "liber",
-          "9": "liber",
-          "10": "lucrat",
-          "12": "liber",
-          "13": "liber"
-        },
-        "Lacatus Stefanel": {
           "8": "lucrat",
           "9": "lucrat",
           "10": "lucrat",
+          "11": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "15": "lucrat",
+          "16": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "23": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "30": "lucrat",
+          "31": "lucrat"
+        },
+        "Rimoczi Florin": {
+          "1": "liber",
+          "2": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "9": "lucrat",
+          "10": "lucrat",
+          "11": "liber",
+          "13": "lucrat",
+          "14": "lucrat",
+          "15": "lucrat",
+          "16": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "20": "liber",
+          "21": "lucrat",
+          "22": "lucrat",
+          "23": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "30": "lucrat",
+          "31": "lucrat"
+        }
+      },
+      "2026-08": {
+        "Perna Pasquale": {
+          "1": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
           "12": "lucrat",
-          "13": "lucrat"
+          "13": "lucrat",
+          "14": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "24": "liber",
+          "25": "lucrat",
+          "26": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "31": "lucrat"
+        },
+        "Rimoczi Florin": {
+          "1": "lucrat",
+          "19": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "26": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "31": "liber"
+        },
+        "Donisa Vlad": {
+          "1": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "12": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "24": "liber",
+          "25": "lucrat",
+          "26": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "31": "lucrat"
+        },
+        "Macarie Paul": {
+          "10": "liber",
+          "11": "lucrat",
+          "12": "lucrat",
+          "13": "liber",
+          "14": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "liber",
+          "20": "liber",
+          "21": "lucrat",
+          "22": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "26": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "31": "lucrat"
+        },
+        "Ghebu Andreas": {
+          "1": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "12": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "24": "lucrat",
+          "25": "liber",
+          "26": "lucrat",
+          "27": "lucrat",
+          "28": "liber",
+          "29": "lucrat",
+          "31": "lucrat"
+        },
+        "Birliba Mihaela": {
+          "1": "liber",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "10": "liber",
+          "11": "lucrat",
+          "12": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "26": "lucrat",
+          "27": "liber",
+          "28": "lucrat",
+          "29": "lucrat",
+          "31": "lucrat"
+        },
+        "Gruia Raul": {
+          "1": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "12": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "liber",
+          "24": "lucrat",
+          "25": "lucrat",
+          "26": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "liber",
+          "31": "lucrat"
+        },
+        "Burlacu Andrei": {
+          "1": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "12": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "26": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat"
+        },
+        "Maies Antonio": {
+          "1": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "12": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "24": "lucrat",
+          "25": "liber",
+          "26": "lucrat",
+          "27": "liber",
+          "28": "lucrat",
+          "29": "lucrat",
+          "31": "lucrat"
+        },
+        "Lacatus Sebastian": {
+          "1": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat"
+        },
+        "Costache Daniel": {
+          "1": "lucrat",
+          "3": "liber",
+          "4": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "12": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "26": "lucrat",
+          "27": "lucrat",
+          "28": "liber",
+          "29": "lucrat",
+          "31": "liber"
+        },
+        "Badea Madalin": {
+          "1": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat"
+        },
+        "Bejenaru Ioan": {
+          "1": "liber",
+          "3": "liber",
+          "4": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "liber",
+          "8": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "12": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "20": "lucrat",
+          "21": "liber",
+          "22": "lucrat",
+          "24": "liber",
+          "25": "lucrat",
+          "26": "lucrat",
+          "27": "lucrat",
+          "28": "liber",
+          "29": "lucrat",
+          "31": "lucrat"
+        },
+        "Aremia Aurel": {},
+        "Margau Rafael": {
+          "1": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "12": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "26": "lucrat",
+          "27": "lucrat",
+          "28": "liber",
+          "29": "lucrat",
+          "31": "lucrat"
+        },
+        "Lacatus Stefanel": {
+          "1": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "12": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "24": "liber",
+          "26": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "31": "lucrat"
+        },
+        "Pana Alexandru": {
+          "1": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "6": "liber",
+          "31": "lucrat"
+        },
+        "Bainoczi Razvan": {
+          "1": "lucrat",
+          "3": "lucrat",
+          "4": "lucrat",
+          "5": "lucrat",
+          "6": "lucrat",
+          "7": "lucrat",
+          "8": "lucrat",
+          "10": "lucrat",
+          "11": "lucrat",
+          "12": "lucrat",
+          "13": "lucrat",
+          "14": "lucrat",
+          "17": "lucrat",
+          "18": "lucrat",
+          "19": "lucrat",
+          "20": "lucrat",
+          "21": "lucrat",
+          "22": "lucrat",
+          "24": "lucrat",
+          "25": "lucrat",
+          "26": "lucrat",
+          "27": "lucrat",
+          "28": "lucrat",
+          "29": "lucrat",
+          "31": "lucrat"
+        },
+        "Bruma Alexandru": {
+          "1": "lucrat",
+          "3": "liber",
+          "4": "liber",
+          "5": "liber",
+          "6": "liber",
+          "7": "liber",
+          "8": "liber",
+          "31": "liber"
         }
       }
     }
@@ -31610,7 +31626,15 @@
     "Sarneki Sebastian": "Sarnecki Sebastian"
   },
   "planificareWarnings": {
-    "warnings": []
+    "warnings": [
+      {
+        "id": "mv6zod95dlg20",
+        "name": "Stan Ionel",
+        "date": "2026-10-17",
+        "clearedAt": "2026-10-13T18:03:03.065Z",
+        "clearedBy": "admin"
+      }
+    ]
   },
   "calendarReminders": {
     "reminders": [
