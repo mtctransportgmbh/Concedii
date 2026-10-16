@@ -6862,6 +6862,7 @@ function salProcessSync(){
         // persoană legată de Angajați → nume și date vin DOAR de acolo (în Concedii sunt blocate)
         if(item.start&&dr.startDate!==item.start){ dr.startDate=item.start; chD=true; }
         if(item.end&&dr.endDate!==item.end){ dr.endDate=item.end; chD=true; }
+        if(dr.archived&&dr.archivedBySync&&active){ dr.archived=false; delete dr.archivedAt; delete dr.archivedBySync; chD=true; } // era arhivată de sincronizare, acum e din nou în Angajați
         if(dr.autoSync){ const vis=salCoordVis(it.coord); if(!same(dr.visibleTo,vis)){ dr.visibleTo=vis; chD=true; } }
         if(dr.name!==name&&!(state.drivers||[]).some(d=>d!==dr&&d.name===name)){ renames.push([dr.name,name]); dr.name=name; chD=true; }
       }
@@ -6879,7 +6880,7 @@ function salProcessSync(){
     const nEmp=salEmps.find(e=>salNameKey(e.name)===k), nDr=(state.drivers||[]).find(d=>salNameKey(d.name)===k);
     // Aceeași persoană ștearsă și re-adăugată în Angajați (ID nou): legătura veche nu mai există → o reluăm automat, fără aprobare
     if((nDr&&nDr.angajatiId&&!presentIds.has(nDr.angajatiId))||(nEmp&&nEmp.angajatiId&&!presentIds.has(nEmp.angajatiId))){
-      if(nDr&&nDr.angajatiId&&!presentIds.has(nDr.angajatiId)&&adm){ nDr.angajatiId=aid; chD=true; }
+      if(nDr&&nDr.angajatiId&&!presentIds.has(nDr.angajatiId)&&adm){ nDr.angajatiId=aid; if(nDr.archived&&active){ nDr.archived=false; delete nDr.archivedAt; delete nDr.archivedBySync; } chD=true; }
       if(nEmp&&nEmp.angajatiId&&!presentIds.has(nEmp.angajatiId)){ nEmp.angajatiId=aid; chE=true; }
       if(!nEmp&&active){ salEmps.push({id:uid(),name,type:"fix",active:true,angajatiId:aid}); chE=true; }
       return;
@@ -6895,7 +6896,7 @@ function salProcessSync(){
   if(goneE.length+goneD.length>Math.max(5,Math.floor(_angItems.length*0.25))){ console.warn("Sincronizare: prea multe persoane lipsesc din Angajați ("+goneE.length+"/"+goneD.length+") — nu se șterge nimic automat"); }
   else {
     if(goneE.length){ salEmps=salEmps.filter(e=>!goneE.includes(e)); chE=true; }
-    if(goneD.length){ goneD.forEach(d=>{ d.archived=true; d.archivedAt=new Date().toISOString(); }); chD=true; }
+    if(goneD.length){ goneD.forEach(d=>{ d.archived=true; d.archivedBySync=true; d.archivedAt=new Date().toISOString(); }); chD=true; }
     if(goneE.length||goneD.length) toast("🗑️ "+Math.max(goneE.length,goneD.length)+" persoană/persoane ștearsă/șterse din Angajați — scoasă/scoase din Salarii și arhivată/arhivate în Concedii");
   }
   salPending=pending.map(x=>({...x,emp:salEmps.find(e=>(x.aid&&e.angajatiId===x.aid)||salNameKey(e.name)===salNameKey(x.name))||null,dr:(state.drivers||[]).find(d=>(x.aid&&d.angajatiId===x.aid)||salNameKey(d.name)===salNameKey(x.name))||null,ok:false}));
@@ -10787,7 +10788,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.16-04";
+const APP_VERSION = "2026.10.16-05";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12118,7 +12119,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.16-04</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.16-05</div>
 
 </body>
 </html>
