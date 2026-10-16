@@ -4035,9 +4035,18 @@ function isDriverActiveOnDay(dr, d){
 // ============================================================
 // DRIVER MODALS
 // ============================================================
+// Persoanele legate de Angajați: numele și datele de angajare/plecare vin DOAR de acolo (câmpuri blocate aici).
+// Cele create automat mai primesc de acolo și grupa/vizibilitatea (după coordonator).
+function salLockDriverForm(dr){
+  const linked=!!(dr&&dr.angajatiId), auto=!!(dr&&dr.autoSync);
+  ["driverNameInput","driverStartDate","driverEndDate"].forEach(id=>{ const el=document.getElementById(id); if(el){ el.readOnly=linked; el.disabled=false; if(["driverStartDate","driverEndDate"].includes(id)) el.disabled=linked; el.style.opacity=linked?"0.6":""; el.title=linked?"Se modifică doar din aplicația Angajați":""; } });
+  ["driverGroup","visRaluca","visMadalina","visCorina"].forEach(id=>{ const el=document.getElementById(id); if(el){ el.disabled=auto; el.title=auto?"Vine din Angajați (coordonator)":""; } });
+  const t=document.getElementById("modalDriverTitle"); if(t&&linked) t.textContent+=" 🔗 (nume și date din Angajați)";
+}
 function openAddDriver(){
   if(!isAdmin()){toast("Doar Admin poate adăuga persoane",true);return;}
   editingDriverId=null;
+  salLockDriverForm(null);
   document.getElementById("modalDriverTitle").textContent="Adaugă persoană";
   document.getElementById("driverNameInput").value="";
   document.getElementById("driverMaxDays").value="0";
@@ -4057,6 +4066,7 @@ function openEditDriver(id){
   editingDriverId=id;
   const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
   document.getElementById("modalDriverTitle").textContent="Editează persoană";
+  salLockDriverForm(dr);
   document.getElementById("driverNameInput").value=dr.name;
   document.getElementById("driverMaxDays").value=dr.maxDaysOverride?(dr.maxDays||0):getEffectiveMaxDays(dr,currentDate.getFullYear());
   document.getElementById("driverMaxDaysOverrideCheck").checked=!!dr.maxDaysOverride;
@@ -4155,14 +4165,14 @@ function syncDriverGroupToVisibility(){
 
 function saveDriver(){
   if(!isAdmin()){toast("Doar Admin poate salva persoane",true);return;}
-  const name=document.getElementById("driverNameInput").value.trim();
+  let name=document.getElementById("driverNameInput").value.trim();
   if(!name){toast("Introdu un nume",true);return;}
   const maxDays=parseInt(document.getElementById("driverMaxDays").value)||0;
   const maxDaysOverride=document.getElementById("driverMaxDaysOverrideCheck").checked;
-  const startDate=document.getElementById("driverStartDate").value||null;
-  const endDate=document.getElementById("driverEndDate").value||null;
-  const group=document.getElementById("driverGroup").value||null;
-  const visibleTo=["tania"];
+  let startDate=document.getElementById("driverStartDate").value||null;
+  let endDate=document.getElementById("driverEndDate").value||null;
+  let group=document.getElementById("driverGroup").value||null;
+  let visibleTo=["tania"];
   ["visRaluca","visMadalina","visCorina"].forEach(vid=>{
     const el=document.getElementById(vid);
     if(el&&el.checked)visibleTo.push(el.value);
@@ -4170,6 +4180,8 @@ function saveDriver(){
   if(editingDriverId){
     const dr=state.drivers.find(d=>d.id===editingDriverId);
     if(dr){
+      if(dr.angajatiId){ name=dr.name; startDate=dr.startDate||null; endDate=dr.endDate||null; }
+      if(dr.autoSync){ group=dr.group||null; visibleTo=dr.visibleTo||["tania"]; }
       const oldEndDate=dr.endDate||null;
       dr.name=name; dr.maxDays=maxDays; dr.visibleTo=visibleTo;
       if(maxDaysOverride) dr.maxDaysOverride=true; else delete dr.maxDaysOverride;
@@ -6792,6 +6804,27 @@ function loadAngajatiSync(){
   }, e=>console.warn("angajati_sync err",e));
 }
 function salDot(linked){ return linked?'<span title="Sincronizat din Angajați" style="color:#10b981;font-size:11px;margin-right:4px;vertical-align:middle">●</span>':'<span title="Nesincronizat cu Angajați" style="color:var(--text-dim);font-size:11px;margin-right:4px;vertical-align:middle;opacity:.5">○</span>'; }
+// Redenumire în Angajați → se propagă în toate modulele care țin datele după nume (anul curent încărcat).
+function salRenameEverywhere(pairs){
+  let cPres=false,cSort=false,cLib=false,cPlan=false;
+  const mv=(obj,o,n)=>{ if(obj&&Object.prototype.hasOwnProperty.call(obj,o)&&!obj[n]){ obj[n]=obj[o]; delete obj[o]; return true; } return false; };
+  pairs.forEach(([o,n])=>{
+    try{
+      Object.keys((presState&&presState.presence)||{}).forEach(mk=>{ if(mv(presState.presence[mk],o,n)) cPres=true; });
+      Object.keys((sortState&&sortState.presence)||{}).forEach(mk=>{ if(mv(sortState.presence[mk],o,n)) cSort=true; });
+      Object.keys((sortState&&sortState.drivers)||{}).forEach(mk=>{ const a=sortState.drivers[mk]; if(Array.isArray(a)) a.forEach(d=>{ if(d&&d.name===o){ d.name=n; cSort=true; } }); });
+      const lp=libereState&&libereState.persons;
+      if(lp){ if(Array.isArray(lp)){ const i=lp.indexOf(o); if(i>=0){ lp[i]=n; cLib=true; } } else Object.keys(lp).forEach(mk=>{ const a=lp[mk]; const i=Array.isArray(a)?a.indexOf(o):-1; if(i>=0){ a[i]=n; cLib=true; } }); }
+      Object.keys((libereState&&libereState.days)||{}).forEach(mk=>{ if(mv(libereState.days[mk],o,n)) cLib=true; });
+      Object.keys(planState||{}).forEach(wk=>{ if(mv(planState[wk],o,n)) cPlan=true; });
+    }catch(e){ console.warn("rename propagate",o,n,e); }
+  });
+  if(cPres) try{ savePresState(); }catch(e){}
+  if(cSort) try{ saveSortState(); }catch(e){}
+  if(cLib) try{ saveLibereState(); }catch(e){}
+  if(cPlan) try{ savePlanState(); }catch(e){}
+  try{ logActivity("✏️ Redenumire din Angajați",pairs.map(p=>p[0]+" → "+p[1]).join("; ").slice(0,200),"sincronizare","concedii"); }catch(e){}
+}
 function salCoordVis(c){ c=String(c||"").toLowerCase(); return ["raluca","madalina","corina"].includes(c)?[c,"tania"]:["tania"]; }
 function salGroupFor(it){ // grupa în Concedii: din coordonator, apoi din rol/depozit
   const c=String(it.coord||"").toLowerCase(); if(c==="madalina") return "eiselfing"; if(c==="raluca") return "ruhstorf"; if(c==="corina") return "camion";
@@ -6808,7 +6841,7 @@ function salNewDriver(it,item){
 function salProcessSync(){
   if(!_angItems.length) { salPending=[]; salUpdatePendingBtn(); return; }
   if(!_salEmpsLoaded||!state.drivers||!state.drivers.length){ if(_salSyncRetry++<20) setTimeout(salProcessSync,2000); return; }
-  const adm=isAdmin(); let chE=false, chD=false, nNew=0; const pending=[];
+  const adm=isAdmin(); let chE=false, chD=false, nNew=0; const pending=[]; const renames=[];
   const same=(a,b)=>JSON.stringify(a||[])===JSON.stringify(b||[]);
   _angItems.forEach(it=>{
     const aid=String(it.id||""), name=String(it.nume||"").trim().replace(/\s+/g," "); if(!name) return;
@@ -6822,14 +6855,11 @@ function salProcessSync(){
     if(!emp&&dr){ const ek=salNameKey(dr.name); emp=salEmps.find(e=>!e.angajatiId&&salNameKey(e.name)===ek); if(emp&&aid){ emp.angajatiId=aid; chE=true; } }
     if(dr){
       if(adm){
-        if(dr.autoSync){ // creat automat → rămâne sincronizat cu Angajați (coordonator → vizibilitate, date)
-          const vis=salCoordVis(it.coord); if(!same(dr.visibleTo,vis)){ dr.visibleTo=vis; chD=true; }
-          if(item.start&&dr.startDate!==item.start){ dr.startDate=item.start; chD=true; }
-          if(item.end&&dr.endDate!==item.end){ dr.endDate=item.end; chD=true; }
-        } else { // modificat/creat manual → doar completăm ce e gol
-          if(item.start&&!dr.startDate){ dr.startDate=item.start; chD=true; }
-          if(item.end&&!dr.endDate){ dr.endDate=item.end; chD=true; }
-        }
+        // persoană legată de Angajați → nume și date vin DOAR de acolo (în Concedii sunt blocate)
+        if(item.start&&dr.startDate!==item.start){ dr.startDate=item.start; chD=true; }
+        if(item.end&&dr.endDate!==item.end){ dr.endDate=item.end; chD=true; }
+        if(dr.autoSync){ const vis=salCoordVis(it.coord); if(!same(dr.visibleTo,vis)){ dr.visibleTo=vis; chD=true; } }
+        if(dr.name!==name&&!(state.drivers||[]).some(d=>d!==dr&&d.name===name)){ renames.push([dr.name,name]); dr.name=name; chD=true; }
       }
       if(!emp&&active){ emp={id:uid(),name:dr.name,type:"fix",active:true,angajatiId:aid}; salEmps.push(emp); chE=true; }
       if(emp&&!active&&emp.active!==false){ emp.active=false; chE=true; }
@@ -6858,6 +6888,8 @@ function salProcessSync(){
     if(goneE.length||goneD.length) toast("🗑️ "+Math.max(goneE.length,goneD.length)+" persoană/persoane ștearsă/șterse din Angajați — scoasă/scoase din Salarii și arhivată/arhivate în Concedii");
   }
   salPending=pending.map(x=>({...x,emp:salEmps.find(e=>(x.aid&&e.angajatiId===x.aid)||salNameKey(e.name)===salNameKey(x.name))||null,dr:(state.drivers||[]).find(d=>(x.aid&&d.angajatiId===x.aid)||salNameKey(d.name)===salNameKey(x.name))||null,ok:false}));
+  renames.forEach(([o,n])=>{ const e=salEmps.find(x=>x.name===o); if(e){ e.name=n; chE=true; } });
+  if(renames.length) salRenameEverywhere(renames);
   if(chE) salSaveEmps();
   if(chD){ try{ logActivity("🔄 Sincronizare Angajați",nNew+" persoane noi","automat","concedii"); }catch(e){} renderAll(); scheduleSave(); }
   if(nNew) toast("👥 "+nNew+" persoană/persoane nouă/noi preluată/e din Angajați");
@@ -10744,7 +10776,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.16-01";
+const APP_VERSION = "2026.10.16-02";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12075,7 +12107,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.16-01</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.16-02</div>
 
 </body>
 </html>
