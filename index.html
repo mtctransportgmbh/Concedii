@@ -6802,6 +6802,9 @@ function loadAngajatiSync(){
   _angUnsub=db.collection("angajati_sync").doc("list").onSnapshot(snap=>{
     _angItems=snap.exists?(snap.data().items||[]):[]; _salSyncRetry=0; salProcessSync();
   }, e=>console.warn("angajati_sync err",e));
+  // Plasă de siguranță: dacă o actualizare din Concedii a suprascris local persoanele abia create,
+  // le recreăm din lista din Angajați (calcul local, fără citiri din Firestore).
+  if(!window._angTick) window._angTick=setInterval(()=>{ try{ if(_angItems.length&&canSalarii()) salProcessSync(); }catch(e){} },15000);
 }
 function salDot(linked){ return linked?'<span title="Sincronizat din Angajați" style="color:#10b981;font-size:11px;margin-right:4px;vertical-align:middle">●</span>':'<span title="Nesincronizat cu Angajați" style="color:var(--text-dim);font-size:11px;margin-right:4px;vertical-align:middle;opacity:.5">○</span>'; }
 // Redenumire în Angajați → se propagă în toate modulele care țin datele după nume (anul curent încărcat).
@@ -10776,7 +10779,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.16-02";
+const APP_VERSION = "2026.10.16-03";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12107,7 +12110,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.16-02</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.16-03</div>
 
 </body>
 </html>
