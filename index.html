@@ -1231,6 +1231,7 @@
     <input type="file" id="importExcelFile" accept=".xlsx,.xlsm,.xls" style="display:none" multiple onchange="importExcelFile(event)">
     <button class="btn btn-secondary btn-small" id="actLogBtn" onclick="openActivityLog()" style="width:100%; margin-bottom:6px; display:none; border-color:#818cf8; color:#818cf8">📋 Istoric activitate</button>
     <button class="btn btn-secondary btn-small" id="excelStatusBtn" onclick="openExcelImportStatusPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📊 Status Import Excel</button>
+    <button class="btn btn-secondary btn-small" id="importAngajatiBtn" onclick="salOpenPending()" title="Persoanele noi din Angajați apar automat. Cele deja existente după nume așteaptă aprobarea ta. Dacă nu e nimic de aprobat, poți încărca manual un fișier." style="width:100%; margin-bottom:6px; display:none; border-color:#6366f1; color:#6366f1">📥 Angajați</button>
     <button class="btn btn-secondary btn-small" id="absenceReportBtn" onclick="openAbsenceReport()" style="width:100%; margin-bottom:6px; display:none; border-color:#14b8a6; color:#14b8a6">🗓️ Raport absențe lunare</button>
     <button class="btn btn-secondary btn-small" id="carryOverBtn" onclick="runCarryOverCalculation()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">🔄 Calculează report an nou</button>
     <button class="btn btn-secondary btn-small" id="borrowedDaysBtn" onclick="openBorrowedDaysManager()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📌 Zile împrumutate din anul viitor</button>
@@ -1261,6 +1262,7 @@
         <button id="modSortatori" class="mod-tab" data-color="indigo" onclick="setAppMode('sortatori')" style="display:none"><span class="mod-tab-icon">📦</span>Sortatori</button>
         <button id="modPlanificare" class="mod-tab" data-color="green" onclick="setAppMode('planificare')" style="display:none"><span class="mod-tab-icon">🗓️</span>Planificare</button>
         <button id="modLibere" class="mod-tab" data-color="red" onclick="setAppMode('libere')" style="display:none"><span class="mod-tab-icon">🏠</span>Libere Springeri</button>
+        <button id="modSalarii" class="mod-tab" data-color="green" onclick="setAppMode('salarii')" style="display:none"><span class="mod-tab-icon">💶</span>Salarii</button>
       </div>
     </div>
     <div id="concediiModule">
@@ -1417,6 +1419,55 @@
         <div class="timeline" id="libereTimeline"></div>
       </div>
     </div>
+
+    <div id="salariiModule" style="display:none">
+      <div class="header" style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <button onclick="salChangeMonth(-1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--text-dim)">◀</button>
+          <span id="salMonthLabel" style="font-size:16px;font-weight:800;min-width:150px;text-align:center"></span>
+          <button onclick="salChangeMonth(1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--text-dim)">▶</button>
+          <button onclick="salGoToday()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;color:var(--text-dim)">Azi</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <input id="salSearch" type="text" placeholder="🔍 Caută…" oninput="renderSalarii()" style="padding:5px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-elev-2);color:var(--text);width:130px">
+          <select id="salTypeFilter" onchange="renderSalarii()" style="padding:5px 6px;font-size:12px"><option value="">Toate tipurile</option><option value="fix">Salar fix</option><option value="pachete">Din pachete</option><option value="sortat">Doar sortator</option></select>
+          <button onclick="salOpenEmployees()" style="padding:5px 12px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text)">👥 Angajați</button>
+          <button onclick="document.getElementById('salPkgFile').click()" style="padding:5px 12px;background:var(--bg-elev-2);border:1px solid #6366f1;border-radius:6px;cursor:pointer;font-size:12px;color:#6366f1">📦 Încarcă pachete (Excel)</button>
+          <input id="salPkgFile" type="file" accept=".xlsx,.xls,.xlsm,.csv" style="display:none" onchange="salPackagesFile(this)">
+          <button onclick="salExportExcel()" style="padding:5px 12px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text)">⬇️ Export Excel</button>
+          <button onclick="salPrint()" style="padding:5px 12px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text)">🖨️ Print</button>
+        </div>
+      </div>
+      <div id="salNotice" style="margin-bottom:8px"></div>
+      <div id="salSummary" style="margin-bottom:10px"></div>
+      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;background:var(--bg-elev)"><table id="salTable" style="width:100%;border-collapse:collapse;font-size:13px"></table></div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5">
+        <b>Formule:</b> Pachete = pachete×0,66 + sortat×22 + (zile concediu + Feiertag + Krank)×66 − chirie · Doar sortator și Salar fix = salar + sortat×22 + sumele lunare scrise de tine la Concediu/Feiertag/Krank − chirie. La cei fără pachete nu există tarif pe zi: scrii suma lunară în căsuța de sub zile. Zilele de sortat (din modulul Sortatori), concediu, Krank și Feiertag se preiau automat; poți suprascrie manual (apare ↺ pentru revenire).
+      </div>
+    </div>
+
+<div class="modal-bg" id="salEmpModal">
+  <div class="modal" style="max-width:760px;max-height:92vh;overflow-y:auto">
+    <h3>👥 Angajați — Salarii</h3>
+    <div class="modal-sub">Lista de angajați pentru salarii. Numele se leagă automat de persoanele din Concedii (ordinea Nume/Prenume nu contează).</div>
+    <div id="salEmpBody"></div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('salEmpModal')">Închide</button></div>
+  </div>
+</div>
+<div class="modal-bg" id="salImpModal">
+  <div class="modal" style="max-width:760px;max-height:92vh;overflow-y:auto">
+    <h3>📥 Preluare angajați — aprobare persoană cu persoană</h3>
+    <div id="salImpBody"></div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('salImpModal')">Anulează</button><button class="btn btn-primary" onclick="salApplyImp()">Aplică persoanele aprobate</button></div>
+  </div>
+</div>
+<div class="modal-bg" id="salPkgModal">
+  <div class="modal" style="max-width:720px;max-height:92vh;overflow-y:auto">
+    <h3>📦 Import pachete</h3>
+    <div id="salPkgBody"></div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('salPkgModal')">Anulează</button><button class="btn btn-primary" onclick="salApplyPkgs()">Aplică pachetele</button></div>
+  </div>
+</div>
 
     <!-- MODAL Selectare persoane pentru Libere -->
     <div class="modal-bg" id="modalLibereSelect">
@@ -2682,6 +2733,8 @@ function buildCompleteBackup(){
       carryOverByYear: dr.carryOverByYear||{},
       borrowedDays: dr.borrowedDays||[],
       group: dr.group||null,
+      angajatiId: dr.angajatiId||null,
+      autoSync: dr.autoSync||false,
       startDate:     dr.startDate||null,
       endDate:       dr.endDate||null,
       archived:      dr.archived||false,
@@ -3437,6 +3490,8 @@ function enterApp(userKey){
   if(modSortatori)   modSortatori.style.display   = canSortatori?"block":"none";
   if(modPlanificare2) modPlanificare2.style.display = canPlanificare?"block":"none";
   if(modLibere2)     modLibere2.style.display     = canLibere?"block":"none";
+  const modSal2 = document.getElementById("modSalarii");
+  if(modSal2) modSal2.style.display = (isAdm||userKey==="tania")?"block":"none";
 
   if(quickAction)    quickAction.style.display = (canConcedii && canEdit()) ? "" : "none";
   updateGroupFilterBar(userKey, isAdm, canConcedii);
@@ -3499,6 +3554,8 @@ function enterApp(userKey){
   if(actLogBtn2) actLogBtn2.style.display = isAdm?"block":"none";
   const absenceReportBtn2 = document.getElementById("absenceReportBtn");
   if(absenceReportBtn2) absenceReportBtn2.style.display = isAdm?"block":"none";
+  const impAngBtn = document.getElementById("importAngajatiBtn");
+  if(impAngBtn) impAngBtn.style.display = isAdm?"block":"none";
   const excelStatusBtn2 = document.getElementById("excelStatusBtn");
   if(excelStatusBtn2) excelStatusBtn2.style.display = isAdm?"block":"none";
   const carryOverBtn2 = document.getElementById("carryOverBtn");
@@ -3549,6 +3606,7 @@ function enterApp(userKey){
   loadSortState();
   // Load Libere Springeri — la fel, altfel rămâne gol până la schimbare de an
   loadLibereState();
+  if(isAdm||userKey==="tania") loadSalarii();
 
   // Sursa de date pentru concedii: userii cu document propriu (raluca/madalina/
   // corina/tania/admin) încarcă normal. Cei fără document propriu (ex: Mihaela)
@@ -6474,6 +6532,10 @@ function setAppMode(mode){
   if(planM) planM.style.display = mode==="planificare"?"block":"none";
   const libM = document.getElementById("libereModule");
   if(libM) libM.style.display = mode==="libere"?"block":"none";
+  const salM = document.getElementById("salariiModule");
+  if(salM) salM.style.display = (mode==="salarii"&&canSalarii())?"block":"none";
+  const msal = document.getElementById("modSalarii");
+  if(msal){ msal.classList.toggle("active", mode==="salarii"); msal.classList.toggle("mod-tab-active", mode==="salarii"); }
   document.getElementById("modConcedii").classList.toggle("active",  mode==="concedii");
   document.getElementById("modConcedii").classList.toggle("mod-tab-active",  mode==="concedii");
   document.getElementById("modSortatori").classList.toggle("active", mode==="sortatori");
@@ -6488,6 +6550,516 @@ function setAppMode(mode){
   if(mode==="planificare"){ renderPlanificare(); startPlanificareLiveListeners(); }
   else stopPlanificareLiveListeners();
   if(mode==="libere")      renderLibere();
+  if(mode==="salarii" && canSalarii()){ salLoadMonth(); renderSalarii(); }
+}
+
+// ============================================================
+// MODUL SALARII — doar Admin + Tania
+// Firestore: salarii/angajati  { emps:[{id,name,type,rate,active}] }
+//            salarii/m_YYYY-MM { rows:{ [empId]:{salar,sortat,chirie,type,rate,ovC,ovF,ovK} } }
+// ============================================================
+const SAL_PKG_RATE = 0.66, SAL_SORT_RATE = 22, SAL_DEFAULT_DAY_RATE = 66;
+const SAL_TYPES = {fix:"Salar fix", pachete:"Din pachete", sortat:"Doar sortator"};
+const SAL_SEED = [["Asmarandei Andrei","pachete"],["Badea Madalin","sortat"],["Bainoczi Razvan","sortat"],["Bejenaru Ioan","sortat"],["Birliba Mihaela","fix"],["Bisoc Ionut","pachete"],["Bitiusca Gabriel","fix"],["Bruma Alexandru","fix"],["Bruma Virgil","fix"],["Buciu Petre","fix"],["Burlacu Andrei","sortat"],["Cazan Ionut","pachete"],["Ciobotaru Adrian","pachete"],["Ciobotaru Iulian","pachete"],["Ciobotaru Larisa","pachete"],["Codreanu Izabela","fix"],["Costache Stefan","sortat"],["Crainic Adrian","pachete"],["Deleu Daniel","fix"],["Dobinda Dumitru","pachete"],["Donisa Vlad","sortat"],["Dutescu Daniel","pachete"],["Feraru Razvan","pachete"],["Ferent Simon","pachete"],["Florut Alin","fix"],["Ghebu Andreas","sortat"],["Gheorghe Nicolae","sortat"],["Gruia Raul","sortat"],["Iacob Mihai","pachete"],["Jekal Norbert","sortat"],["Iancu Adriana","fix"],["Iancu Cristian","fix"],["Iancu Madalina","fix"],["Klausnitzer Thomas","fix"],["Lacatus Stefan","sortat"],["Macarie Paul","fix"],["Maftei Radu","fix"],["Magheru Dan","fix"],["Margau Rafael","sortat"],["Maies Antonio","sortat"],["Maricosu Adelin","pachete"],["Mereacre Mihail","pachete"],["Mihai Adrian","pachete"],["Moise Alexandru","pachete"],["Movila Andrei","pachete"],["Musteata Ion","pachete"],["Neagu Ramon","sortat"],["Nae Andrei","fix"],["Pana Alexandru","sortat"],["Paul Petre","pachete"],["Perna Pasquale","sortat"],["Plesca Mihaita","pachete"],["Raghinaru Marian","pachete"],["Rimoczi Florin","sortat"],["Rudareanu Vladut","pachete"],["Rus Denisa","pachete"],["Sandulescu Adrian","sortat"],["Serban Florin","pachete"],["Sparios Eduard","sortat"],["Stan Ionel","pachete"],["Stanciu Anastasia","fix"],["Stanciu Dumitru","pachete"],["Stinga Valeriu","pachete"],["Stranici Cristian","pachete"],["Toiu Georgiana","fix"],["Toth Cristina","fix"],["Toth Raluca","fix"],["Tuca Valentin","sortat"],["Tufeanu Claudia","fix"],["Tufisi Rares","pachete"],["Vancea Cosmin","pachete"],["Zestrea Mihail","pachete"]];
+let salEmps = [];
+let salMonthData = {rows:{}};
+let salCur = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let _salUnsubEmps=null, _salUnsubMonth=null, _salMonthLoadedKey=null, _salSaveTimer=null, _salEmpTimer=null, _salPkgPreview=null;
+
+function canSalarii(){ return isAdmin() || window.activeUserKey==="tania"; }
+function salMk(){ return salCur.getFullYear()+"-"+String(salCur.getMonth()+1).padStart(2,"0"); }
+function salNameKey(n){ return normalizeForSearch(String(n||"")).replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(Boolean).sort().join(" "); }
+function salNum(v){ const n=parseFloat(String(v==null?"":v).replace(",",".")); return isNaN(n)?0:n; }
+function salFmt(n){ return (Math.round(n*100)/100).toLocaleString("ro-RO",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function loadSalarii(){
+  if(!canSalarii()) return;
+  if(_salUnsubEmps){ try{_salUnsubEmps();}catch(e){} }
+  _salUnsubEmps = db.collection("salarii").doc("angajati").onSnapshot(snap=>{
+    salEmps = snap.exists ? (snap.data().emps||[]) : [];
+    const first=!_salEmpsLoaded; _salEmpsLoaded=true;
+    if(first) salProcessSync();
+    if(appMode==="salarii") renderSalarii();
+  }, e=>{ console.warn("salarii emps err",e); toast("❌ Salarii: "+(e.message||e.code)+" — verifică regulile Firestore pentru colecția 'salarii'",true); });
+  salLoadMonth();
+  loadAngajatiSync();
+}
+function salLoadMonth(){
+  const mk=salMk();
+  if(_salMonthLoadedKey===mk) return;
+  if(_salUnsubMonth){ try{_salUnsubMonth();}catch(e){} }
+  _salMonthLoadedKey=mk;
+  salMonthData={rows:{}};
+  _salUnsubMonth = db.collection("salarii").doc("m_"+mk).onSnapshot(snap=>{
+    if(_salSaveTimer) return; // nu suprascriem editarea în curs
+    salMonthData = snap.exists ? {rows:(snap.data().rows||{})} : {rows:{}};
+    if(appMode==="salarii") renderSalarii();
+  }, e=>console.warn("salarii month err",e));
+}
+function salSaveMonthSoon(){
+  if(_salSaveTimer) clearTimeout(_salSaveTimer);
+  const mk=salMk();
+  _salSaveTimer=setTimeout(async()=>{
+    _salSaveTimer=null;
+    try{ await db.collection("salarii").doc("m_"+mk).set(JSON.parse(JSON.stringify({rows:salMonthData.rows,updatedAt:new Date().toISOString()}))); }
+    catch(e){ toast("❌ Eroare salvare salarii: "+(e.message||e.code),true); }
+  },600);
+}
+async function salSaveEmps(){
+  try{ await db.collection("salarii").doc("angajati").set(JSON.parse(JSON.stringify({emps:salEmps,updatedAt:new Date().toISOString()}))); return true; }
+  catch(e){ toast("❌ Eroare salvare angajați: "+(e.message||e.code),true); return false; }
+}
+function salChangeMonth(d){ salCur=new Date(salCur.getFullYear(),salCur.getMonth()+d,1); salLoadMonth(); renderSalarii(); }
+function salGoToday(){ const n=new Date(); salCur=new Date(n.getFullYear(),n.getMonth(),1); salLoadMonth(); renderSalarii(); }
+
+// ---- legătura cu Concedii (potrivire după nume, ordine-independent) ----
+function salFindDriver(emp){
+  const k=salNameKey(emp.name);
+  return (state.drivers||[]).find(d=>salNameKey(d.name)===k)||null;
+}
+function salDaysIn(list, y, m, skip){ // zile (convenția aplicației: fără duminici/sărbători)
+  let c=0; const last=new Date(y,m+1,0).getDate();
+  for(let day=1;day<=last;day++){
+    const d=new Date(y,m,day); if(!isWorkday(d)) continue;
+    const ds=fmtDateStr(d);
+    if(skip && skip(ds)) continue;
+    if((list||[]).some(l=>ds>=l.start&&ds<=l.end)) c++;
+  }
+  return c;
+}
+function salAutoDays(emp){
+  const y=salCur.getFullYear(), m=salCur.getMonth();
+  const dr=salFindDriver(emp);
+  const out={linked:!!dr, c:0, k:0, f:0, yearOk:(y===activeYear)};
+  const inAny=(ds)=>dr && ["leaves","krankLeaves","unpaidLeaves","specialLeaves"].some(t=>(dr[t]||[]).some(l=>ds>=l.start&&ds<=l.end));
+  const outsideContract=(ds)=>dr && ((dr.startDate&&ds<dr.startDate)||(dr.endDate&&ds>dr.endDate));
+  if(dr && out.yearOk){
+    out.c=salDaysIn(dr.leaves,y,m);
+    out.k=salDaysIn(dr.krankLeaves,y,m);
+  }
+  const last=new Date(y,m+1,0).getDate();
+  for(let day=1;day<=last;day++){
+    const d=new Date(y,m,day); const wd=d.getDay();
+    if(wd===0||wd===6) continue;
+    if(!getHoliday(d)) continue;
+    const ds=fmtDateStr(d);
+    if(outsideContract(ds)) continue;
+    if(inAny(ds)) continue; // zi deja plătită/contorizată la altă categorie
+    out.f++;
+  }
+  return out;
+}
+function salAutoSortat(emp){
+  const mk=salMk(); const pm=(typeof sortState!=="undefined"&&sortState.presence&&sortState.presence[mk])||null;
+  if(!pm||salCur.getFullYear()!==activeYear) return {found:false,n:0};
+  const k=salNameKey(emp.name);
+  const key=Object.keys(pm).find(x=>salNameKey(x)===k);
+  if(!key) return {found:false,n:0};
+  return {found:true,n:Object.values(pm[key]||{}).filter(v=>v==="prezent").length};
+}
+function salRowCalc(emp){
+  const rd=salMonthData.rows[emp.id]||{};
+  const type=rd.type||emp.type||"fix";
+  const isPk=type==="pachete"; const rate=isPk?SAL_DEFAULT_DAY_RATE:0;
+  const a=salAutoDays(emp);
+  const dC=rd.ovC!=null&&rd.ovC!==""?salNum(rd.ovC):a.c;
+  const dF=rd.ovF!=null&&rd.ovF!==""?salNum(rd.ovF):a.f;
+  const dK=rd.ovK!=null&&rd.ovK!==""?salNum(rd.ovK):a.k;
+  const aS=salAutoSortat(emp);
+  const sortOv=rd.sortat!=null&&rd.sortat!=="";
+  const salar=salNum(rd.salar), chirie=salNum(rd.chirie);
+  const sortat=sortOv?salNum(rd.sortat):aS.n;
+  let base;
+  if(type==="pachete") base=salar*SAL_PKG_RATE+sortat*SAL_SORT_RATE;
+  else base=salar+sortat*SAL_SORT_RATE;
+  const aC=isPk?dC*rate:salNum(rd.amtC), aF=isPk?dF*rate:salNum(rd.amtF), aK=isPk?dK*rate:salNum(rd.amtK);
+  return {rd,type,rate,a,aS,sortOv,dC,dF,dK,aC,aF,aK,salar,sortat,chirie,base,total:base+aC+aF+aK-chirie};
+}
+
+// ---- randare ----
+function renderSalarii(){
+  const lbl=document.getElementById("salMonthLabel"); if(!lbl) return;
+  lbl.textContent=MONTHS[salCur.getMonth()]+" "+salCur.getFullYear();
+  const notice=document.getElementById("salNotice");
+  notice.innerHTML = salCur.getFullYear()!==activeYear
+    ? `<div style="padding:8px 12px;background:rgba(245,158,11,.15);border:1px solid #f59e0b;border-radius:8px;font-size:12px">⚠️ Aplicația e pe anul <b>${activeYear}</b>. Pentru zilele automate (concediu/krank) din ${salCur.getFullYear()}, schimbă anul în aplicație. Până atunci rămân doar Feiertag și valorile manuale.</div>` : "";
+  const q=normalizeForSearch(document.getElementById("salSearch").value||"");
+  const tf=document.getElementById("salTypeFilter").value;
+  const active=salEmps.filter(e=>e.active!==false).sort((a,b)=>a.name.localeCompare(b.name,"ro"));
+  const rows=active.filter(e=>(!q||normalizeForSearch(e.name).includes(q)));
+  let tot=0,totBase=0,totAbs=0,totChirie=0,unlinked=0;
+  const cnt={fix:0,pachete:0,sortat:0};
+  const body=[];
+  active.forEach(e=>{ const c=salRowCalc(e); tot+=c.total; totBase+=c.base; totAbs+=c.aC+c.aF+c.aK; totChirie+=c.chirie; cnt[c.type]++; if(!c.a.linked) unlinked++; });
+  rows.forEach(e=>{
+    const c=salRowCalc(e);
+    if(tf&&c.type!==tf) return;
+    const ed=canSalarii();
+    const inp=(field,val,w)=>`<input type="text" inputmode="decimal" value="${val===0||val===""||val==null?"":val}" ${ed?"":"disabled"} onchange="salSet('${e.id}','${field}',this.value)" style="width:${w||70}px;padding:3px 5px;text-align:right;border:1px solid var(--border);border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:12px">`;
+    const dayCell=(key,field,days,amt,auto)=>{
+      const ov=c.rd[field]!=null&&c.rd[field]!=="";
+      return `<td style="padding:4px 6px;text-align:right;white-space:nowrap"><input type="text" inputmode="decimal" value="${days||""}" placeholder="0" ${ed?"":"disabled"} onchange="salSet('${e.id}','${field}',this.value)" style="width:42px;padding:3px 4px;text-align:right;border:1px solid ${ov?'#f59e0b':'var(--border)'};border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:12px">${ov?`<span title="Suprascris manual (automat: ${auto}) — click pentru revenire" onclick="salSet('${e.id}','${field}','')" style="cursor:pointer;color:#f59e0b"> ↺</span>`:""}${c.type==="pachete"?`<div style="font-size:10px;color:var(--text-dim)">${days?salFmt(amt):""}</div>`:`<div><input type="text" inputmode="decimal" value="${c.rd[field.replace("ov","amt")]||""}" placeholder="€ lună" ${ed?"":"disabled"} onchange="salSet('${e.id}','${field.replace("ov","amt")}',this.value)" style="width:62px;margin-top:2px;padding:2px 4px;text-align:right;border:1px solid var(--border);border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:11px"></div>`}</td>`;
+    };
+    const tcol=c.type==="pachete"?"#6366f1":c.type==="sortat"?"#10b981":"#f59e0b";
+    body.push(`<tr style="border-top:1px solid var(--border)">
+      <td style="padding:4px 8px;font-weight:600;white-space:nowrap">${escapeHtml(e.name)}${c.a.linked?"":` <span title="Nu există în Concedii — zilele de concediu/krank nu pot fi preluate automat. Folosește 👥 Angajați → Creează în Concedii." style="color:#ef4444;cursor:help">⚠️</span>`}</td>
+      <td style="padding:4px 6px"><select ${ed?"":"disabled"} onchange="salSet('${e.id}','type',this.value)" style="padding:3px 4px;font-size:12px;border:1px solid ${tcol};border-radius:5px;background:var(--bg-elev-2);color:var(--text)">${Object.keys(SAL_TYPES).map(t=>`<option value="${t}" ${t===c.type?"selected":""}>${SAL_TYPES[t]}</option>`).join("")}</select></td>
+      <td style="padding:4px 6px;text-align:right">${inp("salar",c.rd.salar,80)}<div style="font-size:10px;color:var(--text-dim)">${c.type==="pachete"?"pachete → "+salFmt(c.salar*SAL_PKG_RATE):(c.type==="sortat"?"sumă":"sumă fixă")}</div></td>
+      <td style="padding:4px 6px;text-align:right"><input type="text" inputmode="decimal" value="${c.sortat||""}" placeholder="0" ${ed?"":"disabled"} onchange="salSet('${e.id}','sortat',this.value)" style="width:50px;padding:3px 5px;text-align:right;border:1px solid ${c.sortOv?'#f59e0b':'var(--border)'};border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:12px">${c.sortOv?`<span title="Suprascris manual (automat din Sortatori: ${c.aS.n}) — click pentru revenire" onclick="salSet('${e.id}','sortat','')" style="cursor:pointer;color:#f59e0b"> ↺</span>`:""}<div style="font-size:10px;color:var(--text-dim)">${c.aS.found||c.sortOv?"zile → "+salFmt(c.sortat*SAL_SORT_RATE):"nu e în Sortatori"}</div></td>
+      ${dayCell("c","ovC",c.dC,c.aC,c.a.c)}${dayCell("f","ovF",c.dF,c.aF,c.a.f)}${dayCell("k","ovK",c.dK,c.aK,c.a.k)}
+      <td style="padding:4px 6px;text-align:right">${inp("chirie",c.rd.chirie,70)}</td>
+      <td style="padding:4px 10px;text-align:right;font-weight:800;white-space:nowrap">${salFmt(c.total)} €</td></tr>`);
+  });
+  const th=(t,r)=>`<th style="padding:7px 8px;text-align:${r?"right":"left"};font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim);position:sticky;top:0;background:var(--bg-elev)">${t}</th>`;
+  document.getElementById("salTable").innerHTML=`<thead><tr>${th("Nume")}${th("Tip salar")}${th("Salar / Pachete",1)}${th("Sortat",1)}${th("Concediu (zile)",1)}${th("Feiertag (zile)",1)}${th("Krank (zile)",1)}${th("Chirie",1)}${th("Total",1)}</tr></thead><tbody>${body.join("")||`<tr><td colspan="9" style="padding:24px;text-align:center;color:var(--text-dim)">Nu există angajați. Apasă <b>👥 Angajați</b> pentru a încărca lista.</td></tr>`}</tbody><tfoot><tr style="border-top:2px solid var(--border);font-weight:800"><td style="padding:8px" colspan="8">TOTAL ${active.length} angajați</td><td style="padding:8px 10px;text-align:right;white-space:nowrap">${salFmt(tot)} €</td></tr></tfoot>`;
+  document.getElementById("salSummary").innerHTML=`<div style="display:flex;gap:10px;flex-wrap:wrap">
+    ${[["💶 Total de plată",salFmt(tot)+" €","#10b981"],["Bază (salar/pachete/sortat)",salFmt(totBase)+" €","var(--text)"],["Concediu+Feiertag+Krank",salFmt(totAbs)+" €","var(--text)"],["Chirie reținută","− "+salFmt(totChirie)+" €","#ef4444"],["Tipuri",cnt.fix+" fix · "+cnt.pachete+" pachete · "+cnt.sortat+" sortator","var(--text-dim)"]].map(x=>`<div style="padding:8px 14px;background:var(--bg-elev);border:1px solid var(--border);border-radius:10px"><div style="font-size:11px;color:var(--text-dim)">${x[0]}</div><div style="font-size:16px;font-weight:800;color:${x[2]}">${x[1]}</div></div>`).join("")}</div>`
+    + (unlinked?`<div style="font-size:12px;color:#ef4444;margin-top:6px">⚠️ ${unlinked} angajați nu sunt în Concedii (zilele de concediu/krank nu se pot prelua). Vezi 👥 Angajați.</div>`:"");
+}
+function salSet(id,field,val){
+  if(!canSalarii()) return;
+  const r=salMonthData.rows[id]||(salMonthData.rows[id]={});
+  if(field==="type"){ r.type=val; }
+  else if(val===""||val==null){ delete r[field]; }
+  else r[field]=String(val).replace(",",".");
+  salSaveMonthSoon(); renderSalarii();
+}
+
+// ---- gestionare angajați ----
+function salOpenEmployees(){
+  document.getElementById("salEmpModal").classList.add("show");
+  salRenderEmployees();
+}
+function salRenderEmployees(){
+  const list=[...salEmps].sort((a,b)=>a.name.localeCompare(b.name,"ro"));
+  const unl=list.filter(e=>!salFindDriver(e)&&e.active!==false);
+  document.getElementById("salEmpBody").innerHTML=`
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="btn-sm" onclick="salSeed()" style="padding:5px 10px;border:1px solid #6366f1;color:#6366f1;background:none;border-radius:6px;cursor:pointer;font-size:12px">⭐ Preia lista din Excelul de exemplu (72)</button>
+      <button onclick="document.getElementById('salEmpFile').click()" style="padding:5px 10px;border:1px solid var(--border);background:var(--bg-elev-2);color:var(--text);border-radius:6px;cursor:pointer;font-size:12px">📥 Preia din Angajați (Excel/JSON) — cu aprobare</button>
+      <input id="salEmpFile" type="file" accept=".xlsx,.xls,.xlsm,.csv,.json" style="display:none" onchange="salEmpFileImport(this)">
+      ${unl.length?`<span style="display:inline-flex;gap:4px;align-items:center"><select id="salNewGroup" style="padding:4px;font-size:12px"><option value="eiselfing">Eiselfing</option><option value="ruhstorf">Ruhstorf</option><option value="camion">Camion</option><option value="paketshop">Paketshop</option><option value="sortat">Sortat</option></select><button onclick="salCreateInConcedii()" style="padding:5px 10px;border:1px solid #10b981;color:#10b981;background:none;border-radius:6px;cursor:pointer;font-size:12px">➕ Creează în Concedii (${unl.length} lipsă)</button></span>`:""}
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:10px"><input id="salNewName" placeholder="Nume angajat nou (Nume Prenume)" style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-elev-2);color:var(--text)" onkeydown="if(event.key==='Enter')salAddEmp()"><button onclick="salAddEmp()" style="padding:6px 12px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer">Adaugă</button></div>
+    <div style="max-height:50vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:4px">Nume</th><th>Tip implicit</th><th>În Concedii</th><th>Activ</th><th></th></tr></thead><tbody>
+    ${list.map(e=>`<tr style="border-top:1px solid var(--border);${e.active===false?"opacity:.5":""}"><td style="padding:3px 4px">${escapeHtml(e.name)}</td>
+      <td><select onchange="salEmpSet('${e.id}','type',this.value)" style="font-size:12px">${Object.keys(SAL_TYPES).map(t=>`<option value="${t}" ${t===(e.type||"fix")?"selected":""}>${SAL_TYPES[t]}</option>`).join("")}</select></td>
+      <td style="text-align:center">${salFindDriver(e)?"✅":"⚠️"}</td>
+      <td style="text-align:center"><input type="checkbox" ${e.active===false?"":"checked"} onchange="salEmpSet('${e.id}','active',this.checked)"></td>
+      <td><button onclick="salEmpDel('${e.id}')" title="Șterge" style="background:none;border:none;cursor:pointer;color:#ef4444">🗑️</button></td></tr>`).join("")}
+    </tbody></table></div>`;
+}
+function salEmpSet(id,f,v){
+  const e=salEmps.find(x=>x.id===id); if(!e) return;
+  if(f==="rate") e.rate=v===""?null:salNum(v); else e[f]=v;
+  salSaveEmps(); renderSalarii();
+  if(f==="active") salRenderEmployees();
+}
+function salEmpDel(id){
+  const e=salEmps.find(x=>x.id===id); if(!e) return;
+  if(!confirm("Ștergi "+e.name+" din lista de salarii? (Nu se șterge din Concedii. Istoricul lunilor salvate rămâne în date.)")) return;
+  salEmps=salEmps.filter(x=>x.id!==id); salSaveEmps(); salRenderEmployees(); renderSalarii();
+}
+function salAddEmpRaw(name,type){
+  name=String(name||"").trim().replace(/\s+/g," "); if(!name) return false;
+  if(salEmps.some(e=>salNameKey(e.name)===salNameKey(name))) return false;
+  salEmps.push({id:uid(),name,type:type||"fix",active:true}); return true;
+}
+function salAddEmp(){
+  const inp=document.getElementById("salNewName");
+  if(salAddEmpRaw(inp.value,"fix")){ salSaveEmps(); inp.value=""; salRenderEmployees(); renderSalarii(); }
+  else toast("Numele e gol sau există deja",true);
+}
+function salSeed(){
+  let n=0; SAL_SEED.forEach(([nm,t])=>{ if(salAddEmpRaw(nm,t)) n++; });
+  salSaveEmps(); salRenderEmployees(); renderSalarii(); toast("✓ "+n+" angajați adăugați");
+}
+function salReadWorkbook(file, cb){
+  const rd=new FileReader();
+  rd.onload=ev=>{ try{ cb(XLSX.read(ev.target.result,{type:"array"})); }catch(e){ toast("Fișier invalid: "+e.message,true); } };
+  rd.readAsArrayBuffer(file);
+}
+let _salImp=null;
+// ---- sincronizare automată din aplicația Angajați (document angajati_sync/list, scris de aplicația Angajați) ----
+let _angUnsub=null, _angItems=[], _salEmpsLoaded=false, _salSyncRetry=0, salPending=[];
+function salGrpOf(it){ const t=normalizeForSearch([it.depot||"",(it.locatii||[]).join(",")].join(",")); if(t.includes("ruhstorf")) return "ruhstorf"; if(t.includes("eiselfing")) return "eiselfing"; return ""; }
+function salVisFor(g){ return g==="eiselfing"?["madalina","tania"]:g==="ruhstorf"?["raluca","tania"]:["tania"]; }
+function loadAngajatiSync(){
+  if(!canSalarii()) return;
+  if(_angUnsub){ try{_angUnsub();}catch(e){} }
+  _angUnsub=db.collection("angajati_sync").doc("list").onSnapshot(snap=>{
+    _angItems=snap.exists?(snap.data().items||[]):[]; _salSyncRetry=0; salProcessSync();
+  }, e=>console.warn("angajati_sync err",e));
+}
+function salCoordVis(c){ c=String(c||"").toLowerCase(); return ["raluca","madalina","corina"].includes(c)?[c,"tania"]:["tania"]; }
+function salGroupFor(it){ // grupa în Concedii: din coordonator, apoi din rol/depozit
+  const c=String(it.coord||"").toLowerCase(); if(c==="madalina") return "eiselfing"; if(c==="raluca") return "ruhstorf"; if(c==="corina") return "camion";
+  const rl=normalizeForSearch((it.roluri||[]).join(",")); if(rl.includes("camion")) return "camion";
+  return salGrpOf(it)||"ruhstorf";
+}
+function salNewDriver(it,item){
+  const g=salGroupFor(it);
+  const nd={id:uid(),name:item.name,leaves:[],krankLeaves:[],unpaidLeaves:[],specialLeaves:[],maxDays:24,carryOverDays:0,visibleTo:salCoordVis(it.coord),group:g,angajatiId:item.aid,autoSync:true};
+  if(item.start) nd.startDate=item.start;
+  if(item.end) nd.endDate=item.end; else if(item.inactive){ nd.archived=true; nd.archivedAt=new Date().toISOString(); }
+  return nd;
+}
+function salProcessSync(){
+  if(!_angItems.length) { salPending=[]; salUpdatePendingBtn(); return; }
+  if(!_salEmpsLoaded||!state.drivers||!state.drivers.length){ if(_salSyncRetry++<20) setTimeout(salProcessSync,2000); return; }
+  const adm=isAdmin(); let chE=false, chD=false, nNew=0; const pending=[];
+  const same=(a,b)=>JSON.stringify(a||[])===JSON.stringify(b||[]);
+  _angItems.forEach(it=>{
+    const aid=String(it.id||""), name=String(it.nume||"").trim().replace(/\s+/g," "); if(!name) return;
+    const active=(it.status||"Activ")==="Activ";
+    const k=salNameKey(name);
+    const item={name,aid,start:it.start||"",end:it.end||"",inactive:!active,group:salGroupFor(it)};
+    let dr=aid&&(state.drivers||[]).find(d=>d.angajatiId===aid);
+    const lid=String(it.link||"").split(":").pop(); // legătura făcută deja de tine în „Potrivire angajați" (concedii → "tania:<id>")
+    if(!dr&&lid){ dr=(state.drivers||[]).find(d=>d.id===lid); if(dr&&aid&&adm){ dr.angajatiId=aid; chD=true; } }
+    let emp=aid&&salEmps.find(e=>e.angajatiId===aid);
+    if(!emp&&dr){ const ek=salNameKey(dr.name); emp=salEmps.find(e=>!e.angajatiId&&salNameKey(e.name)===ek); if(emp&&aid){ emp.angajatiId=aid; chE=true; } }
+    if(dr){
+      if(adm){
+        if(dr.autoSync){ // creat automat → rămâne sincronizat cu Angajați (coordonator → vizibilitate, date)
+          const vis=salCoordVis(it.coord); if(!same(dr.visibleTo,vis)){ dr.visibleTo=vis; chD=true; }
+          if(item.start&&dr.startDate!==item.start){ dr.startDate=item.start; chD=true; }
+          if(item.end&&dr.endDate!==item.end){ dr.endDate=item.end; chD=true; }
+        } else { // modificat/creat manual → doar completăm ce e gol
+          if(item.start&&!dr.startDate){ dr.startDate=item.start; chD=true; }
+          if(item.end&&!dr.endDate){ dr.endDate=item.end; chD=true; }
+        }
+      }
+      if(!emp&&active){ emp={id:uid(),name:dr.name,type:"fix",active:true,angajatiId:aid}; salEmps.push(emp); chE=true; }
+      if(emp&&!active&&emp.active!==false){ emp.active=false; chE=true; }
+      return;
+    }
+    if(emp){ // în Salarii dar fără persoană în Concedii
+      if(!active&&emp.active!==false){ emp.active=false; chE=true; }
+      const nd=(state.drivers||[]).find(d=>salNameKey(d.name)===k);
+      if(adm&&!nd){ state.drivers.push(salNewDriver(it,item)); chD=true; nNew++; }
+      else if(nd) pending.push(item);
+      return;
+    }
+    const nEmp=salEmps.find(e=>salNameKey(e.name)===k), nDr=(state.drivers||[]).find(d=>salNameKey(d.name)===k);
+    if(nEmp||nDr){ pending.push(item); return; } // există deja după nume → doar cu aprobarea ta
+    if(active){ salEmps.push({id:uid(),name,type:"fix",active:true,angajatiId:aid}); chE=true; }
+    if(adm){ state.drivers.push(salNewDriver(it,item)); chD=true; nNew++; }
+  });
+  salPending=pending.map(x=>({...x,emp:salEmps.find(e=>(x.aid&&e.angajatiId===x.aid)||salNameKey(e.name)===salNameKey(x.name))||null,dr:(state.drivers||[]).find(d=>(x.aid&&d.angajatiId===x.aid)||salNameKey(d.name)===salNameKey(x.name))||null,ok:false}));
+  if(chE) salSaveEmps();
+  if(chD){ try{ logActivity("🔄 Sincronizare Angajați",nNew+" persoane noi","automat","concedii"); }catch(e){} renderAll(); scheduleSave(); }
+  if(nNew) toast("👥 "+nNew+" persoană/persoane nouă/noi preluată/e din Angajați");
+  salUpdatePendingBtn(); if(appMode==="salarii") renderSalarii();
+}
+function salUpdatePendingBtn(){
+  const b=document.getElementById("importAngajatiBtn"); if(!b) return;
+  b.textContent="📥 Angajați"+(salPending.length?" — "+salPending.length+" de aprobat":" (sincronizat)");
+  b.style.borderColor=salPending.length?"#f59e0b":"#6366f1"; b.style.color=salPending.length?"#f59e0b":"#6366f1";
+}
+function salOpenPending(){
+  if(!salPending.length){ salEmpFileImportPick(); return; }
+  _salImp=salPending.map(x=>({...x})); salRenderImp(); document.getElementById("salImpModal").classList.add("show");
+}
+function salParseDate(v){
+  if(v==null||v==="") return "";
+  if(v instanceof Date) return fmtDateStr(v);
+  if(typeof v==="number"&&v>20000&&v<80000){ const d=new Date(Math.round((v-25569)*86400000)); return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0"); }
+  const t=String(v).trim(); let m=t.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return m[1]+"-"+m[2]+"-"+m[3];
+  m=t.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/); if(m) return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
+  return "";
+}
+function salEmpRowsToItems(rows){ // rows: array de obiecte cu chei normalizate (litere mici, fără diacritice)
+  const pick=(r,re)=>{ const k=Object.keys(r).find(x=>re.test(x)); return k?r[k]:""; };
+  const grpOf=v=>{ const t=normalizeForSearch(String(Array.isArray(v)?v.join(","):v||"")); if(t.includes("ruhstorf")) return "ruhstorf"; if(t.includes("eiselfing")) return "eiselfing"; const m=["camion","paketshop","sortat"].find(x=>t.includes(x)); return m||""; };
+  return rows.map(r=>{
+    let name=pick(r,/^(numecomplet|nume si prenume|nume prenume|name|nume|angajat|mitarbeiter|full ?name)$/);
+    if(!name){ const ln=pick(r,/^(nachname|last ?name|nume familie|numefamilie)$/), fn=pick(r,/^(vorname|first ?name|prenume)$/); if(ln||fn) name=(ln+" "+fn); }
+    const st=normalizeForSearch(String(pick(r,/^(status)$/)||"")).trim();
+    return {name:String(name||"").trim().replace(/\s+/g," "),
+      aid:String(pick(r,/^(employeeid|angajatiid|id)$/)||"").trim(),
+      start:salParseDate(pick(r,/(angajare|^start|eintritt|hire)/)),
+      end:salParseDate(pick(r,/(incetare|plecare|austritt|sfarsit|^end)/)),
+      inactive:!!st&&st!=="activ",
+      group:grpOf(pick(r,/^(grup|grupa|group|locatie|locatii|depozit|depot)$/))};
+  }).filter(x=>x.name);
+}
+function salParseCsv(txt){
+  txt=txt.replace(/^\uFEFF/,""); const lines=txt.split(/\r?\n/).filter(l=>l.trim()); if(lines.length<2) return [];
+  const delim=(lines[0].match(/;/g)||[]).length>=(lines[0].match(/,/g)||[]).length?";":",";
+  const hdr=lines[0].split(delim).map(h=>normalizeForSearch(h).trim());
+  return lines.slice(1).map(l=>{ const c=l.split(delim); const o={}; hdr.forEach((h,i)=>o[h]=(c[i]||"").trim()); return o; });
+}
+function salEmpFileImportPick(){
+  let i=document.getElementById("salEmpFileGlobal");
+  if(!i){ i=document.createElement("input"); i.type="file"; i.id="salEmpFileGlobal"; i.accept=".xlsx,.xls,.xlsm,.csv,.json"; i.style.display="none"; i.onchange=()=>salEmpFileImport(i); document.body.appendChild(i); }
+  i.click();
+}
+function salEmpFileImport(inp){
+  const f=inp.files[0]; inp.value=""; if(!f) return;
+  const done=items=>{
+    if(!items.length){ toast("Nu am găsit coloana de nume în fișier",true); return; }
+    items.forEach(it=>{
+      const k=salNameKey(it.name);
+      it.emp=(it.aid&&salEmps.find(e=>e.angajatiId===it.aid))||salEmps.find(e=>salNameKey(e.name)===k)||null;
+      it.dr=(it.aid&&(state.drivers||[]).find(d=>d.angajatiId===it.aid))||(state.drivers||[]).find(d=>salNameKey(d.name)===k)||null;
+      it.ok=false; // NIMIC nu se aplică fără aprobarea ta
+    });
+    _salImp=items; salRenderImp(); document.getElementById("salImpModal").classList.add("show");
+  };
+  if(/\.csv$/i.test(f.name)){
+    const rd=new FileReader(); rd.onload=ev=>done(salEmpRowsToItems(salParseCsv(ev.target.result))); rd.readAsText(f,"utf-8"); return;
+  }
+  if(/\.json$/i.test(f.name)){
+    const rd=new FileReader(); rd.onload=ev=>{ try{ let j=JSON.parse(ev.target.result); if(!Array.isArray(j)) j=Object.values(j);
+      done(salEmpRowsToItems(j.map(o=>{ const r={}; Object.keys(o).forEach(k=>r[normalizeForSearch(k).trim()]=o[k]); return r; }))); }catch(e){ toast("JSON invalid: "+e.message,true); } }; rd.readAsText(f); return;
+  }
+  salReadWorkbook(f, wb=>{
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:"",cellDates:true});
+    done(salEmpRowsToItems(rows.map(o=>{ const r={}; Object.keys(o).forEach(k=>r[normalizeForSearch(k).trim()]=o[k]); return r; })));
+  });
+}
+function salImpStatus(it){
+  const tags=[];
+  tags.push(it.emp?"în Salarii":"<b style='color:#10b981'>nou în Salarii</b>");
+  tags.push(it.dr?"în Concedii":"<b style='color:#f59e0b'>lipsă în Concedii</b>");
+  const ch=[];
+  if(it.dr&&isAdmin()){ if(it.aid&&!it.dr.angajatiId) ch.push('legătură ID Angajați'); if(it.start&&!it.dr.startDate) ch.push("data angajare "+it.start); if(it.end&&!it.dr.endDate) ch.push("data plecare "+it.end); }
+  if(it.dr&&((it.start&&it.dr.startDate&&it.start!==it.dr.startDate)||(it.end&&it.dr.endDate&&it.end!==it.dr.endDate))) tags.push("<span style='color:#ef4444'>date diferite față de Concedii (nu se suprascriu)</span>");
+  if(it.inactive) tags.push("<span style='color:#ef4444'>Inactiv în Angajați</span>");
+  return tags.join(" · ")+(ch.length?"<div style='font-size:11px;color:var(--text-dim)'>se completează: "+ch.join(", ")+"</div>":"");
+}
+function salRenderImp(){
+  const it=_salImp||[];
+  document.getElementById("salImpBody").innerHTML=`<div style="font-size:12px;margin-bottom:8px">Bifează persoanele pe care le aprobi. <b>Nimic nu se suprascrie</b>: la cei existenți se completează doar câmpurile goale (data angajării/plecării din Concedii, doar Admin). Zilele de concediu din Concedii nu se ating.</div>
+  <div style="display:flex;gap:6px;margin-bottom:8px"><button onclick="_salImp.forEach(x=>x.ok=true);salRenderImp()" style="font-size:12px;padding:3px 8px;cursor:pointer">Aprobă toate</button><button onclick="_salImp.forEach(x=>x.ok=false);salRenderImp()" style="font-size:12px;padding:3px 8px;cursor:pointer">Debifează</button>
+  <label style="font-size:12px;margin-left:auto">Grupă pentru cei noi în Concedii: <select id="salImpGroup" style="font-size:12px"><option value="eiselfing">Eiselfing</option><option value="ruhstorf">Ruhstorf</option><option value="camion">Camion</option><option value="paketshop">Paketshop</option><option value="sortat">Sortat</option></select></label></div>
+  <div style="max-height:55vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">${it.map((x,i)=>`<tr style="border-top:1px solid var(--border)"><td style="padding:4px"><input type="checkbox" ${x.ok?"checked":""} onchange="_salImp[${i}].ok=this.checked"></td><td style="padding:4px;font-weight:600">${escapeHtml(x.name)}</td><td style="padding:4px">${salImpStatus(x)}</td></tr>`).join("")}</table></div>`;
+}
+function salApplyImp(){
+  const sel=(_salImp||[]).filter(x=>x.ok); if(!sel.length){ toast("Nu ai aprobat nicio persoană",true); return; }
+  const g=document.getElementById("salImpGroup").value;
+  const vis=g==="eiselfing"?["madalina","tania"]:g==="ruhstorf"?["raluca","tania"]:["tania"];
+  let nE=0,nD=0,nF=0;
+  sel.forEach(x=>{
+    if(!x.emp){ if(salAddEmpRaw(x.name,"fix")){ nE++; x.emp=salEmps.find(e=>salNameKey(e.name)===salNameKey(x.name)); } }
+    if(x.emp){ if(x.aid) x.emp.angajatiId=x.aid; if(x.inactive) x.emp.active=false; }
+    if(isAdmin()){
+      if(!x.dr){ const grp=["eiselfing","ruhstorf","camion","paketshop","sortat"].includes(x.group)?x.group:g;
+        const v=grp==="eiselfing"?["madalina","tania"]:grp==="ruhstorf"?["raluca","tania"]:["tania"];
+        const nd={id:uid(),name:x.name,leaves:[],krankLeaves:[],unpaidLeaves:[],specialLeaves:[],maxDays:24,carryOverDays:0,visibleTo:v,group:grp};
+        if(x.start) nd.startDate=x.start; if(x.end) nd.endDate=x.end; if(x.aid) nd.angajatiId=x.aid; state.drivers.push(nd); nD++; }
+      else { let ch=false; if(x.aid&&!x.dr.angajatiId){ x.dr.angajatiId=x.aid; ch=true; } if(x.start&&!x.dr.startDate){ x.dr.startDate=x.start; ch=true; } if(x.end&&!x.dr.endDate){ x.dr.endDate=x.end; ch=true; } if(ch) nF++; }
+    }
+  });
+  salSaveEmps();
+  if(nD||nF){ try{ logActivity("📥 Import angajați aprobat",sel.length+" persoane",nD+" create, "+nF+" completate","concedii"); }catch(e){} renderAll(); scheduleSave(); }
+  closeModal("salImpModal"); salRenderEmployees(); renderSalarii(); salProcessSync();
+  toast("✓ "+nE+" adăugați în Salarii, "+nD+" creați în Concedii, "+nF+" completați");
+}
+function salCreateInConcedii(){
+  if(!isAdmin()){ toast("Doar Admin poate crea persoane în Concedii",true); return; }
+  const g=document.getElementById("salNewGroup").value;
+  const vis=g==="eiselfing"?["madalina","tania"]:g==="ruhstorf"?["raluca","tania"]:["tania"];
+  const missing=salEmps.filter(e=>e.active!==false&&!salFindDriver(e));
+  if(!missing.length) return;
+  if(!confirm("Creez "+missing.length+" persoane noi în Concedii, grupa «"+g+"»? (Vor apărea în calendar; poți edita grupa/zilele ulterior.)")) return;
+  missing.forEach(e=>{ state.drivers.push({id:uid(),name:e.name,leaves:[],krankLeaves:[],unpaidLeaves:[],specialLeaves:[],maxDays:0,carryOverDays:0,visibleTo:vis,group:g}); });
+  try{ logActivity("➕ Persoane create din Salarii",missing.length+" persoane","grup "+g,"concedii"); }catch(e){}
+  renderAll(); scheduleSave(); salRenderEmployees(); renderSalarii(); toast("✓ "+missing.length+" persoane create în Concedii");
+}
+
+// ---- import pachete ----
+function salPackagesFile(inp){
+  const f=inp.files[0]; inp.value=""; if(!f) return;
+  salReadWorkbook(f, wb=>{
+    const agg={}; // key -> {name,pkgs}
+    wb.SheetNames.forEach(sn=>{
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:""});
+      if(!rows.length) return;
+      let nameCol=-1,pkgCol=-1,start=0;
+      for(let i=0;i<Math.min(rows.length,10)&&(nameCol<0||pkgCol<0);i++){
+        rows[i].forEach((c,j)=>{ const s=normalizeForSearch(String(c)); if(nameCol<0&&/^(nume|name|angajat|sofer|fahrer|driver|persoana|mitarbeiter)/.test(s)) nameCol=j; if(pkgCol<0&&/(pachet|pakete|packag|colet|paket|stops|sendungen|total|anzahl|numar)/.test(s)) pkgCol=j; });
+        if(nameCol>=0||pkgCol>=0) start=i+1;
+      }
+      if(nameCol<0||pkgCol<0){ // euristică: prima coloană text + prima numerică
+        const sample=rows.slice(start,start+30);
+        const w=Math.max(...sample.map(r=>r.length),0);
+        for(let j=0;j<w;j++){
+          const vals=sample.map(r=>r[j]).filter(v=>v!=="");
+          if(!vals.length) continue;
+          const numeric=vals.filter(v=>typeof v==="number").length/vals.length>0.7;
+          if(nameCol<0&&!numeric) nameCol=j; else if(pkgCol<0&&numeric&&j!==nameCol) pkgCol=j;
+        }
+      }
+      if(nameCol<0||pkgCol<0) return;
+      for(let i=start;i<rows.length;i++){
+        const nm=String(rows[i][nameCol]||"").trim(); const p=rows[i][pkgCol];
+        if(!nm||typeof p!=="number"&&isNaN(parseFloat(p))) continue;
+        const k=salNameKey(nm); if(!k) continue;
+        if(!agg[k]) agg[k]={name:nm,pkgs:0};
+        agg[k].pkgs+=salNum(p);
+      }
+    });
+    const items=Object.values(agg);
+    if(!items.length){ toast("Nu am găsit coloane Nume + Pachete în fișier",true); return; }
+    // potrivire
+    const byKey={}; salEmps.forEach(e=>{ byKey[salNameKey(e.name)]=e; });
+    items.forEach(it=>{
+      const k=salNameKey(it.name);
+      let e=byKey[k];
+      if(!e){ // fuzzy: toate cuvintele unuia incluse în celălalt
+        const tk=k.split(" ");
+        e=salEmps.find(x=>{ const xk=salNameKey(x.name).split(" "); return tk.every(t=>xk.includes(t))||xk.every(t=>tk.includes(t)); });
+      }
+      it.empId=e?e.id:"";
+    });
+    _salPkgPreview=items;
+    salRenderPkgPreview();
+    document.getElementById("salPkgModal").classList.add("show");
+  });
+}
+function salRenderPkgPreview(){
+  const it=_salPkgPreview||[];
+  const opts=salEmps.filter(e=>e.active!==false).sort((a,b)=>a.name.localeCompare(b.name,"ro")).map(e=>`<option value="${e.id}">${escapeHtml(e.name)}</option>`).join("");
+  const matched=it.filter(x=>x.empId).length;
+  document.getElementById("salPkgBody").innerHTML=`<div style="font-size:12px;margin-bottom:8px">${matched} potriviți din ${it.length}. Pachetele × ${SAL_PKG_RATE} = suma. Cei nepotriviți pot fi alocați manual sau ignorați. Persoanele potrivite vor fi trecute pe tipul <b>Din pachete</b> pentru ${MONTHS[salCur.getMonth()]} ${salCur.getFullYear()}.</div>
+  <div style="max-height:55vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left">Din fișier</th><th style="text-align:right">Pachete</th><th style="text-align:right">× ${SAL_PKG_RATE}</th><th style="text-align:left;padding-left:10px">Angajat</th></tr></thead><tbody>
+  ${it.map((x,i)=>`<tr style="border-top:1px solid var(--border);${x.empId?"":"background:rgba(239,68,68,.08)"}"><td style="padding:3px 4px">${escapeHtml(x.name)}</td><td style="text-align:right">${x.pkgs}</td><td style="text-align:right">${salFmt(x.pkgs*SAL_PKG_RATE)}</td><td style="padding-left:10px"><select onchange="_salPkgPreview[${i}].empId=this.value;salRenderPkgPreview()" style="font-size:12px;max-width:220px"><option value="">— ignoră —</option>${opts.replace('value="'+x.empId+'"','value="'+x.empId+'" selected')}</select></td></tr>`).join("")}
+  </tbody></table></div>`;
+}
+function salApplyPkgs(){
+  if(!canSalarii()) return;
+  let n=0;
+  (_salPkgPreview||[]).forEach(x=>{
+    if(!x.empId) return;
+    const r=salMonthData.rows[x.empId]||(salMonthData.rows[x.empId]={});
+    r.type="pachete"; r.salar=String(x.pkgs); n++;
+  });
+  salSaveMonthSoon(); closeModal("salPkgModal"); renderSalarii(); toast("✓ Pachete aplicate la "+n+" angajați");
+}
+
+// ---- export / print ----
+function salTableData(){
+  const act=salEmps.filter(e=>e.active!==false).sort((a,b)=>a.name.localeCompare(b.name,"ro"));
+  const head=["Name","Tip","Salar/Pachete","Sortat","Concediu (zile)","Concediu (€)","Feiertag (zile)","Feiertag (€)","Krank (zile)","Krank (€)","Chirie","Total"];
+  let tot=0;
+  const rows=act.map(e=>{ const c=salRowCalc(e); tot+=c.total; return [e.name,SAL_TYPES[c.type],c.salar,c.sortat,c.dC,Math.round(c.aC*100)/100,c.dF,Math.round(c.aF*100)/100,c.dK,Math.round(c.aK*100)/100,c.chirie,Math.round(c.total*100)/100]; });
+  rows.push(["TOTAL","","","","","","","","","","",Math.round(tot*100)/100]);
+  return {head,rows};
+}
+function salExportExcel(){
+  const {head,rows}=salTableData();
+  const ws=XLSX.utils.aoa_to_sheet([head,...rows]);
+  ws["!cols"]=head.map((h,i)=>({wch:i===0?26:14}));
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,("Salarii "+MONTHS[salCur.getMonth()]+" "+salCur.getFullYear()).slice(0,31));
+  XLSX.writeFile(wb,"Salarii_"+salMk()+".xlsx");
+}
+function salPrint(){
+  const {head,rows}=salTableData();
+  const w=window.open("","_blank"); if(!w){ toast("Permite pop-up pentru print",true); return; }
+  w.document.write(`<html><head><title>Salarii ${salMk()}</title><style>body{font-family:Arial;font-size:11px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:3px 5px}th{background:#eee}td:not(:first-child):not(:nth-child(2)){text-align:right}tr:last-child{font-weight:bold;background:#f3f3f3}</style></head><body><h3>Salarii — ${MONTHS[salCur.getMonth()]} ${salCur.getFullYear()}</h3><table><thead><tr>${head.map(h=>"<th>"+h+"</th>").join("")}</tr></thead><tbody>${rows.map(r=>"<tr>"+r.map(c=>"<td>"+escapeHtml(String(c))+"</td>").join("")+"</tr>").join("")}</tbody></table></body></html>`);
+  w.document.close(); w.focus(); setTimeout(()=>w.print(),300);
 }
 
 // ============================================================
@@ -10161,7 +10733,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.11-02";
+const APP_VERSION = "2026.10.15-01";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -11492,7 +12064,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.11-02</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.15-01</div>
 
 </body>
 </html>
