@@ -1232,6 +1232,7 @@
     <button class="btn btn-secondary btn-small" id="actLogBtn" onclick="openActivityLog()" style="width:100%; margin-bottom:6px; display:none; border-color:#818cf8; color:#818cf8">📋 Istoric activitate</button>
     <button class="btn btn-secondary btn-small" id="excelStatusBtn" onclick="openExcelImportStatusPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📊 Status Import Excel</button>
     <button class="btn btn-secondary btn-small" id="importAngajatiBtn" onclick="salOpenPending()" title="Persoanele noi din Angajați apar automat. Cele deja existente după nume așteaptă aprobarea ta. Dacă nu e nimic de aprobat, poți încărca manual un fișier." style="width:100%; margin-bottom:6px; display:none; border-color:#6366f1; color:#6366f1">📥 Angajați</button>
+    <button class="btn btn-secondary btn-small" id="dupAngajatiBtn" onclick="salOpenDupes()" title="Persoane existente în Concedii care au apărut și din Angajați cu nume complet" style="width:100%; margin-bottom:6px; display:none; border-color:#ef4444; color:#ef4444">🔀 Unește dubluri</button>
     <button class="btn btn-secondary btn-small" id="absenceReportBtn" onclick="openAbsenceReport()" style="width:100%; margin-bottom:6px; display:none; border-color:#14b8a6; color:#14b8a6">🗓️ Raport absențe lunare</button>
     <button class="btn btn-secondary btn-small" id="carryOverBtn" onclick="runCarryOverCalculation()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">🔄 Calculează report an nou</button>
     <button class="btn btn-secondary btn-small" id="borrowedDaysBtn" onclick="openBorrowedDaysManager()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📌 Zile împrumutate din anul viitor</button>
@@ -1459,6 +1460,13 @@
     <h3>📥 Preluare angajați — aprobare persoană cu persoană</h3>
     <div id="salImpBody"></div>
     <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('salImpModal')">Anulează</button><button class="btn btn-primary" onclick="salApplyImp()">Aplică persoanele aprobate</button></div>
+  </div>
+</div>
+<div class="modal-bg" id="salDupModal">
+  <div class="modal" style="max-width:760px;max-height:92vh;overflow-y:auto">
+    <h3>🔀 Unește persoanele duble</h3>
+    <div id="salDupBody"></div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('salDupModal')">Închide</button><button class="btn btn-primary" onclick="salApplyDupes()">Unește perechile bifate</button></div>
   </div>
 </div>
 <div class="modal-bg" id="salPkgModal">
@@ -4549,7 +4557,7 @@ function openLeaveModal(id, leaveType){
   });
   // Hide unpaid tab for non-admin/tania
   const tabUnpaid=document.getElementById('tabUnpaid');
-  if(tabUnpaid) tabUnpaid.style.display=isAdminOrTania()?"block":"none";
+  if(tabUnpaid) tabUnpaid.style.display="block";
   const typeLabel = leaveType==="krank" ? "Krank" : leaveType==="unpaid" ? "Fără plată" : leaveType==="special" ? "Zi specială" : "Concediu";
   document.getElementById("modalLeaveTitle").textContent=dr.name+" — "+typeLabel;
   document.getElementById("leaveStart").value="";
@@ -4694,7 +4702,7 @@ function renderLeaveList(dr, leaveType){
     const reasonHtml = (leaveType==="special"&&l.reason) ? `<div style="font-size:11px;color:var(--text-dim);margin-top:2px">🎗️ ${escapeHtml(l.reason)}</div>` : "";
     return `<div class="leave-row">
       <span>${formatDateRO(l.start)} → ${formatDateRO(l.end)} <span style="color:var(--text-dim);font-size:11px">(${days}z lucr.)</span>${reasonHtml}</span>
-      <button class="icon-btn" onclick="deleteLeave('${dr.id}','${l.start}','${l.end}','${leaveType}')">🗑</button>
+      ${canEditAbsence(leaveType,dr)?`<button class="icon-btn" onclick="deleteLeave('${dr.id}','${l.start}','${l.end}','${leaveType}')">🗑</button>`:""}
     </div>`;
   }).join("");
 }
@@ -4707,6 +4715,7 @@ function addLeave(){
   if(!start||!end){toast("Selectează ambele date",true);return;}
   if(start>end){toast("Data început după data sfârșit",true);return;}
   const dr=state.drivers.find(d=>d.id===leaveDriverId);if(!dr)return;
+  if(!canEditAbsence(leaveType,dr)){ toast("Nu ai permisiunea de a modifica „"+(leaveType==="unpaid"?"Fără plată":"Zi specială")+"” pentru această persoană",true); return; }
   const newDays=countWorkdays(parseDate(start),parseDate(end));
 
   let specialReason="";
@@ -4863,6 +4872,7 @@ function deleteLeave(driverId,start,end,leaveType){
   if(!canEdit()){ toast("Nu ai drepturi de editare pentru Concedii",true); return; }
   if(!leaveType)leaveType="leaves";
   const dr=state.drivers.find(d=>d.id===driverId);if(!dr)return;
+  if(!canEditAbsence(leaveType,dr)){ toast("Nu ai permisiunea de a modifica „"+(leaveType==="unpaid"?"Fără plată":"Zi specială")+"” pentru această persoană",true); return; }
   // Map leaveType to correct array name
   const arrKey = leaveType==="krank"?"krankLeaves":leaveType==="unpaid"?"unpaidLeaves":leaveType==="special"?"specialLeaves":"leaves";
   if(!dr[arrKey]) dr[arrKey]=[];
@@ -4963,6 +4973,7 @@ function saveQuickLeave(){
   const dr=state.drivers.find(d=>d.id===comboSelectedId);if(!dr)return;
   const newDays=countWorkdays(parseDate(start),parseDate(end));
   const _qType=document.getElementById("modalQuick")?.dataset?.quickType||"leaves";
+  if(!canEditAbsence(_qType,dr)){ toast("Nu ai permisiunea de a modifica „Fără plată” pentru această persoană",true); return; }
 
   // Verificare centrală: blochează dacă perioada se suprapune cu oricare
   // altă stare (Concediu/Krank/Fără plată/Prezență), indiferent de tip
@@ -5023,11 +5034,11 @@ function renderDrivers(){
       quotaHtml=used>0?`<div style="margin-top:3px;font-size:10px;color:var(--text-dim)">${used} zile folosite</div>`:"";
     }
     const krankBtn=`<button class="icon-btn" onclick="openLeaveModal('${dr.id}','krank')" title="Krank" style="font-size:11px">🤒</button>`;
-    const unpaidBtn=isTaniaAdm?`<button class="icon-btn" onclick="openLeaveModal('${dr.id}','unpaid')" title="Fără plată" style="font-size:11px">⛔</button>`:"";
+    const unpaidBtn=`<button class="icon-btn" onclick="openLeaveModal('${dr.id}','unpaid')" title="Fără plată" style="font-size:11px">⛔</button>`;
     // Krank visible to all users; unpaid only to tania/admin
     let extraHtml="";
     const k=usedDaysThisYear(dr,"krank",viewedYear);
-    const u=isTaniaAdm?usedDaysThisYear(dr,"unpaid",viewedYear):0;
+    const u=usedDaysThisYear(dr,"unpaid",viewedYear);
     if(k>0||u>0){
       extraHtml=`<div style="margin-top:3px;font-size:10px;color:var(--text-dim);">${k>0?`<span style="color:rgba(147,197,253,0.9)">🤒 ${k}z krank</span>`:""}${k>0&&u>0?" · ":""}${u>0?`<span style="color:rgba(253,186,116,0.9)">⛔ ${u}z f.plată</span>`:""}</div>`;
     }    const editBtns=canAdmin?`<div class="driver-actions"><button class="icon-btn" onclick="openEditDriver('${dr.id}')" title="Editează">✏️</button><button class="icon-btn" onclick="deleteDriver('${dr.id}')" title="Șterge">🗑</button></div>`:"";
@@ -5954,7 +5965,7 @@ function renderTimeline(){
       const d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d);
       const onLeave=!isSun&&(dr.leaves||[]).some(l=>dateInLeave(d,l));
       const onKrank=!isSun&&(dr.krankLeaves||[]).some(l=>dateInLeave(d,l));
-      const onUnpaid=!isSun&&isAdminOrTania()&&(dr.unpaidLeaves||[]).some(l=>dateInLeave(d,l));
+      const onUnpaid=!isSun&&(dr.unpaidLeaves||[]).some(l=>dateInLeave(d,l));
       const specialEntry=!isSun?(dr.specialLeaves||[]).find(l=>dateInLeave(d,l)):null;
       const onSpecial=!!specialEntry;
       const cls=["tl-cell"];
@@ -6581,6 +6592,17 @@ let _salUnsubEmps=null, _salUnsubMonth=null, _salMonthLoadedKey=null, _salSaveTi
 function canSalarii(){ return isAdmin() || window.activeUserKey==="tania"; }
 function salMk(){ return salCur.getFullYear()+"-"+String(salCur.getMonth()+1).padStart(2,"0"); }
 function salNameKey(n){ return normalizeForSearch(String(n||"")).replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(Boolean).sort().join(" "); }
+// Potrivire „aproximativă”: același nume dar unul mai complet (ex. „Boitos Catalin” ↔ „Boitos Marian - Catalin”, „Daminescu Corina” ↔ „Daminescu-Biliuta Corina”)
+function salTokens(n){ return normalizeForSearch(String(n||"")).replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(Boolean); }
+function salFuzzyEq(a,b){
+  const A=salTokens(a),B=salTokens(b); if(!A.length||!B.length) return false;
+  const [sm,lg]=A.length<=B.length?[A,B]:[B,A];
+  if(sm.length<2) return false;               // minim 2 cuvinte comune (nume + prenume)
+  return sm.every(t=>lg.includes(t));         // toate cuvintele celui mai scurt se regăsesc în cel mai lung
+}
+// persoane din Concedii încă nelegate de Angajați, care seamănă cu numele dat
+function salFuzzyDrivers(name){ return (state.drivers||[]).filter(d=>!d.angajatiId&&!d.archived&&salFuzzyEq(d.name,name)); }
+function salFuzzyEmps(name){ return salEmps.filter(e=>!e.angajatiId&&salFuzzyEq(e.name,name)); }
 function salNum(v){ const n=parseFloat(String(v==null?"":v).replace(",",".")); return isNaN(n)?0:n; }
 function salFmt(n){ return (Math.round(n*100)/100).toLocaleString("ro-RO",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
@@ -6868,16 +6890,19 @@ function salProcessSync(){
       }
       if(!emp&&active){ emp={id:uid(),name:dr.name,type:"fix",active:true,angajatiId:aid}; salEmps.push(emp); chE=true; }
       if(emp&&!active&&emp.active!==false){ emp.active=false; chE=true; }
+      if(emp&&adm&&emp.name!==dr.name&&!salEmps.some(e=>e!==emp&&e.name===dr.name)){ emp.name=dr.name; chE=true; }
       return;
     }
     if(emp){ // în Salarii dar fără persoană în Concedii
       if(!active&&emp.active!==false){ emp.active=false; chE=true; }
-      const nd=(state.drivers||[]).find(d=>salNameKey(d.name)===k);
+      const nd=(state.drivers||[]).find(d=>salNameKey(d.name)===k)||salFuzzyDrivers(name)[0];
       if(adm&&!nd){ state.drivers.push(salNewDriver(it,item)); chD=true; nNew++; }
       else if(nd) pending.push(item);
       return;
     }
-    const nEmp=salEmps.find(e=>salNameKey(e.name)===k), nDr=(state.drivers||[]).find(d=>salNameKey(d.name)===k);
+    let nEmp=salEmps.find(e=>salNameKey(e.name)===k), nDr=(state.drivers||[]).find(d=>salNameKey(d.name)===k);
+    if(!nDr){ const fz=salFuzzyDrivers(name); if(fz.length) nDr=fz[0]; }   // același om, nume diferit → doar cu aprobare, ca să nu apară dublu
+    if(!nEmp){ const fz=salFuzzyEmps(name); if(fz.length) nEmp=fz[0]; }
     // Aceeași persoană ștearsă și re-adăugată în Angajați (ID nou): legătura veche nu mai există → o reluăm automat, fără aprobare
     if((nDr&&nDr.angajatiId&&!presentIds.has(nDr.angajatiId))||(nEmp&&nEmp.angajatiId&&!presentIds.has(nEmp.angajatiId))){
       if(nDr&&nDr.angajatiId&&!presentIds.has(nDr.angajatiId)&&adm){ nDr.angajatiId=aid; if(nDr.archived&&active){ nDr.archived=false; delete nDr.archivedAt; delete nDr.archivedBySync; } chD=true; }
@@ -6899,7 +6924,7 @@ function salProcessSync(){
     if(goneD.length){ goneD.forEach(d=>{ d.archived=true; d.archivedBySync=true; d.archivedAt=new Date().toISOString(); }); chD=true; }
     if(goneE.length||goneD.length) toast("🗑️ "+Math.max(goneE.length,goneD.length)+" persoană/persoane ștearsă/șterse din Angajați — scoasă/scoase din Salarii și arhivată/arhivate în Concedii");
   }
-  salPending=pending.map(x=>({...x,emp:salEmps.find(e=>(x.aid&&e.angajatiId===x.aid)||salNameKey(e.name)===salNameKey(x.name))||null,dr:(state.drivers||[]).find(d=>(x.aid&&d.angajatiId===x.aid)||salNameKey(d.name)===salNameKey(x.name))||null,ok:false}));
+  salPending=pending.map(x=>({...x,emp:salEmps.find(e=>(x.aid&&e.angajatiId===x.aid)||salNameKey(e.name)===salNameKey(x.name))||salFuzzyEmps(x.name)[0]||null,dr:(state.drivers||[]).find(d=>(x.aid&&d.angajatiId===x.aid)||salNameKey(d.name)===salNameKey(x.name))||salFuzzyDrivers(x.name)[0]||null,ok:false}));
   renames.forEach(([o,n])=>{ const e=salEmps.find(x=>x.name===o); if(e){ e.name=n; chE=true; } });
   if(renames.length) salRenameEverywhere(renames);
   if(chE) salSaveEmps();
@@ -6907,10 +6932,61 @@ function salProcessSync(){
   if(nNew) toast("👥 "+nNew+" persoană/persoane nouă/noi preluată/e din Angajați");
   salUpdatePendingBtn(); if(appMode==="salarii") renderSalarii();
 }
+// ---- dubluri deja create (persoană veche în Concedii + persoană nouă preluată din Angajați cu nume complet) ----
+function salFindDupes(){
+  const out=[];
+  (state.drivers||[]).filter(d=>d.angajatiId&&d.autoSync&&!d.archived).forEach(D=>{
+    const c=(state.drivers||[]).filter(o=>o!==D&&!o.angajatiId&&!o.archived&&salFuzzyEq(o.name,D.name));
+    c.forEach(O=>out.push({O,D,ok:false,amb:c.length>1}));
+  });
+  return out;
+}
+let _salDup=[];
+function salDrvSummary(d){ const n=a=>(d[a]||[]).length; return n("leaves")+" concedii, "+n("krankLeaves")+" krank, "+n("unpaidLeaves")+" fără plată, "+n("specialLeaves")+" zile speciale"+(d.maxDaysOverride!=null?", zile suprascrise":""); }
+function salOpenDupes(){
+  _salDup=salFindDupes(); salRenderDupes(); document.getElementById("salDupModal").classList.add("show");
+}
+function salRenderDupes(){
+  const b=document.getElementById("salDupBody");
+  if(!_salDup.length){ b.innerHTML='<div style="font-size:13px;padding:10px">✓ Nu mai există dubluri.</div>'; return; }
+  b.innerHTML=`<div style="font-size:12px;margin-bottom:8px">Persoana <b>veche</b> (cu zilele tale) se unește cu cea <b>nouă din Angajați</b>: se păstrează tot istoricul (concedii, krank, fără plată, zile speciale, suprascrieri, tarife din Salarii), iar numele devine cel complet din Angajați. Persoana nouă goală se șterge. Verifică fiecare pereche și bifează.</div>
+  <div style="display:flex;gap:6px;margin-bottom:8px"><button onclick="_salDup.forEach(x=>x.ok=!x.amb);salRenderDupes()" style="font-size:12px;padding:3px 8px;cursor:pointer">Bifează toate (fără cele ambigue)</button><button onclick="_salDup.forEach(x=>x.ok=false);salRenderDupes()" style="font-size:12px;padding:3px 8px;cursor:pointer">Debifează</button></div>
+  <div style="max-height:55vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">${_salDup.map((x,i)=>`<tr style="border-top:1px solid var(--border)"><td style="padding:5px"><input type="checkbox" ${x.ok?"checked":""} onchange="_salDup[${i}].ok=this.checked"></td>
+  <td style="padding:5px"><b>${escapeHtml(x.O.name)}</b><div style="color:var(--text-dim);font-size:11px">${salDrvSummary(x.O)}</div></td><td style="padding:5px">⟶</td>
+  <td style="padding:5px"><b>${escapeHtml(x.D.name)}</b>${x.amb?" <span style='color:#ef4444'>⚠ mai multe potriviri — verifică</span>":""}<div style="color:var(--text-dim);font-size:11px">${salDrvSummary(x.D)}</div></td></tr>`).join("")}</table></div>`;
+}
+async function salApplyDupes(){
+  const sel=_salDup.filter(x=>x.ok); if(!sel.length){ toast("Nu ai bifat nicio pereche",true); return; }
+  if(!isAdmin()){ toast("Doar Admin poate uni persoane",true); return; }
+  let n=0; const used=new Set();
+  sel.forEach(({O,D})=>{
+    if(used.has(O.id)||used.has(D.id)) return; used.add(O.id); used.add(D.id);
+    if(!state.drivers.includes(O)||!state.drivers.includes(D)) return;
+    const oldName=O.name, aid=D.angajatiId;
+    ["leaves","krankLeaves","unpaidLeaves","specialLeaves"].forEach(a=>{ if((D[a]||[]).length) O[a]=(O[a]||[]).concat(D[a]); });
+    if(D.startDate) O.startDate=D.startDate; if(D.endDate) O.endDate=D.endDate; else delete O.endDate;
+    O.visibleTo=D.visibleTo||O.visibleTo; O.angajatiId=aid; O.autoSync=true;
+    // emp-urile din Salarii: păstrăm pe cel vechi (are tarifele/datele), îl legăm; îl ștergem pe cel nou
+    const eO=salEmps.find(e=>!e.angajatiId&&(salNameKey(e.name)===salNameKey(oldName)||salFuzzyEq(e.name,oldName)));
+    const eD=salEmps.find(e=>e.angajatiId===aid);
+    state.drivers=state.drivers.filter(d=>d!==D);
+    if(eO){ eO.angajatiId=aid; eO.name=D.name; if(eD&&eD!==eO) salEmps=salEmps.filter(e=>e!==eD); }
+    else if(eD){ eD.name=D.name; }
+    O.name=D.name;
+    try{ salRenameEverywhere([[oldName,D.name]]); }catch(e){ console.warn(e); }
+    n++;
+  });
+  await salSaveEmps();
+  try{ logActivity("🔀 Unire dubluri Angajați",n+" persoane unite","manual","concedii"); }catch(e){}
+  renderAll(); scheduleSave(); closeModal("salDupModal"); salUpdatePendingBtn(); if(appMode==="salarii") renderSalarii();
+  toast("✓ "+n+" persoane unite — istoricul păstrat");
+}
 function salUpdatePendingBtn(){
   const b=document.getElementById("importAngajatiBtn"); if(!b) return;
   b.textContent="📥 Angajați"+(salPending.length?" — "+salPending.length+" de aprobat":" (sincronizat)");
   b.style.borderColor=salPending.length?"#f59e0b":"#6366f1"; b.style.color=salPending.length?"#f59e0b":"#6366f1";
+  const db2=document.getElementById("dupAngajatiBtn");
+  if(db2){ const nd=isAdmin()&&state.drivers&&state.drivers.length?salFindDupes().length:0; db2.style.display=(nd&&b.style.display!=="none")?"block":"none"; db2.textContent="🔀 Unește dubluri ("+nd+")"; }
 }
 function salOpenPending(){
   if(!salPending.length){ salEmpFileImportPick(); return; }
@@ -6977,7 +7053,7 @@ function salEmpFileImport(inp){
 function salImpStatus(it){
   const tags=[];
   tags.push(it.emp?"în Salarii":"<b style='color:#10b981'>nou în Salarii</b>");
-  tags.push(it.dr?"în Concedii":"<b style='color:#f59e0b'>lipsă în Concedii</b>");
+  tags.push(it.dr?"în Concedii"+(salNameKey(it.dr.name)!==salNameKey(it.name)?" <b style='color:#6366f1'>(ca «"+escapeHtml(it.dr.name)+"» — se unește și se redenumește)</b>":""):"<b style='color:#f59e0b'>lipsă în Concedii</b>");
   const ch=[];
   if(it.dr&&isAdmin()){ if(it.aid&&!it.dr.angajatiId) ch.push('legătură ID Angajați'); if(it.start&&!it.dr.startDate) ch.push("data angajare "+it.start); if(it.end&&!it.dr.endDate) ch.push("data plecare "+it.end); }
   if(it.dr&&((it.start&&it.dr.startDate&&it.start!==it.dr.startDate)||(it.end&&it.dr.endDate&&it.end!==it.dr.endDate))) tags.push("<span style='color:#ef4444'>date diferite față de Concedii (nu se suprascriu)</span>");
@@ -7317,6 +7393,10 @@ const PERM_MODULES = [
   {key:"libere",      label:"🏠 Libere",       groups:["eiselfing","ruhstorf"]},
   // Permisiuni modulare "Alege persoane" — userul poate selecta singur CINE apare în lista
   // Sortatori / Libere Springeri, DOAR pentru grupurile bifate (restul rămân neatinse).
+  // Permisiuni modulare pentru Fără plată / Zi specială: toți VĂD (pentru persoanele lor), dar doar cine are
+  // permisiunea de mai jos (pe grupurile bifate) le poate adăuga/șterge. Admin: mereu. Tania: implicit da, până se setează explicit altfel.
+  {key:"concedii_unpaid",  label:"⛔ Editează „Fără plată”", groups:["eiselfing","ruhstorf","camion","paketshop","sortat"], editOnly:true},
+  {key:"concedii_special", label:"⭐ Editează „Zi specială”", groups:["eiselfing","ruhstorf","camion","paketshop","sortat"], editOnly:true},
   {key:"sortatori_persoane", label:"👥 Alege persoane Sortatori", groups:["eiselfing","ruhstorf"], editOnly:true},
   {key:"libere_persoane",    label:"👥 Alege persoane Libere",    groups:["eiselfing","ruhstorf"], editOnly:true},
 ];
@@ -7324,6 +7404,18 @@ const PERM_MODULES = [
 // Poate userul curent să aleagă persoanele din Sortatori / Libere (pentru un grup anume)?
 // module: "sortatori" | "libere". Admin: mereu da. Alții: doar dacă Admin le-a acordat
 // permisiunea "<module>_persoane" (Editare) pentru grupul respectiv.
+// Poate userul curent adăuga/șterge Fără plată ("unpaid") sau Zi specială ("special") pentru persoana dr?
+function canEditAbsence(type, dr){
+  if(type!=="unpaid"&&type!=="special") return true;
+  if(isAdmin()) return true;
+  const uk=window.activeUserKey||"";
+  const key=type==="unpaid"?"concedii_unpaid":"concedii_special";
+  const ov=permOverrides[uk]&&permOverrides[uk][key];
+  if(!ov) return uk==="tania"&&hasModuleEdit(uk,"concedii"); // implicit doar Tania (ca înainte), până setezi explicit
+  if(ov.access!=="edit") return false;
+  const g=personGroupOf(dr);
+  return !!g&&(ov.groups||[]).includes(g);
+}
 function canManagePersons(module, group){
   if(isAdmin()) return true;
   const uk=window.activeUserKey||"";
@@ -10788,7 +10880,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.16-05";
+const APP_VERSION = "2026.10.16-10";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -11800,17 +11892,30 @@ function showLoginNotification(userKey){
     }
     return allowedIdentityKeys2.some(k=>vis.includes(k)) || vis.includes(userKey);
   });
-  const onLeaveToday = visibleDrivers.filter(d=>{
-    return (d.leaves||[]).some(l=>dateInLeave(today,l));
+  // Absențe de azi: concediu, krank (medical), fără plată și zi specială — vizibile tuturor userilor (în limita grupurilor lor)
+  const seeAll = isAdminOrTania();
+  const ABS_TODAY = [
+    {key:"leaves",       label:"concediu",   icon:"🏖️", color:"251,191,36", show:true},
+    {key:"krankLeaves",  label:"medical (krank)", icon:"🤒", color:"96,165,250", show:true},
+    {key:"unpaidLeaves", label:"fără plată", icon:"⛔", color:"251,146,60", show:true},
+    {key:"specialLeaves",label:"zi specială",icon:"⭐", color:"167,139,250", show:true},
+  ].filter(t=>t.show);
+  const absToday = [];
+  visibleDrivers.filter(d=>!d.archived).forEach(d=>{
+    const t=ABS_TODAY.find(tp=>(d[tp.key]||[]).some(l=>dateInLeave(today,l)));
+    if(t) absToday.push({d,t});
   });
+  absToday.sort((a,b)=>ABS_TODAY.indexOf(a.t)-ABS_TODAY.indexOf(b.t)||a.d.name.localeCompare(b.d.name,"ro"));
+  const onLeaveToday = absToday.map(x=>x.d);
+  const absSummary = ABS_TODAY.map(tp=>({tp,n:absToday.filter(x=>x.t===tp).length})).filter(x=>x.n>0).map(x=>x.n+" "+x.tp.label).join(" · ");
 
   // Build notification modal
   let existingNotif = document.getElementById("loginNotifModal");
   if(existingNotif) existingNotif.remove();
 
   const namesHtml = onLeaveToday.length>0
-    ? onLeaveToday.map(d=>`<span style="display:inline-block;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.3);border-radius:4px;padding:2px 8px;margin:2px;font-size:13px;color:var(--accent)">${escapeHtml(d.name)}</span>`).join("")
-    : `<span style="color:var(--text-dim);font-size:13px">Nicio persoană în concediu astăzi ✅</span>`;
+    ? absToday.map(({d,t})=>`<span title="${t.label}" style="display:inline-block;background:rgba(${t.color},0.15);border:1px solid rgba(${t.color},0.35);border-radius:4px;padding:2px 8px;margin:2px;font-size:13px;color:var(--text)">${t.icon} ${escapeHtml(d.name)}</span>`).join("")
+    : `<span style="color:var(--text-dim);font-size:13px">Nicio persoană absentă astăzi ✅</span>`;
 
   const modal = document.createElement("div");
   modal.id = "loginNotifModal";
@@ -11821,7 +11926,7 @@ function showLoginNotification(userKey){
       <div style="font-size:20px;font-weight:800;color:var(--accent);margin-bottom:4px">Bună ziua, ${escapeHtml(userName)}!</div>
       <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px">${escapeHtml(dateStr)}</div>
       <div style="font-size:14px;color:var(--text);margin-bottom:10px">
-        Astăzi sunt <strong style="color:var(--accent)">${onLeaveToday.length}</strong> ${onLeaveToday.length===1?"persoană":"persoane"} în concediu.
+        Astăzi ${onLeaveToday.length===1?"este":"sunt"} <strong style="color:var(--accent)">${onLeaveToday.length}</strong> ${onLeaveToday.length===1?"persoană absentă":"persoane absente"}${absSummary?`<div style="font-size:12px;color:var(--text-dim);margin-top:4px">${absSummary}</div>`:""}
       </div>
       ${onLeaveToday.length>0?`<div style="margin-bottom:16px;padding:10px;background:var(--bg-elev-2);border-radius:8px;line-height:1.8">${namesHtml}</div>`:"<div style='margin-bottom:16px'></div>"}
       <div style="font-size:13px;color:var(--text-dim);margin-bottom:20px;font-style:italic">O zi bună în continuare! 😊</div>
@@ -12119,7 +12224,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.16-05</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.16-10</div>
 
 </body>
 </html>
