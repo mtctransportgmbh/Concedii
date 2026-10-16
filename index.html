@@ -6845,6 +6845,7 @@ function salProcessSync(){
   if(!_angItems.length) { salPending=[]; salUpdatePendingBtn(); return; }
   if(!_salEmpsLoaded||!state.drivers||!state.drivers.length){ if(_salSyncRetry++<20) setTimeout(salProcessSync,2000); return; }
   const adm=isAdmin(); let chE=false, chD=false, nNew=0; const pending=[]; const renames=[];
+  const presentIds=new Set(_angItems.map(x=>String(x.id||"")));
   const same=(a,b)=>JSON.stringify(a||[])===JSON.stringify(b||[]);
   _angItems.forEach(it=>{
     const aid=String(it.id||""), name=String(it.nume||"").trim().replace(/\s+/g," "); if(!name) return;
@@ -6876,6 +6877,13 @@ function salProcessSync(){
       return;
     }
     const nEmp=salEmps.find(e=>salNameKey(e.name)===k), nDr=(state.drivers||[]).find(d=>salNameKey(d.name)===k);
+    // Aceeași persoană ștearsă și re-adăugată în Angajați (ID nou): legătura veche nu mai există → o reluăm automat, fără aprobare
+    if((nDr&&nDr.angajatiId&&!presentIds.has(nDr.angajatiId))||(nEmp&&nEmp.angajatiId&&!presentIds.has(nEmp.angajatiId))){
+      if(nDr&&nDr.angajatiId&&!presentIds.has(nDr.angajatiId)&&adm){ nDr.angajatiId=aid; chD=true; }
+      if(nEmp&&nEmp.angajatiId&&!presentIds.has(nEmp.angajatiId)){ nEmp.angajatiId=aid; chE=true; }
+      if(!nEmp&&active){ salEmps.push({id:uid(),name,type:"fix",active:true,angajatiId:aid}); chE=true; }
+      return;
+    }
     if(nEmp||nDr){ pending.push(item); return; } // există deja după nume → doar cu aprobarea ta
     if(active){ salEmps.push({id:uid(),name,type:"fix",active:true,angajatiId:aid}); chE=true; }
     if(adm){ state.drivers.push(salNewDriver(it,item)); chD=true; nNew++; }
@@ -10779,7 +10787,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.16-03";
+const APP_VERSION = "2026.10.16-04";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12110,7 +12118,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.16-03</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.16-04</div>
 
 </body>
 </html>
