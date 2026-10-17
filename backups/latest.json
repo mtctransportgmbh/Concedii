@@ -1,10 +1,10 @@
 {
   "version": 5,
   "year": 2026,
-  "savedAt": "2026-10-17T11:31:10.695Z",
+  "savedAt": "2026-10-17T14:00:51.180Z",
   "date": "2026-10-17",
-  "time": "14:31",
-  "slot": "sched11",
+  "time": "17:00",
+  "slot": "sched14",
   "savedBy": "github-actions-silent",
   "driverCount": 103,
   "thresholds": {
@@ -32255,29 +32255,7 @@
     "Sarneki Sebastian": "Sarnecki Sebastian"
   },
   "planificareWarnings": {
-    "warnings": [
-      {
-        "clearedAt": "2026-10-13T18:03:03.065Z",
-        "id": "mv6zod95dlg20",
-        "name": "Stan Ionel",
-        "date": "2026-10-17",
-        "clearedBy": "admin"
-      },
-      {
-        "date": "2026-10-16",
-        "name": "Badea Madalin",
-        "clearedAt": "2026-10-14T09:25:34.626Z",
-        "id": "mv7wmqsinnxh4",
-        "clearedBy": "admin"
-      },
-      {
-        "id": "mvc1xhy7n18mk",
-        "name": "Ciobotaru Adrian",
-        "date": "2026-10-17",
-        "clearedAt": "2026-10-17T07:04:59.167Z",
-        "clearedBy": "admin"
-      }
-    ]
+    "warnings": []
   },
   "calendarReminders": {
     "reminders": [
