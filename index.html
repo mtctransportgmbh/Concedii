@@ -1222,30 +1222,7 @@
       <span>Persoane</span>
       <span id="driverCount" style="text-transform:none; letter-spacing:0; color:var(--text-dim)">0</span>
     </div>
-    <button class="btn btn-secondary btn-small" id="addDriverBtn" onclick="openAddDriver()" style="width:100%; margin-bottom:6px">+ Persoană nouă</button>
-    <button class="btn btn-secondary btn-small" id="pinMgrBtn" onclick="openPinAdmin()" style="width:100%; margin-bottom:6px; display:none">🔐 Coduri PIN</button>
-    <button class="btn btn-secondary btn-small" id="loadBackupBtn" onclick="openBackupManager()" style="width:100%; margin-bottom:6px; display:none">🔄 Manager Backup / Restaurare</button>
-    <button class="btn btn-secondary btn-small" id="archiveBtn" onclick="openArchive()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">📦 Arhivă persoane</button>
-    <button class="btn btn-secondary btn-small" id="permissionsBtn" onclick="openPermissionsPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#0ea5e9; color:#0ea5e9">🔑 Permisiuni acces</button>
-    <button class="btn btn-secondary btn-small" id="importExcelBtn" onclick="document.getElementById('importExcelFile').click()" style="width:100%; margin-bottom:6px; display:none; border-color:#34d399; color:#34d399">📥 Import Excel → HTML</button>
-    <input type="file" id="importExcelFile" accept=".xlsx,.xlsm,.xls" style="display:none" multiple onchange="importExcelFile(event)">
-    <button class="btn btn-secondary btn-small" id="actLogBtn" onclick="openActivityLog()" style="width:100%; margin-bottom:6px; display:none; border-color:#818cf8; color:#818cf8">📋 Istoric activitate</button>
-    <button class="btn btn-secondary btn-small" id="excelStatusBtn" onclick="openExcelImportStatusPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📊 Status Import Excel</button>
-    <button class="btn btn-secondary btn-small" id="importAngajatiBtn" onclick="salOpenPending()" title="Persoanele noi din Angajați apar automat. Cele deja existente după nume așteaptă aprobarea ta. Dacă nu e nimic de aprobat, poți încărca manual un fișier." style="width:100%; margin-bottom:6px; display:none; border-color:#6366f1; color:#6366f1">📥 Angajați</button>
-    <button class="btn btn-secondary btn-small" id="dupAngajatiBtn" onclick="salOpenDupes()" title="Persoane existente în Concedii care au apărut și din Angajați cu nume complet" style="width:100%; margin-bottom:6px; display:none; border-color:#ef4444; color:#ef4444">🔀 Unește dubluri</button>
-    <button class="btn btn-secondary btn-small" id="absenceReportBtn" onclick="openAbsenceReport()" style="width:100%; margin-bottom:6px; display:none; border-color:#14b8a6; color:#14b8a6">🗓️ Raport absențe lunare</button>
-    <button class="btn btn-secondary btn-small" id="carryOverBtn" onclick="runCarryOverCalculation()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">🔄 Calculează report an nou</button>
-    <button class="btn btn-secondary btn-small" id="borrowedDaysBtn" onclick="openBorrowedDaysManager()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📌 Zile împrumutate din anul viitor</button>
-    <button class="btn btn-secondary btn-small" id="cleanStalePresenceBtn" onclick="cleanStaleSortPresence()" style="width:100%; margin-bottom:6px; display:none; border-color:#ef4444; color:#ef4444">🧹 Curăță prezențe reziduale (Sortatori)</button>
-    <button class="btn btn-secondary btn-small" id="cleanStalePlanBtn" onclick="cleanStalePlanificare()" style="width:100%; margin-bottom:6px; display:none; border-color:#ef4444; color:#ef4444">🧹 Curăță bife Planificare reziduale</button>
-    <button class="btn btn-secondary btn-small" id="postAnnouncementBtn" onclick="postNewAnnouncement()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">📢 Postează anunț pentru toți</button>
-    <button class="btn btn-secondary btn-small" id="verifyExcelBtn" onclick="document.getElementById('verifyExcelFile').click()" style="width:100%; margin-bottom:6px; display:none; border-color:#a78bfa; color:#a78bfa">📊 Verifică Excel vs HTML</button>
-    <input type="file" id="verifyExcelFile" accept=".xlsx,.xlsm,.xls" style="display:none" onchange="verifyExcelFile(event)">
-    <button class="btn btn-secondary btn-small" id="downloadBackupBtn" onclick="downloadBackupNow()" style="width:100%; margin-bottom:6px; display:none">💾 Descarcă backup acum</button>
-    <button class="btn btn-secondary btn-small" id="normalizeBtn" onclick="normalizeAllLeaves()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">🔧 Unește perioade consecutive</button>
-    <button class="btn btn-secondary btn-small" id="uploadBackupBtn" onclick="document.getElementById('uploadBackupFile').click()" style="width:100%; margin-bottom:6px; display:none">📂 Încarcă backup fișier</button>
-    <button class="btn btn-secondary btn-small" id="publishVersionBtn" onclick="publishNewVersion()" style="width:100%; margin-bottom:6px; display:none; border-color:#6366f1; color:#6366f1">🚀 Publică versiune nouă</button>
-    <input type="file" id="uploadBackupFile" accept=".json" style="display:none" onchange="uploadLocalBackup(event)">
+    <button class="btn btn-secondary btn-small" id="adminPanelBtn" onclick="openAdminPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#6366f1; color:#6366f1; font-weight:700">⚙️ Panou Admin</button>
 
     <div style="position:relative;margin-bottom:8px">
       <input type="text" id="searchDriver" placeholder="🔍 Caută persoană..." oninput="renderDrivers()" style="width:100%;padding-right:28px">
@@ -1462,6 +1439,37 @@
     <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('salImpModal')">Anulează</button><button class="btn btn-primary" onclick="salApplyImp()">Aplică persoanele aprobate</button></div>
   </div>
 </div>
+<div class="modal-bg" id="adminPanelModal">
+  <div class="modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
+    <h3>⚙️ Panou Admin</h3>
+    <div id="adminPanelGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:2px 10px;align-items:start">
+    <button class="btn btn-secondary btn-small" id="pinMgrBtn" onclick="openPinAdmin()" style="width:100%; margin-bottom:6px; display:none">🔐 Coduri PIN</button>
+    <button class="btn btn-secondary btn-small" id="loadBackupBtn" onclick="openBackupManager()" style="width:100%; margin-bottom:6px; display:none">🔄 Manager Backup / Restaurare</button>
+    <button class="btn btn-secondary btn-small" id="archiveBtn" onclick="openArchive()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">📦 Arhivă persoane</button>
+    <button class="btn btn-secondary btn-small" id="permissionsBtn" onclick="openPermissionsPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#0ea5e9; color:#0ea5e9">🔑 Permisiuni acces</button>
+    <button class="btn btn-secondary btn-small" id="importExcelBtn" onclick="document.getElementById('importExcelFile').click()" style="width:100%; margin-bottom:6px; display:none; border-color:#34d399; color:#34d399">📥 Import Excel → HTML</button>
+    <input type="file" id="importExcelFile" accept=".xlsx,.xlsm,.xls" style="display:none" multiple onchange="importExcelFile(event)">
+    <button class="btn btn-secondary btn-small" id="actLogBtn" onclick="openActivityLog()" style="width:100%; margin-bottom:6px; display:none; border-color:#818cf8; color:#818cf8">📋 Istoric activitate</button>
+    <button class="btn btn-secondary btn-small" id="excelStatusBtn" onclick="openExcelImportStatusPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📊 Status Import Excel</button>
+    <button class="btn btn-secondary btn-small" id="importAngajatiBtn" onclick="salOpenPending()" title="Persoanele noi din Angajați apar automat. Cele deja existente după nume așteaptă aprobarea ta. Dacă nu e nimic de aprobat, poți încărca manual un fișier." style="width:100%; margin-bottom:6px; display:none; border-color:#6366f1; color:#6366f1">📥 Angajați</button>
+    <button class="btn btn-secondary btn-small" id="dupAngajatiBtn" onclick="salOpenDupes()" title="Persoane existente în Concedii care au apărut și din Angajați cu nume complet" style="width:100%; margin-bottom:6px; display:none; border-color:#ef4444; color:#ef4444">🔀 Unește dubluri</button>
+    <button class="btn btn-secondary btn-small" id="absenceReportBtn" onclick="openAbsenceReport()" style="width:100%; margin-bottom:6px; display:none; border-color:#14b8a6; color:#14b8a6">🗓️ Raport absențe lunare</button>
+    <button class="btn btn-secondary btn-small" id="carryOverBtn" onclick="runCarryOverCalculation()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">🔄 Calculează report an nou</button>
+    <button class="btn btn-secondary btn-small" id="borrowedDaysBtn" onclick="openBorrowedDaysManager()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">📌 Zile împrumutate din anul viitor</button>
+    <button class="btn btn-secondary btn-small" id="cleanStalePresenceBtn" onclick="cleanStaleSortPresence()" style="width:100%; margin-bottom:6px; display:none; border-color:#ef4444; color:#ef4444">🧹 Curăță prezențe reziduale (Sortatori)</button>
+    <button class="btn btn-secondary btn-small" id="cleanStalePlanBtn" onclick="cleanStalePlanificare()" style="width:100%; margin-bottom:6px; display:none; border-color:#ef4444; color:#ef4444">🧹 Curăță bife Planificare reziduale</button>
+    <button class="btn btn-secondary btn-small" id="postAnnouncementBtn" onclick="postNewAnnouncement()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">📢 Postează anunț pentru toți</button>
+    <button class="btn btn-secondary btn-small" id="verifyExcelBtn" onclick="document.getElementById('verifyExcelFile').click()" style="width:100%; margin-bottom:6px; display:none; border-color:#a78bfa; color:#a78bfa">📊 Verifică Excel vs HTML</button>
+    <input type="file" id="verifyExcelFile" accept=".xlsx,.xlsm,.xls" style="display:none" onchange="verifyExcelFile(event)">
+    <button class="btn btn-secondary btn-small" id="downloadBackupBtn" onclick="downloadBackupNow()" style="width:100%; margin-bottom:6px; display:none">💾 Descarcă backup acum</button>
+    <button class="btn btn-secondary btn-small" id="normalizeBtn" onclick="normalizeAllLeaves()" style="width:100%; margin-bottom:6px; display:none; border-color:#f59e0b; color:#f59e0b">🔧 Unește perioade consecutive</button>
+    <button class="btn btn-secondary btn-small" id="uploadBackupBtn" onclick="document.getElementById('uploadBackupFile').click()" style="width:100%; margin-bottom:6px; display:none">📂 Încarcă backup fișier</button>
+    <button class="btn btn-secondary btn-small" id="publishVersionBtn" onclick="publishNewVersion()" style="width:100%; margin-bottom:6px; display:none; border-color:#6366f1; color:#6366f1">🚀 Publică versiune nouă</button>
+    <input type="file" id="uploadBackupFile" accept=".json" style="display:none" onchange="uploadLocalBackup(event)">
+    </div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('adminPanelModal')">Închide</button></div>
+  </div>
+</div>
 <div class="modal-bg" id="salDupModal">
   <div class="modal" style="max-width:760px;max-height:92vh;overflow-y:auto">
     <h3>🔀 Unește persoanele duble</h3>
@@ -1654,7 +1662,7 @@
       </label>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-secondary" id="archiveDriverBtn" onclick="archiveDriver(editingDriverId)" style="display:none;border-color:#8b5cf6;color:#8b5cf6">📦 Arhivează</button>
+      
       <button class="btn btn-secondary" onclick="closeModal('modalDriver')">Anulează</button>
       <button class="btn" onclick="saveDriver()">Salvează</button>
     </div>
@@ -3533,7 +3541,7 @@ function enterApp(userKey){
   if(libTabEis){ libTabEis.style.background = libereView==="eiselfing"?"var(--bg)":"transparent"; libTabEis.style.color = libereView==="eiselfing"?"var(--text)":"var(--text-dim)"; }
   if(libTabRuh){ libTabRuh.style.background = libereView==="ruhstorf"?"var(--bg)":"transparent"; libTabRuh.style.color = libereView==="ruhstorf"?"var(--text)":"var(--text-dim)"; }
 
-  document.getElementById("addDriverBtn").style.display = isAdm?"block":"none";
+  // „+ Persoană nouă” eliminat: persoanele se adaugă DOAR din Angajați (sincronizare automată)
   document.getElementById("pinMgrBtn").style.display   = isAdm?"block":"none";
 
   document.getElementById("authScreen").style.display = "none";
@@ -4065,7 +4073,7 @@ function openAddDriver(){
   if(_borrowInfoAdd) _borrowInfoAdd.style.display="none";
   ["visRaluca","visMadalina","visCorina"].forEach(id=>{ document.getElementById(id).checked=false; });
   document.getElementById("driverGroup").value="";
-  const _archBtn=document.getElementById("archiveDriverBtn"); if(_archBtn) _archBtn.style.display="none";
+  
   openModal("modalDriver");
   setTimeout(()=>document.getElementById("driverNameInput").focus(),50);
 }
@@ -4098,7 +4106,7 @@ function openEditDriver(id){
   // Grup: preferăm dr.group explicit; fallback la deducere din visibleTo (persoane nemigrate încă)
   const inferredGroup = dr.group || (vis.includes("raluca")?"ruhstorf":vis.includes("madalina")?"eiselfing":vis.includes("corina")?"camion":"");
   document.getElementById("driverGroup").value = inferredGroup;
-  const _archBtn=document.getElementById("archiveDriverBtn"); if(_archBtn) _archBtn.style.display="inline-block";
+  
   openModal("modalDriver");
   setTimeout(()=>document.getElementById("driverNameInput").focus(),50);
 }
@@ -4222,6 +4230,7 @@ function saveDriver(){
   closeModal("modalDriver");renderAll();scheduleSave();
 }
 function archiveDriver(id){
+  toast("Arhivarea se face automat din Angajați",true); return;
   if(!isAdmin()){toast("Doar Admin poate arhiva persoane",true);return;}
   const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
   if(!confirm("Arhivezi pe "+dr.name+"?\n\nVa dispărea complet din Sortatori și Libere Springeri (luna curentă și viitoare), iar în Concedii va dispărea din listele active. Istoricul rămâne salvat în Arhivă."))return;
@@ -4268,6 +4277,7 @@ function archiveDriver(id){
 }
 
 function unarchiveDriver(id){
+  toast("Restaurarea se face automat din Angajați",true); return;
   if(!isAdmin()){toast("Doar Admin poate restaura persoane",true);return;}
   const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
   delete dr.archived;
@@ -4508,7 +4518,7 @@ function renderArchiveList(){
           <option value="nu" ${paidVal==="nu"?"selected":""}>❌ Neplătit</option>
         </select>
       </td>
-      <td style="text-align:center;padding:4px 6px"><button class="btn btn-secondary btn-small" onclick="unarchiveDriver('${d.id}')" title="Restaurează în lista activă">↩️ Restaurează</button></td>
+      <td style="text-align:center;padding:4px 6px"><span style="font-size:11px;color:var(--text-dim)">din Angajați</span></td>
     </tr>`;
   });
   html+=`</tbody></table></div>`;
@@ -4525,6 +4535,7 @@ function setRemainingDaysPaid(id, value){
 }
 
 function deleteDriver(id){
+  toast("Ștergerea persoanelor nu mai e permisă — se face doar din Angajați (aici se arhivează automat)",true); return;
   if(!isAdmin()){toast("Doar Admin poate șterge persoane",true);return;}
   const dr=state.drivers.find(d=>d.id===id);if(!dr)return;
   if(!confirm("Ștergi "+dr.name+" și toate datele sale?"))return;
@@ -5041,7 +5052,7 @@ function renderDrivers(){
     const u=usedDaysThisYear(dr,"unpaid",viewedYear);
     if(k>0||u>0){
       extraHtml=`<div style="margin-top:3px;font-size:10px;color:var(--text-dim);">${k>0?`<span style="color:rgba(147,197,253,0.9)">🤒 ${k}z krank</span>`:""}${k>0&&u>0?" · ":""}${u>0?`<span style="color:rgba(253,186,116,0.9)">⛔ ${u}z f.plată</span>`:""}</div>`;
-    }    const editBtns=canAdmin?`<div class="driver-actions"><button class="icon-btn" onclick="openEditDriver('${dr.id}')" title="Editează">✏️</button><button class="icon-btn" onclick="deleteDriver('${dr.id}')" title="Șterge">🗑</button></div>`:"";
+    }    const editBtns=canAdmin?`<div class="driver-actions"><button class="icon-btn" onclick="openEditDriver('${dr.id}')" title="Editează">✏️</button></div>`:"";
     return `<div class="driver-item" style="flex-direction:column;align-items:stretch;gap:0;padding:8px 10px">
       <div style="display:flex;align-items:center;justify-content:space-between">
         <span class="driver-name" onclick="openLeaveModal('${dr.id}','leaves')">${salDot(!!dr.angajatiId)}${escapeHtml(dr.name)}</span>
@@ -6768,19 +6779,12 @@ function salRenderEmployees(){
   const list=[...salEmps].sort((a,b)=>a.name.localeCompare(b.name,"ro"));
   const unl=list.filter(e=>!salFindDriver(e)&&e.active!==false);
   document.getElementById("salEmpBody").innerHTML=`
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-      <button class="btn-sm" onclick="salSeed()" style="padding:5px 10px;border:1px solid #6366f1;color:#6366f1;background:none;border-radius:6px;cursor:pointer;font-size:12px">⭐ Preia lista din Excelul de exemplu (72)</button>
-      <button onclick="document.getElementById('salEmpFile').click()" style="padding:5px 10px;border:1px solid var(--border);background:var(--bg-elev-2);color:var(--text);border-radius:6px;cursor:pointer;font-size:12px">📥 Preia din Angajați (Excel/JSON) — cu aprobare</button>
-      <input id="salEmpFile" type="file" accept=".xlsx,.xls,.xlsm,.csv,.json" style="display:none" onchange="salEmpFileImport(this)">
-      ${unl.length?`<span style="display:inline-flex;gap:4px;align-items:center"><select id="salNewGroup" style="padding:4px;font-size:12px"><option value="eiselfing">Eiselfing</option><option value="ruhstorf">Ruhstorf</option><option value="camion">Camion</option><option value="paketshop">Paketshop</option><option value="sortat">Sortat</option></select><button onclick="salCreateInConcedii()" style="padding:5px 10px;border:1px solid #10b981;color:#10b981;background:none;border-radius:6px;cursor:pointer;font-size:12px">➕ Creează în Concedii (${unl.length} lipsă)</button></span>`:""}
-    </div>
-    <div style="display:flex;gap:6px;margin-bottom:10px"><input id="salNewName" placeholder="Nume angajat nou (Nume Prenume)" style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-elev-2);color:var(--text)" onkeydown="if(event.key==='Enter')salAddEmp()"><button onclick="salAddEmp()" style="padding:6px 12px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer">Adaugă</button></div>
-    <div style="max-height:50vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:4px">Nume</th><th>Tip implicit</th><th>În Concedii</th><th>Activ</th><th></th></tr></thead><tbody>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px">🔄 Angajații se preiau <b>automat din Angajați</b> (adăugare, ștergere, redenumire, activ/inactiv). Aici setezi doar tipul de salarizare.</div>
+    <div style="max-height:50vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:4px">Nume</th><th>Tip implicit</th><th>În Concedii</th><th>Status</th></tr></thead><tbody>
     ${list.map(e=>`<tr style="border-top:1px solid var(--border);${e.active===false?"opacity:.5":""}"><td style="padding:3px 4px">${escapeHtml(e.name)}</td>
       <td><select onchange="salEmpSet('${e.id}','type',this.value)" style="font-size:12px">${Object.keys(SAL_TYPES).map(t=>`<option value="${t}" ${t===(e.type||"fix")?"selected":""}>${SAL_TYPES[t]}</option>`).join("")}</select></td>
       <td style="text-align:center">${salFindDriver(e)?"✅":"⚠️"}</td>
-      <td style="text-align:center"><input type="checkbox" ${e.active===false?"":"checked"} onchange="salEmpSet('${e.id}','active',this.checked)"></td>
-      <td><button onclick="salEmpDel('${e.id}')" title="Șterge" style="background:none;border:none;cursor:pointer;color:#ef4444">🗑️</button></td></tr>`).join("")}
+      <td style="text-align:center;font-size:11px">${e.active===false?"Inactiv":"Activ"}</td></tr>`).join("")}
     </tbody></table></div>`;
 }
 function salEmpSet(id,f,v){
@@ -6981,15 +6985,36 @@ async function salApplyDupes(){
   renderAll(); scheduleSave(); closeModal("salDupModal"); salUpdatePendingBtn(); if(appMode==="salarii") renderSalarii();
   toast("✓ "+n+" persoane unite — istoricul păstrat");
 }
+
+// ---- Panou Admin: toate butoanele de administrare sunt într-un singur meniu ----
+function openAdminPanel(){ try{ salUpdatePendingBtn(); }catch(e){} document.getElementById("adminPanelModal").classList.add("show"); }
+function updateAdminPanelBtn(){
+  const g=document.getElementById("adminPanelGrid"), pb=document.getElementById("adminPanelBtn"); if(!g||!pb) return;
+  const any=[...g.querySelectorAll("button")].some(b=>b.style.display!=="none");
+  pb.style.display=any?"block":"none";
+  const n=(typeof salPending!=="undefined"?salPending.length:0);
+  pb.textContent="⚙️ Panou Admin"+(n?" — "+n+" de aprobat":"");
+  pb.style.borderColor=n?"#f59e0b":"#6366f1"; pb.style.color=n?"#f59e0b":"#6366f1";
+}
+(function(){
+  const init=()=>{
+    const g=document.getElementById("adminPanelGrid"); if(!g) return;
+    new MutationObserver(updateAdminPanelBtn).observe(g,{attributes:true,attributeFilter:["style"],subtree:true,childList:true});
+    g.addEventListener("click",e=>{ if(e.target.closest("button")) setTimeout(()=>closeModal("adminPanelModal"),0); });
+    updateAdminPanelBtn();
+  };
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init); else init();
+})();
 function salUpdatePendingBtn(){
   const b=document.getElementById("importAngajatiBtn"); if(!b) return;
   b.textContent="📥 Angajați"+(salPending.length?" — "+salPending.length+" de aprobat":" (sincronizat)");
   b.style.borderColor=salPending.length?"#f59e0b":"#6366f1"; b.style.color=salPending.length?"#f59e0b":"#6366f1";
   const db2=document.getElementById("dupAngajatiBtn");
   if(db2){ const nd=isAdmin()&&state.drivers&&state.drivers.length?salFindDupes().length:0; db2.style.display=(nd&&b.style.display!=="none")?"block":"none"; db2.textContent="🔀 Unește dubluri ("+nd+")"; }
+  try{ updateAdminPanelBtn(); }catch(e){}
 }
 function salOpenPending(){
-  if(!salPending.length){ salEmpFileImportPick(); return; }
+  if(!salPending.length){ toast("✓ Totul e sincronizat automat din Angajați — nimic de aprobat"); return; }
   _salImp=salPending.map(x=>({...x})); salRenderImp(); document.getElementById("salImpModal").classList.add("show");
 }
 function salParseDate(v){
@@ -10880,7 +10905,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.16-10";
+const APP_VERSION = "2026.10.16-13";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12224,7 +12249,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.16-10</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.16-13</div>
 
 </body>
 </html>
