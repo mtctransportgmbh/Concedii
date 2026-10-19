@@ -1,10 +1,10 @@
 {
   "version": 5,
   "year": 2026,
-  "savedAt": "2026-10-19T14:32:22.545Z",
+  "savedAt": "2026-10-19T17:17:36.706Z",
   "date": "2026-10-19",
-  "time": "17:32",
-  "slot": "sched14",
+  "time": "20:17",
+  "slot": "sched17",
   "savedBy": "github-actions-silent",
   "driverCount": 103,
   "thresholds": {
