@@ -60,6 +60,8 @@ async function fetchAll(){
     archived: d.archived || false,
     archivedAt: d.archivedAt || null,
     group: d.group || null,
+    angajatiId: d.angajatiId || null,
+    autoSync: d.autoSync || false,
     leaves: d.leaves || [],
     krankLeaves: d.krankLeaves || [],
     unpaidLeaves: d.unpaidLeaves || [],
@@ -91,6 +93,11 @@ async function fetchAll(){
     if(pl.exists && pl.data() && Object.keys(pl.data()).length>0) planificare=pl.data();
   }catch(e){console.warn('planificare:',e.message);}
 
+  let salarii=null;
+  try{
+    const sl=await withRetry(()=>db.collection('salarii').get(),'salarii');
+    if(sl && !sl.empty){ salarii={}; sl.forEach(d=>{ salarii[d.id]=d.data(); }); }
+  }catch(e){console.warn('salarii:',e.message);}
   let libere=null;
   try{
     const lb=await db.collection('libere').doc('state').get();
@@ -152,7 +159,7 @@ async function fetchAll(){
   const libCount=libere?Object.keys(libere.persons||{}).length:0;
   console.log(`Sortatori: ${sortCount}, Prezente luni: ${prezCount}, Planificare saptamani: ${planCount}, Libere luni: ${libCount}`);
 
-  return {version:5,year:YEAR,savedAt:now.toISOString(),date:dateStr,time:timeStr,savedBy:'github-actions',driverCount:allDriversFull.length,thresholds:concedii['tania']?.thresholds||{warn:3,crit:5},drivers:allDriversFull,prezente:prezente||{},sortatori,planificare,libere,pins,permissions,excelImportStatus,backupDiffSettings,planificareWarnings,calendarReminders,_raw_concedii:concedii};
+  return {version:5,year:YEAR,savedAt:now.toISOString(),date:dateStr,time:timeStr,savedBy:'github-actions',driverCount:allDriversFull.length,thresholds:concedii['tania']?.thresholds||{warn:3,crit:5},drivers:allDriversFull,prezente:prezente||{},sortatori,planificare,libere,salarii:salarii||undefined,pins,permissions,excelImportStatus,backupDiffSettings,planificareWarnings,calendarReminders,_raw_concedii:concedii};
 }
 
 // ── Ultimul backup salvat (din app, la 06/14/22 sau la modificari) ──
@@ -347,17 +354,8 @@ async function saveToFirestore(backup){
 // direct în repository — infrastructură total independentă. Chiar dacă
 // email-ul eșuează, datele tot se salvează sigur, în 2 locuri diferite.
 function saveToRepoFiles(backup){
-  const fs = require('fs');
-  const path = require('path');
-  const dir = path.join(__dirname, '..', 'backups');
-  const histDir = path.join(dir, 'history');
-  fs.mkdirSync(histDir, { recursive: true });
-
-  const json = JSON.stringify(backup, null, 2);
-  fs.writeFileSync(path.join(dir, 'latest.json'), json);
-  const histName = `${backup.date}_2200.json`;
-  fs.writeFileSync(path.join(histDir, histName), json);
-  console.log(`✅ Backup scris local: backups/latest.json + backups/history/${histName}`);
+  // Criptat (AES-256) și scris DOAR în repo-ul privat de backup — niciodată text clar în repo-ul public.
+  require('./backup-crypto').writeEncryptedBackup(backup, `${backup.date}_2200`);
 }
 
 
