@@ -9756,25 +9756,6 @@ async function compareGithubBackup(i){
   await showBackupDiff(0);
 }
 
-async function previewGithubBackup(i){
-  const f = _githubFileList[i];
-  if(!f) return;
-  document.getElementById("backupManagerList").innerHTML='<div style="color:var(--text-dim);padding:20px;text-align:center">⏳ Se descarcă '+escapeHtml(f.name)+'...</div>';
-  try{
-    const res = await fetch(f.download_url);
-    if(!res.ok) throw new Error("Nu pot descărca fișierul ("+res.status+")");
-    const data = await res.json();
-    // Refolosim exact fluxul de preview/restaurare existent (Firestore),
-    // punând conținutul descărcat din GitHub în aceeași structură.
-    _backupDocs = [data];
-    document.getElementById("backupManagerList").style.display="block";
-    previewBackup(0);
-  }catch(e){
-    toast("Eroare la descărcare: "+e.message,true);
-    renderGithubBackupList();
-  }
-}
-
 function renderBackupList(){
   let html="";
   _backupDocs.forEach((bd,i)=>{
@@ -10944,7 +10925,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.21-03";
+const APP_VERSION = "2026.10.21-04";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12288,7 +12269,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.21-03</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.21-04</div>
 
 </body>
 </html>
