@@ -2771,6 +2771,7 @@ function buildCompleteBackup(){
       group: dr.group||null,
       angajatiId: dr.angajatiId||null,
       autoSync: dr.autoSync||false,
+      visManual: dr.visManual||false,
       startDate:     dr.startDate||null,
       endDate:       dr.endDate||null,
       archived:      dr.archived||false,
@@ -4076,7 +4077,7 @@ function isDriverActiveOnDay(dr, d){
 function salLockDriverForm(dr){
   const linked=!!(dr&&dr.angajatiId), auto=!!(dr&&dr.autoSync);
   ["driverNameInput","driverStartDate","driverEndDate"].forEach(id=>{ const el=document.getElementById(id); if(el){ el.readOnly=linked; el.disabled=false; if(["driverStartDate","driverEndDate"].includes(id)) el.disabled=linked; el.style.opacity=linked?"0.6":""; el.title=linked?"Se modifică doar din aplicația Angajați":""; } });
-  ["driverGroup","visRaluca","visMadalina","visCorina"].forEach(id=>{ const el=document.getElementById(id); if(el){ el.disabled=auto; el.title=auto?"Vine din Angajați (coordonator)":""; } });
+  ["driverGroup","visRaluca","visMadalina","visCorina"].forEach(id=>{ const el=document.getElementById(id); if(el){ el.disabled=false; el.title=auto?"Implicit vine din coordonator/grupă (Angajați); dacă îl schimbi aici, rămâne cum ai setat":""; } });
   const t=document.getElementById("modalDriverTitle"); if(t&&linked) t.textContent+=" 🔗 (nume și date din Angajați)";
 }
 function openAddDriver(){
@@ -4217,7 +4218,10 @@ function saveDriver(){
     const dr=state.drivers.find(d=>d.id===editingDriverId);
     if(dr){
       if(dr.angajatiId){ name=dr.name; startDate=dr.startDate||null; endDate=dr.endDate||null; }
-      if(dr.autoSync){ group=dr.group||null; visibleTo=dr.visibleTo||["tania"]; }
+      if(dr.autoSync){ // vizibilitatea/grupa schimbate manual de Admin rămân (nu le mai suprascrie sincronizarea)
+        const a=JSON.stringify([...(dr.visibleTo||[])].sort()), b=JSON.stringify([...visibleTo].sort());
+        if(a!==b) dr.visManual=true;
+      }
       const oldEndDate=dr.endDate||null;
       dr.name=name; dr.maxDays=maxDays; dr.visibleTo=visibleTo;
       if(maxDaysOverride) dr.maxDaysOverride=true; else delete dr.maxDaysOverride;
@@ -6874,7 +6878,12 @@ function salRenameEverywhere(pairs){
   if(cPlan) try{ savePlanState(); }catch(e){}
   try{ logActivity("✏️ Redenumire din Angajați",pairs.map(p=>p[0]+" → "+p[1]).join("; ").slice(0,200),"sincronizare","concedii"); }catch(e){}
 }
-function salCoordVis(c){ c=String(c||"").toLowerCase(); return ["raluca","madalina","corina"].includes(c)?[c,"tania"]:["tania"]; }
+function salCoordVis(c,g){ // coordonatorul din Angajați; dacă e „neatribuit”, cădem pe grupa persoanei (Ruhstorf→Raluca, Eiselfing→Mădălina, Camion→Corina)
+  c=String(c||"").toLowerCase().trim();
+  if(["raluca","madalina","corina"].includes(c)) return [c,"tania"];
+  const byG={ruhstorf:"raluca",eiselfing:"madalina",camion:"corina"}[g||""];
+  return byG?[byG,"tania"]:["tania"];
+}
 function salGroupFor(it){ // grupa în Concedii: din coordonator, apoi din rol/depozit
   const c=String(it.coord||"").toLowerCase(); if(c==="madalina") return "eiselfing"; if(c==="raluca") return "ruhstorf"; if(c==="corina") return "camion";
   const rl=normalizeForSearch((it.roluri||[]).join(",")); if(rl.includes("camion")) return "camion";
@@ -6882,7 +6891,7 @@ function salGroupFor(it){ // grupa în Concedii: din coordonator, apoi din rol/d
 }
 function salNewDriver(it,item){
   const g=salGroupFor(it);
-  const nd={id:uid(),name:item.name,leaves:[],krankLeaves:[],unpaidLeaves:[],specialLeaves:[],maxDays:24,carryOverDays:0,visibleTo:salCoordVis(it.coord),group:g,angajatiId:item.aid,autoSync:true};
+  const nd={id:uid(),name:item.name,leaves:[],krankLeaves:[],unpaidLeaves:[],specialLeaves:[],maxDays:24,carryOverDays:0,visibleTo:salCoordVis(it.coord,g),group:g,angajatiId:item.aid,autoSync:true};
   if(item.start) nd.startDate=item.start;
   if(item.end) nd.endDate=item.end; else if(item.inactive){ nd.archived=true; nd.archivedAt=new Date().toISOString(); }
   return nd;
@@ -6909,7 +6918,7 @@ function salProcessSync(){
         if(item.start&&dr.startDate!==item.start){ dr.startDate=item.start; chD=true; }
         if(item.end&&dr.endDate!==item.end){ dr.endDate=item.end; chD=true; }
         if(dr.archived&&dr.archivedBySync&&active){ dr.archived=false; delete dr.archivedAt; delete dr.archivedBySync; chD=true; } // era arhivată de sincronizare, acum e din nou în Angajați
-        if(dr.autoSync){ const vis=salCoordVis(it.coord); if(!same(dr.visibleTo,vis)){ dr.visibleTo=vis; chD=true; } }
+        if(dr.autoSync&&!dr.visManual){ const vis=salCoordVis(it.coord,dr.group||salGroupFor(it)); if(!same(dr.visibleTo,vis)){ dr.visibleTo=vis; chD=true; } }
         if(dr.name!==name&&!(state.drivers||[]).some(d=>d!==dr&&d.name===name)){ renames.push([dr.name,name]); dr.name=name; chD=true; }
       }
       if(!emp&&active){ emp={id:uid(),name:dr.name,type:"fix",active:true,angajatiId:aid}; salEmps.push(emp); chE=true; }
@@ -10925,7 +10934,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.20-01";
+const APP_VERSION = "2026.10.21-01";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12269,7 +12278,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.20-01</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.21-01</div>
 
 </body>
 </html>
