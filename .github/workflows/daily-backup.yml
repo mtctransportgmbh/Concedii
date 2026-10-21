@@ -1,4 +1,4 @@
-name: MTC Daily Backup
+name: MTC Daily Backup  # v2 — backup CRIPTAT, salvat doar în repo PRIVAT
 
 on:
   schedule:
@@ -27,7 +27,7 @@ on:
           - 'full'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   backup:
@@ -43,6 +43,30 @@ jobs:
         with:
           node-version: '24'
 
+      # ── Backup-ul NU mai ajunge în repo-ul public. Se salvează criptat într-un repo PRIVAT separat. ──
+      - name: Verifică secretele și că repo-ul de backup e PRIVAT
+        env:
+          BACKUP_REPO: ${{ secrets.BACKUP_REPO }}
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          [ -n "$BACKUP_REPO" ] || { echo "::error::Lipsește secretul BACKUP_REPO (ex: mtctransportgmbh/mtc-concedii-backup)"; exit 1; }
+          [ -n "$BACKUP_REPO_TOKEN" ] || { echo "::error::Lipsește secretul BACKUP_REPO_TOKEN"; exit 1; }
+          [ ${#BACKUP_ENCRYPTION_KEY} -ge 24 ] || { echo "::error::BACKUP_ENCRYPTION_KEY lipsește sau e sub 24 de caractere"; exit 1; }
+          PRIV=$(curl -fsS -H "Authorization: Bearer $BACKUP_REPO_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$BACKUP_REPO" | python3 -c "import sys,json;print(json.load(sys.stdin).get('private'))")
+          if [ "$PRIV" != "True" ]; then
+            echo "::error::Repo-ul de backup ($BACKUP_REPO) este PUBLIC. Fă-l privat în GitHub (Settings → Danger Zone → Change visibility). Backup oprit."
+            exit 1
+          fi
+          echo "✅ Repo-ul de backup este privat."
+
+      - name: Checkout repo PRIVAT de backup
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.BACKUP_REPO }}
+          token: ${{ secrets.BACKUP_REPO_TOKEN }}
+          path: private-backup
+
       - name: Install dependencies
         run: npm install firebase-admin@12 nodemailer
 
@@ -53,42 +77,43 @@ jobs:
           CURRENT_H=$(date -u +%H)
           if [ "$INPUT_SLOT" = "full" ] || [ "$CURRENT_H" = "19" ]; then
             echo "type=full" >> "$GITHUB_OUTPUT"
-            echo "Rulare COMPLETĂ (Firestore + fișier local + email)"
+            echo "Rulare COMPLETĂ (Firestore + fișier criptat + email)"
           else
             echo "type=silent" >> "$GITHUB_OUTPUT"
-            echo "Rulare silențioasă (Firestore + fișier local, fără email) — ora UTC: $CURRENT_H"
+            echo "Rulare silențioasă (Firestore + fișier criptat, fără email) — ora UTC: $CURRENT_H"
           fi
 
       - name: Silent backup (Firestore + fișier local)
         if: steps.slot.outputs.type == 'silent'
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+          BACKUP_OUT_DIR: ${{ github.workspace }}/private-backup/backup
         run: node scripts/backup-silent.js $(date -u +%H)
 
-      - name: Full backup (Firestore + fișier local + email)
+      - name: Full backup (Firestore + fișier criptat + email)
         if: steps.slot.outputs.type == 'full'
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+          BACKUP_OUT_DIR: ${{ github.workspace }}/private-backup/backup
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
         run: node scripts/backup.js
 
-      # Pas critic pentru siguranța datelor: comitem fișierele de backup
-      # DIRECT în repository-ul GitHub — o infrastructură complet separată
-      # de Firebase. Dacă proiectul Firebase ar dispărea vreodată complet
-      # (cont compromis, ștergere accidentală, problemă de facturare),
-      # istoricul COMPLET al tuturor backup-urilor rămâne intact în git,
-      # recuperabil oricând, pentru totdeauna (git nu uită nimic).
-      - name: Commit backup files to repo
+      # Comitem fișierele CRIPTATE în repo-ul PRIVAT de backup (infrastructură separată de Firebase).
+      # Repo-ul public (codul site-ului) nu primește niciun fișier de backup.
+      - name: Commit backup criptat în repo-ul privat
+        working-directory: private-backup
         run: |
           git config user.name "MTC Backup Bot"
           git config user.email "actions@github.com"
-          git add backups/
+          git add -A backup
           if git diff --staged --quiet; then
             echo "Niciun fișier de backup nou de comis."
           else
-            git commit -m "🔒 Backup automat $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git commit -m "🔒 Backup criptat $(date -u +'%Y-%m-%d %H:%M UTC')"
             git push
-            echo "✅ Backup comis în repository."
+            echo "✅ Backup criptat comis în repo-ul privat."
           fi
