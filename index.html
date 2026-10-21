@@ -1240,7 +1240,6 @@
         <button id="modSortatori" class="mod-tab" data-color="indigo" onclick="setAppMode('sortatori')" style="display:none"><span class="mod-tab-icon">📦</span>Sortatori</button>
         <button id="modPlanificare" class="mod-tab" data-color="green" onclick="setAppMode('planificare')" style="display:none"><span class="mod-tab-icon">🗓️</span>Planificare</button>
         <button id="modLibere" class="mod-tab" data-color="red" onclick="setAppMode('libere')" style="display:none"><span class="mod-tab-icon">🏠</span>Libere Springeri</button>
-        <button id="modSalarii" class="mod-tab" data-color="green" onclick="setAppMode('salarii')" style="display:none"><span class="mod-tab-icon">💶</span>Salarii</button>
       </div>
     </div>
     <div id="concediiModule">
@@ -1439,6 +1438,27 @@
     <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('salImpModal')">Anulează</button><button class="btn btn-primary" onclick="salApplyImp()">Aplică persoanele aprobate</button></div>
   </div>
 </div>
+<!-- Panou lateral ascuns pentru Salarii (doar Admin / Tania) -->
+<div id="secretHandle" onclick="toggleSecretDrawer()" title="Panou ascuns" style="display:none;position:fixed;right:0;top:45%;z-index:900;width:14px;height:64px;background:var(--border);opacity:.35;border-radius:8px 0 0 8px;cursor:pointer;transition:opacity .2s,width .2s" onmouseenter="this.style.opacity=.9;this.style.width='20px'" onmouseleave="this.style.opacity=.35;this.style.width='14px'"></div>
+<div id="secretDrawer" style="position:fixed;right:-260px;top:0;bottom:0;width:240px;z-index:950;background:var(--bg-elev);border-left:1px solid var(--border);box-shadow:-6px 0 24px rgba(0,0,0,.25);padding:18px 14px;transition:right .25s;display:flex;flex-direction:column;gap:10px">
+  <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim)"><span>Panou ascuns</span><button onclick="toggleSecretDrawer(false)" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px">✕</button></div>
+<button id="modSalarii" class="mod-tab" data-color="green" onclick="setAppMode('salarii');toggleSecretDrawer(false)" style="display:none;width:100%;justify-content:flex-start"><span class="mod-tab-icon">💶</span>Salarii</button>
+</div>
+<script>
+function toggleSecretDrawer(force){
+  const d=document.getElementById("secretDrawer"); if(!d) return;
+  const open=force===undefined?d.style.right!=="0px":!!force;
+  d.style.right=open?"0px":"-260px";
+}
+document.addEventListener("click",e=>{ const d=document.getElementById("secretDrawer"); if(d&&d.style.right==="0px"&&!d.contains(e.target)&&e.target.id!=="secretHandle") toggleSecretDrawer(false); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") toggleSecretDrawer(false); });
+(function(){
+  const init=()=>{ const m=document.getElementById("modSalarii"),h=document.getElementById("secretHandle"); if(!m||!h) return;
+    const upd=()=>{ h.style.display=m.style.display==="none"?"none":"block"; };
+    new MutationObserver(upd).observe(m,{attributes:true,attributeFilter:["style"]}); upd(); };
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init); else init();
+})();
+</script>
 <div class="modal-bg" id="adminPanelModal">
   <div class="modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
     <h3>⚙️ Panou Admin</h3>
@@ -10905,7 +10925,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.16-13";
+const APP_VERSION = "2026.10.20-01";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12249,7 +12269,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.16-13</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.20-01</div>
 
 </body>
 </html>
