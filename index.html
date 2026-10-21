@@ -3801,11 +3801,13 @@ function usedDaysThisYear(dr, type, year){
 // din aplicație unde se scrie una din aceste stări (drag, modal, import,
 // rezolvare conflict), indiferent de user.
 // ============================================================
+// Data de plecare „efectivă”: o plecare ANTERIOARĂ datei de angajare = plecare veche (persoană reangajată) → se ignoră.
+function dEnd(dr){ return (dr.endDate && !(dr.startDate && dr.endDate<dr.startDate)) ? dr.endDate : null; }
 function checkDateRangeConflict(dr, startStr, endStr, excludeType){
   // Blocaj de contract: nicio zi din interval nu poate cădea LA sau DUPĂ
   // data de plecare (endDate), nici înainte de data de angajare (startDate).
-  if(dr.endDate && endStr>=dr.endDate){
-    return {conflict:true, type:"contract", label:"După data de plecare ("+dr.endDate+")"};
+  if(dEnd(dr) && endStr>=dEnd(dr)){
+    return {conflict:true, type:"contract", label:"După data de plecare ("+dEnd(dr)+")"};
   }
   if(dr.startDate && startStr<dr.startDate){
     return {conflict:true, type:"contract", label:"Înainte de data de angajare ("+dr.startDate+")"};
@@ -4047,15 +4049,15 @@ function canEdit(){return isAdmin()||hasModuleEdit(window.activeUserKey||"","con
 
 // Verifică dacă persoana e activă (contractul activ) într-o lună
 function isDriverActiveInMonth(dr, y, m){
-  if(!dr.startDate && !dr.endDate) return true;
+  if(!dr.startDate && !dEnd(dr)) return true;
   const monthStart = new Date(y, m, 1);
   const monthEnd   = new Date(y, m+1, 0);
   if(dr.startDate){
     const sd = parseDate(dr.startDate);
     if(sd > monthEnd) return false; // nu a început încă
   }
-  if(dr.endDate){
-    const ed = parseDate(dr.endDate);
+  if(dEnd(dr)){
+    const ed = parseDate(dEnd(dr));
     if(ed < monthStart) return false; // deja plecat
   }
   return true;
@@ -4064,9 +4066,9 @@ function isDriverActiveInMonth(dr, y, m){
 // Verifică dacă o zi specifică e în intervalul contractului — INCLUSIV
 // ziua de plecare (endDate) e deja considerată INACTIVĂ, nu doar ziua de după
 function isDriverActiveOnDay(dr, d){
-  if(!dr.startDate && !dr.endDate) return true;
+  if(!dr.startDate && !dEnd(dr)) return true;
   if(dr.startDate && d < parseDate(dr.startDate)) return false;
-  if(dr.endDate   && d >= parseDate(dr.endDate))  return false;
+  if(dEnd(dr)     && d >= parseDate(dEnd(dr)))  return false;
   return true;
 }
 // ============================================================
@@ -6916,8 +6918,10 @@ function salProcessSync(){
       if(adm){
         // persoană legată de Angajați → nume și date vin DOAR de acolo (în Concedii sunt blocate)
         if(item.start&&dr.startDate!==item.start){ dr.startDate=item.start; chD=true; }
-        if(item.end&&dr.endDate!==item.end){ dr.endDate=item.end; chD=true; }
-        if(dr.archived&&dr.archivedBySync&&active){ dr.archived=false; delete dr.archivedAt; delete dr.archivedBySync; chD=true; } // era arhivată de sincronizare, acum e din nou în Angajați
+        { // data plecării = exact ca în Angajați; la reangajare (fără plecare, sau plecare mai veche decât angajarea) se șterge
+          const effEnd=(item.end&&!(item.start&&item.end<item.start))?item.end:"";
+          if((dr.endDate||"")!==effEnd){ if(effEnd) dr.endDate=effEnd; else delete dr.endDate; chD=true; } }
+        if(dr.archived&&active&&(dr.archivedBySync||dr.angajatiId)){ dr.archived=false; delete dr.archivedAt; delete dr.archivedBySync; chD=true; } // era arhivată de sincronizare, acum e din nou în Angajați
         if(dr.autoSync&&!dr.visManual){ const vis=salCoordVis(it.coord,dr.group||salGroupFor(it)); if(!same(dr.visibleTo,vis)){ dr.visibleTo=vis; chD=true; } }
         if(dr.name!==name&&!(state.drivers||[]).some(d=>d!==dr&&d.name===name)){ renames.push([dr.name,name]); dr.name=name; chD=true; }
       }
@@ -9682,68 +9686,74 @@ async function loadFirestoreBackupList(){
 
 // ── Sursă GitHub: infrastructură complet separată de Firebase, cea mai
 // sigură variantă în caz de dezastru total pe Firestore ──
-async function loadGithubBackupList(){
-  document.getElementById("backupManagerSub").textContent="Se încarcă din GitHub...";
-  document.getElementById("backupManagerList").innerHTML='<div style="color:var(--text-dim);padding:20px;text-align:center">⏳ Se încarcă din GitHub...</div>';
-  try{
-    const {owner, repo} = getGitHubRepoInfo();
-    if(!owner || !repo) throw new Error("Nu pot detecta automat repository-ul din URL");
-    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/backups/history`);
-    if(res.status===404){
-      document.getElementById("backupManagerList").innerHTML='<div style="color:var(--text-dim);padding:20px;text-align:center">Nu există încă backup-uri în GitHub — folderul <code>backups/history</code> apare după prima rulare automată.</div>';
-      document.getElementById("backupManagerSub").textContent="0 backup-uri din GitHub";
-      return;
-    }
-    if(!res.ok) throw new Error("GitHub API a răspuns cu eroare "+res.status);
-    const files = await res.json();
-    _githubFileList = files.filter(f=>f.name.endsWith(".json")).sort((a,b)=>b.name.localeCompare(a.name));
-    document.getElementById("backupManagerSub").textContent=_githubFileList.length+" backup-uri în repository-ul GitHub ("+owner+"/"+repo+") — istoric complet, infrastructură separată de Firebase";
-    renderGithubBackupList();
-  }catch(e){
-    document.getElementById("backupManagerList").innerHTML='<div style="color:var(--red);padding:20px">Eroare la accesarea GitHub: '+escapeHtml(e.message)+'</div>';
-  }
+// ── Backup criptat din GitHub (repo PRIVAT). Browserul nu poate citi repo-ul privat (ar necesita token în pagină),
+// așa că descarci fișierele .enc din GitHub și le deschizi aici cu cheia de criptare — decriptarea se face LOCAL în browser. ──
+let _bkKeyMem="";
+async function bkDecryptEnc(text, keyStr){
+  const o=JSON.parse(text);
+  const keyBytes=await crypto.subtle.digest("SHA-256", new TextEncoder().encode("mtc-backup-v1|"+keyStr.trim()));
+  const key=await crypto.subtle.importKey("raw", keyBytes, {name:"AES-GCM"}, false, ["decrypt"]);
+  const b64=x=>Uint8Array.from(atob(x),c=>c.charCodeAt(0));
+  const plain=await crypto.subtle.decrypt({name:"AES-GCM", iv:b64(o.n), additionalData:new TextEncoder().encode("mtc-backup-v1")}, key, b64(o.c));
+  let buf=new Uint8Array(plain);
+  if(o.z){ const ds=new DecompressionStream("deflate"); const out=await new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer(); buf=new Uint8Array(out); }
+  return JSON.parse(new TextDecoder().decode(buf));
 }
-
-function renderGithubBackupList(){
-  if(_githubFileList.length===0){
-    document.getElementById("backupManagerList").innerHTML='<div style="color:var(--text-dim);padding:20px;text-align:center">Niciun fișier de backup găsit.</div>';
-    return;
+async function loadGithubBackupList(){
+  document.getElementById("backupManagerSub").textContent="Backup criptat din GitHub (repo privat) — decriptare locală";
+  renderGithubBackupList();
+}
+async function bkOpenEncFiles(inp){
+  const files=[...inp.files]; inp.value=""; if(!files.length) return;
+  const keyEl=document.getElementById("bkEncKey"); const k=(keyEl&&keyEl.value.trim())||_bkKeyMem;
+  if(!k||k.length<24){ toast("Introdu cheia de criptare (BACKUP_ENCRYPTION_KEY, minim 24 de caractere)",true); return; }
+  _bkKeyMem=k;
+  const out=[]; let bad=0;
+  for(const f of files){
+    try{ const data=await bkDecryptEnc(await f.text(), k); out.push({name:f.name,data}); }
+    catch(e){ bad++; console.warn("decriptare",f.name,e); }
   }
-  let html="";
+  if(bad) toast("❌ "+bad+" fișier(e) nu s-au putut decripta — cheie greșită sau fișier invalid",true);
+  if(out.length){ _githubFileList=out.sort((a,b)=>String(b.data.savedAt||b.name).localeCompare(String(a.data.savedAt||a.name))); toast("✓ "+out.length+" backup(uri) decriptat(e) local"); }
+  renderGithubBackupList();
+}
+function renderGithubBackupList(){
+  const head=`<div style="background:var(--bg-elev-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;font-size:12px;line-height:1.5">
+    <div style="font-weight:800;margin-bottom:4px">🔐 Backup criptat din GitHub</div>
+    <div style="color:var(--text-dim);margin-bottom:8px">1) În GitHub, în repo-ul privat de backup, deschide <code>backup/history/</code> (sau <code>backup/latest.enc</code>) și descarcă fișierul/fișierele <b>.enc</b> dorite (Raw → Salvează sau butonul Download).<br>2) Introdu cheia de criptare și alege fișierele. Decriptarea se face doar în browserul tău; cheia nu pleacă nicăieri.</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <input id="bkEncKey" type="password" placeholder="Cheia de criptare (BACKUP_ENCRYPTION_KEY)" value="${escapeHtml(_bkKeyMem)}" autocomplete="off" style="flex:1;min-width:220px;padding:6px 8px;font-size:12px">
+      <button class="btn btn-secondary btn-small" onclick="document.getElementById('bkEncFiles').click()">📂 Alege fișiere .enc</button>
+      <input type="file" id="bkEncFiles" accept=".enc" multiple style="display:none" onchange="bkOpenEncFiles(this)">
+    </div></div>`;
+  if(!_githubFileList.length){ document.getElementById("backupManagerList").innerHTML=head+'<div style="color:var(--text-dim);padding:14px;text-align:center;font-size:12px">Niciun backup deschis încă.</div>'; return; }
+  let html=head;
   _githubFileList.forEach((f,i)=>{
-    // Nume fișier format: YYYY-MM-DD_schedHH.json sau YYYY-MM-DD_2200.json
-    const m = f.name.match(/(\d{4}-\d{2}-\d{2})_(.+)\.json/);
-    const dateStr = m ? m[1] : f.name;
-    const slotStr = m ? m[2] : "";
-    const isLatest = i===0;
-    html+=`<div style="background:var(--bg-elev-2);border-radius:8px;padding:12px 14px;margin-bottom:8px;border:1px solid ${isLatest?"var(--accent)":"var(--border)"};cursor:pointer" onclick="previewGithubBackup(${i})">
+    const d=f.data||{}; const dt=d.date||f.name, tm=d.time||"";
+    html+=`<div style="background:var(--bg-elev-2);border-radius:8px;padding:12px 14px;margin-bottom:8px;border:1px solid ${i===0?"var(--accent)":"var(--border)"}">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-        <div style="font-weight:700;font-size:13px">${isLatest?'<span style="background:var(--accent);color:#000;font-size:10px;font-weight:800;border-radius:3px;padding:1px 5px;margin-right:6px">CEL MAI RECENT</span>':""}🐙 ${escapeHtml(dateStr)} · ${escapeHtml(slotStr)}</div>
+        <div style="font-weight:700;font-size:13px">${escapeHtml(dt)} ${escapeHtml(tm)} <span style="font-weight:400;color:var(--text-dim);font-size:11px">· ${d.driverCount||0} persoane · ${escapeHtml(f.name)}</span></div>
         <div style="display:flex;gap:4px">
-          <button class="btn btn-secondary btn-small" onclick="event.stopPropagation();previewGithubBackup(${i})">👁 Preview</button>
-          <button class="btn btn-secondary btn-small" style="border-color:#6366f1;color:#6366f1" onclick="event.stopPropagation();compareGithubBackup(${i})">📊 Compară</button>
+          <button class="btn btn-secondary btn-small" onclick="previewGithubBackup(${i})">👁 Preview / Restaurează</button>
+          <button class="btn btn-secondary btn-small" style="border-color:#6366f1;color:#6366f1" onclick="compareGithubBackup(${i})">📊 Compară</button>
         </div>
-      </div>
-    </div>`;
+      </div></div>`;
   });
   document.getElementById("backupManagerList").innerHTML=html;
 }
 
+async function previewGithubBackup(i){
+  const f=_githubFileList[i]; if(!f) return;
+  _backupDocs=[f.data];
+  document.getElementById("backupManagerList").style.display="block";
+  previewBackup(0);
+}
+
 async function compareGithubBackup(i){
-  const f = _githubFileList[i];
-  if(!f) return;
-  document.getElementById("backupManagerList").innerHTML='<div style="color:var(--text-dim);padding:20px;text-align:center">⏳ Se descarcă '+escapeHtml(f.name)+'...</div>';
-  try{
-    const res = await fetch(f.download_url);
-    if(!res.ok) throw new Error("Nu pot descărca fișierul ("+res.status+")");
-    const data = await res.json();
-    _backupDocs = [data];
-    document.getElementById("backupManagerList").style.display="block";
-    await showBackupDiff(0);
-  }catch(e){
-    toast("Eroare la descărcare: "+e.message,true);
-    renderGithubBackupList();
-  }
+  const f=_githubFileList[i]; if(!f) return;
+  _backupDocs=[f.data];
+  document.getElementById("backupManagerList").style.display="block";
+  await showBackupDiff(0);
 }
 
 async function previewGithubBackup(i){
@@ -10934,7 +10944,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.21-01";
+const APP_VERSION = "2026.10.21-03";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12278,7 +12288,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.21-01</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.21-03</div>
 
 </body>
 </html>
