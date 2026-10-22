@@ -1083,7 +1083,7 @@
   }
 
 
-  /* ================= OPTIMIZARE TELEFON (v2026.10.22-06) ================= */
+  /* ================= OPTIMIZARE TELEFON (v2026.10.22-07) ================= */
   @media (max-width: 768px) {
     html, body { overflow-x: hidden; max-width: 100%; -webkit-text-size-adjust: 100%; }
     /* pagina derulează normal (înainte, panoul de sus rămânea fix și acoperea jumătate din ecran) */
@@ -2122,7 +2122,11 @@ const auth = firebase.auth();
 auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(e=>console.warn("auth persistence err",e));
 const db   = firebase.firestore();
 const fns  = firebase.app().functions("europe-west1");
-const callFn = async (name,data)=>{ const r = await fns.httpsCallable(name)(data||{}); return r.data; };
+const callFn = async (name,data)=>{
+  const payload = Object.assign({}, data||{});
+  try{ if(auth.currentUser) payload._t = await auth.currentUser.getIdToken(); }catch(e){}
+  const r = await fns.httpsCallable(name)(payload); return r.data;
+};
 // Pornim încărcarea permisiunilor cât mai devreme posibil — de regulă se
 // termină cu mult înainte ca userul să apuce să se logheze (PIN/parolă),
 // ca enterApp() să aibă deja datele disponibile sincron.
@@ -10980,7 +10984,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.22-06";
+const APP_VERSION = "2026.10.22-07";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12317,7 +12321,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.22-06</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.22-07</div>
 
 </body>
 </html>
