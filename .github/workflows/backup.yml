@@ -1,0 +1,14 @@
+name: backup-github
+on:
+  schedule:
+    - cron: '30 2 * * *'     # zilnic ~03:30-04:30 ora Germaniei
+  workflow_dispatch:
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Porneste backup-ul pe server (Render poate dura ~1 min sa porneasca)
+        run: |
+          curl -fsS -X POST --retry 4 --retry-delay 25 --retry-all-errors --max-time 90 \
+            -H "X-Backup-Secret: ${{ secrets.BACKUP_CRON_SECRET }}" \
+            https://hermes-parser-server.onrender.com/backup/github/run
