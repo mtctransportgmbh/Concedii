@@ -1083,7 +1083,7 @@
   }
 
 
-  /* ================= OPTIMIZARE TELEFON (v2026.10.22-02) ================= */
+  /* ================= OPTIMIZARE TELEFON (v2026.10.22-03) ================= */
   @media (max-width: 768px) {
     html, body { overflow-x: hidden; max-width: 100%; -webkit-text-size-adjust: 100%; }
     /* pagina derulează normal (înainte, panoul de sus rămânea fix și acoperea jumătate din ecran) */
@@ -9905,7 +9905,7 @@ function computeBackupDiff(bd){
   const bdByWordKey={}; Object.keys(bdByName).forEach(n=>{ bdByWordKey[wordSortKey(n)]=n; });
   const liveByWordKey={}; Object.keys(liveByName).forEach(n=>{ liveByWordKey[wordSortKey(n)]=n; });
 
-  const newDrivers=[], removedDrivers=[], renamedDrivers=[], leaveChanges=[], otherChanges=[];
+  const newDrivers=[], removedDrivers=[], renamedDrivers=[], leaveChanges=[], otherChanges=[], mergeNotes=[];
   const renamedBdNames=new Set(), renamedLiveNames=new Set();
 
   // Identificăm redenumirile ÎNAINTE de a calcula adăugări/ștergeri reale.
@@ -9942,9 +9942,22 @@ function computeBackupDiff(bd){
     ["leaves","krankLeaves","unpaidLeaves","specialLeaves"].forEach(field=>{
       const label = field==="leaves"?"Concediu":field==="krankLeaves"?"Krank":field==="unpaidLeaves"?"Fără plată":"Zi specială";
       const liveArr=lv[field]||[], bdArr=bk[field]||[];
-      const liveSet=new Set(liveArr.map(periodKey)), bdSet=new Set(bdArr.map(periodKey));
-      liveArr.forEach(l=>{ if(!bdSet.has(periodKey(l))) leaveChanges.push({type:"add",label,name,period:l}); });
-      bdArr.forEach(l=>{ if(!liveSet.has(periodKey(l))) leaveChanges.push({type:"remove",label,name,period:l}); });
+      if(field==="specialLeaves"){ // zilele speciale au motiv — comparăm pe perioade, ca înainte
+        const liveSet=new Set(liveArr.map(periodKey)), bdSet=new Set(bdArr.map(periodKey));
+        liveArr.forEach(l=>{ if(!bdSet.has(periodKey(l))) leaveChanges.push({type:"add",label,name,period:l}); });
+        bdArr.forEach(l=>{ if(!liveSet.has(periodKey(l))) leaveChanges.push({type:"remove",label,name,period:l}); });
+        return;
+      }
+      // Comparăm ZILELE LUCRĂTOARE efective, nu perioadele: o perioadă unită sau împărțită (aceleași zile) NU e o modificare reală
+      const daysOf=arr=>{ const set=new Set(); (arr||[]).forEach(l=>{ for(let d=parseDate(l.start),e=parseDate(l.end);d<=e;d.setDate(d.getDate()+1)){ if(isWorkday(d)) set.add(fmtDate(d)); } }); return set; };
+      const liveDays=daysOf(liveArr), bdDays=daysOf(bdArr);
+      const added=[...liveDays].filter(x=>!bdDays.has(x)).sort(), removed=[...bdDays].filter(x=>!liveDays.has(x)).sort();
+      const groupDays=days=>{ const out=[]; days.forEach(ds=>{ const last=out[out.length-1]; if(last){ let gap=false; const c=parseDate(last.end); c.setDate(c.getDate()+1); const t=parseDate(ds); while(c<t){ if(isWorkday(c)){gap=true;break;} c.setDate(c.getDate()+1); } if(!gap){ last.end=ds; return; } } out.push({start:ds,end:ds}); }); return out; };
+      groupDays(added).forEach(period=>leaveChanges.push({type:"add",label,name,period}));
+      groupDays(removed).forEach(period=>leaveChanges.push({type:"remove",label,name,period}));
+      if(!added.length&&!removed.length&&liveArr.length!==bdArr.length&&(liveArr.length||bdArr.length)){
+        mergeNotes.push(`<b>${escapeHtml(name)}</b> — ${label}: ${bdArr.length} perioade → ${liveArr.length} (aceleași ${liveDays.size} zile lucrătoare)`);
+      }
     });
     if((lv.maxDays||0)!==(bk.maxDays||0)) otherChanges.push(`<b>${escapeHtml(name)}</b>: zile disponibile/an ${bk.maxDays||0} → ${lv.maxDays||0}`);
     if(!!lv.maxDaysOverride!==!!bk.maxDaysOverride) otherChanges.push(`<b>${escapeHtml(name)}</b>: suprascriere manuală zile ${bk.maxDaysOverride?"activă":"inactivă"} → ${lv.maxDaysOverride?"activă":"inactivă"}`);
@@ -10032,7 +10045,7 @@ function computeBackupDiff(bd){
   });
 
   const total = newDrivers.length+removedDrivers.length+leaveChanges.length+otherChanges.length+prezDiff+sortChanges.length+sortPresDiff+planDiff;
-  return {newDrivers,removedDrivers,renamedDrivers,leaveChanges,otherChanges,prezDiff,sortChanges,sortPresDiff,sortPresChanges,planDiff,planChanges,total};
+  return {newDrivers,removedDrivers,renamedDrivers,leaveChanges,mergeNotes,otherChanges,prezDiff,sortChanges,sortPresDiff,sortPresChanges,planDiff,planChanges,total};
 }
 
 function renderBackupDiff(bd, diff){
@@ -10088,6 +10101,9 @@ function renderBackupDiff(bd, diff){
       html+=_diffSection("📅 Concedii / Krank / Fără plată — modificări ("+diff.leaveChanges.length+")", items);
     }
 
+    if(diff.mergeNotes&&diff.mergeNotes.length){
+      html+=_diffSection("🔗 Perioade unite / împărțite — aceleași zile, nicio modificare reală ("+diff.mergeNotes.length+")", diff.mergeNotes.slice(0,15).concat(diff.mergeNotes.length>15?[`<span style="color:var(--text-dim)">...și încă ${diff.mergeNotes.length-15}</span>`]:[]));
+    }
     html+=_diffSection("⚙️ Alte modificări (zile/an, reportate, contract)", diff.otherChanges);
     html+=_diffSection("📋 Sortatori — persoane adăugate/șterse pe luni", diff.sortChanges);
 
@@ -10990,7 +11006,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.22-02";
+const APP_VERSION = "2026.10.22-03";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12334,7 +12350,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.22-02</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.22-03</div>
 
 </body>
 </html>
