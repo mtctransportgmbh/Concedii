@@ -1083,7 +1083,7 @@
   }
 
 
-  /* ================= OPTIMIZARE TELEFON (v2026.10.22-09) ================= */
+  /* ================= OPTIMIZARE TELEFON (v2026.10.22-10) ================= */
   @media (max-width: 768px) {
     html, body { overflow-x: hidden; max-width: 100%; -webkit-text-size-adjust: 100%; }
     /* pagina derulează normal (înainte, panoul de sus rămânea fix și acoperea jumătate din ecran) */
@@ -2079,7 +2079,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") toggleSecretDrawer
 <div class="toast" id="toast"></div>
 
 <!-- Firebase SDKs (compat) -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script>
@@ -2089,30 +2089,16 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") toggleSecretDrawer
 // FIREBASE CONFIG
 // ============================================================
 // ============================================================
-// CONFIGURARE — schimbă doar USE_TEST pentru a comuta între medii
+// CONFIGURARE — doar proiectul de producție (nu există nicio config de test în pagina publică)
 // ============================================================
-const USE_TEST = false; // true = test | false = producție
-
-const FIREBASE_CONFIGS = {
-  production: {
-    apiKey: "AIzaSyBb0IFuofRG4vRlcnd9eMBuA8MyK_z0PRc",
-    authDomain: "calendar-f2589.firebaseapp.com",
-    projectId: "calendar-f2589",
-    storageBucket: "calendar-f2589.firebasestorage.app",
-    messagingSenderId: "124144206277",
-    appId: "1:124144206277:web:dc813e88dd100a0443cbac"
-  },
-  test: {
-    apiKey: "AIzaSyCaWrQnIAcquK71N_EwKT45lwcUW5RyDK0",
-    authDomain: "concedii-test.firebaseapp.com",
-    projectId: "concedii-test",
-    storageBucket: "concedii-test.firebasestorage.app",
-    messagingSenderId: "212982580101",
-    appId: "1:212982580101:web:5a41c6816a6893e5423aec"
-  }
+const firebaseConfig = {
+  apiKey: "AIzaSyBb0IFuofRG4vRlcnd9eMBuA8MyK_z0PRc",
+  authDomain: "calendar-f2589.firebaseapp.com",
+  projectId: "calendar-f2589",
+  storageBucket: "calendar-f2589.firebasestorage.app",
+  messagingSenderId: "124144206277",
+  appId: "1:124144206277:web:dc813e88dd100a0443cbac"
 };
-
-const firebaseConfig = USE_TEST ? FIREBASE_CONFIGS.test : FIREBASE_CONFIGS.production;
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 // IMPORTANT: implicit Firebase folosește persistență LOCAL (supraviețuiește
@@ -10985,7 +10971,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.22-09";
+const APP_VERSION = "2026.10.22-10";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12322,7 +12308,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.22-09</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.22-10</div>
 
 </body>
 </html>
