@@ -1083,7 +1083,7 @@
   }
 
 
-  /* ================= OPTIMIZARE TELEFON (v2026.10.22-07) ================= */
+  /* ================= OPTIMIZARE TELEFON (v2026.10.22-08) ================= */
   @media (max-width: 768px) {
     html, body { overflow-x: hidden; max-width: 100%; -webkit-text-size-adjust: 100%; }
     /* pagina derulează normal (înainte, panoul de sus rămânea fix și acoperea jumătate din ecran) */
@@ -3453,7 +3453,7 @@ async function pinSubmit(){
     if(i.reason==="locked"){ pinState.mode="blocked"; errEl.textContent=""; subEl.textContent="🔒 Cont blocat după 3 încercări greșite. Contactează Admin pentru deblocare."; }
     else if(i.reason==="not-set"){ pinState.mode="blocked"; errEl.textContent=""; subEl.textContent="PIN nesetat — cere-i lui Admin un PIN temporar."; }
     else if(typeof i.remaining==="number") errEl.textContent = i.remaining>0 ? "PIN greșit. Mai ai "+i.remaining+(i.remaining===1?" încercare.":" încercări.") : "Cont blocat.";
-    else errEl.textContent = "Eroare de conexiune. Încearcă din nou.";
+    else errEl.textContent = "Eroare: "+(i.msg||"conexiune")+(i.code?" ["+i.code+"]":"");
     if(i.remaining===0){ pinState.mode="blocked"; subEl.textContent="🔒 Cont blocat după 3 încercări greșite. Contactează Admin pentru deblocare."; }
   }
   pinState.busy=false;
@@ -10984,7 +10984,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.22-07";
+const APP_VERSION = "2026.10.22-08";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12321,7 +12321,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.22-07</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.22-08</div>
 
 </body>
 </html>
