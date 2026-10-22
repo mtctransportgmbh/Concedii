@@ -1082,6 +1082,70 @@
     .cal-day-num { font-size: 11px !important; }
   }
 
+
+  /* ================= OPTIMIZARE TELEFON (v2026.10.22-01) ================= */
+  @media (max-width: 768px) {
+    html, body { overflow-x: hidden; max-width: 100%; -webkit-text-size-adjust: 100%; }
+    /* pagina derulează normal (înainte, panoul de sus rămânea fix și acoperea jumătate din ecran) */
+    .app { display: block !important; height: auto !important; overflow: visible !important; }
+    .sidebar { padding: 10px !important; overflow: visible !important; max-height: none !important; border-right: none !important; border-bottom: 1px solid var(--border); }
+    .main { padding: 8px 8px 60px !important; overflow: visible !important; max-height: none !important; height: auto !important; min-width: 0; max-width: 100vw; }
+    .cal-grid { grid-template-columns: repeat(7, minmax(0, 1fr)) !important; gap: 2px !important; }
+    .cal-day { min-width: 0; overflow: hidden; }
+    .calendar { padding: 4px !important; }
+
+    /* bara de module: încape pe ecran, derulabilă dacă sunt multe */
+    .main > div:first-child { min-width: 0; }
+    .mod-tabs-bar { display: flex !important; flex: 1 1 auto; min-width: 0; max-width: 100%; overflow-x: auto; gap: 2px; padding: 3px; scrollbar-width: none; -webkit-overflow-scrolling: touch; border-radius: 12px; }
+    .mod-tabs-bar::-webkit-scrollbar { display: none; }
+    .mod-tab { flex: 1 0 auto; flex-direction: column; gap: 1px; padding: 6px 7px !important; font-size: 9px !important; letter-spacing: .2px !important; white-space: nowrap; }
+    .mod-tab-icon { font-size: 17px !important; }
+
+    /* antet lună / navigare */
+    .header { flex-wrap: wrap; gap: 8px; }
+    .nav { flex-wrap: wrap; gap: 6px; justify-content: center; width: 100%; }
+    .nav h2, #monthLabel { font-size: 15px !important; min-width: 0 !important; padding: 6px 12px !important; letter-spacing: 1.5px !important; }
+    .nav button { padding: 6px 10px; }
+
+    /* rânduri de butoane / filtre: se împachetează, nu ies din ecran */
+    .main .btn, .main button { max-width: 100%; }
+    .main [style*="display:flex"][style*="gap"] { flex-wrap: wrap; }
+    .main select, .main input[type="text"], .main input[type="search"], .main input[type="number"], .main input[type="date"] { font-size: 16px; max-width: 100%; }
+
+    /* calendar: etichetele de remindere nu mai acoperă zilele — rămâne un punct turcoaz */
+    .rem-float { position: absolute !important; top: 3px !important; right: 3px !important; left: auto !important; bottom: auto !important; width: 9px !important; height: 9px !important; max-width: 9px !important; padding: 0 !important; border-radius: 50% !important; font-size: 0 !important; line-height: 0 !important; overflow: hidden; background: #2dd4bf !important; border: 1px solid #0f766e !important; box-shadow: none !important; z-index: 2 !important; }
+    .rem-float * { display: none !important; }
+    .cal-day { position: relative; }
+    .stats { gap: 8px; }
+
+    /* tabele late (timeline/Sortatori/Salarii): defilare orizontală DOAR în interiorul lor */
+    .timeline, .timeline-wrap, .tl-scroll { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .timeline { grid-template-columns: 128px 1fr 64px !important; }
+    .tl-sticky-header-name, .tl-driver-col { width: 128px !important; min-width: 128px !important; }
+    #sidebarCollapseBtn { display: none !important; }
+    .tl-driver-col [style*="letter-spacing"], .tl-driver-col .tl-group-head { letter-spacing: 0 !important; font-size: 10px !important; }
+    .tl-driver-row { font-size: 11px; padding-left: 6px !important; padding-right: 6px !important; }
+    .tl-sticky-header-name { padding: 0 6px !important; font-size: 10px !important; }
+    .tl-sticky-header-rem { width: 64px !important; min-width: 64px !important; padding: 0 4px !important; }
+    .tl-rem-col { width: 64px !important; min-width: 64px !important; }
+    #salTable { font-size: 12px; }
+
+    /* ferestre (modale): pe toată lățimea, derulabile, cu butoane la îndemână */
+    .modal-bg { align-items: flex-start !important; padding: 8px !important; overflow-y: auto; }
+    .modal { width: 100% !important; max-width: 100% !important; margin: 0 auto !important; padding: 14px !important; max-height: none !important; border-radius: 14px; }
+    .modal h3 { font-size: 16px; }
+    .modal-actions { position: sticky; bottom: -14px; background: var(--bg-elev); padding: 10px 0 4px; margin-top: 10px; flex-wrap: wrap; gap: 8px; }
+    .modal-actions .btn { flex: 1 1 120px; }
+    .modal input, .modal select, .modal textarea { font-size: 16px; }
+    .modal table { display: block; overflow-x: auto; max-width: 100%; }
+    #adminPanelGrid { grid-template-columns: 1fr !important; }
+
+    /* mânerul panoului ascuns, mai lung și mai la îndemână */
+    #secretHandle { top: 50%; height: 72px !important; }
+    #secretDrawer { width: min(260px, 82vw) !important; }
+    #versionCorner { display: none; }
+  }
+
   /* Mobile sidebar toggle */
   .sidebar-toggle-btn {
     display: none;
@@ -5539,7 +5603,7 @@ function renderCalDay(d,otherMonth,today){
     const extra = visibleReminders.length - shown.length;
     const lines = shown.map(r=>`<div style="padding:2px 0"><b>${escapeHtml(reminderAuthorDisplayName(r.author))}</b>: ${escapeHtml(r.text)}</div>`)
       .join(`<div style="border-top:1px solid rgba(94,234,212,0.35);margin:2px 0"></div>`);
-    reminderMark = `<div style="position:absolute;bottom:calc(100% + 3px);left:0;width:max-content;max-width:220px;background:#134e4a;color:#5eead4;font-size:9px;line-height:1.3;padding:3px 5px;border-radius:4px;z-index:20;box-shadow:0 2px 6px rgba(0,0,0,0.4);text-align:left;pointer-events:none;border:1px solid #2dd4bf">${lines}${extra>0?`<div style="border-top:1px solid rgba(94,234,212,0.35);margin:2px 0"></div><i>+${extra} mai multe</i>`:""}</div>`;
+    reminderMark = `<div class="rem-float" style="position:absolute;bottom:calc(100% + 3px);left:0;width:max-content;max-width:220px;background:#134e4a;color:#5eead4;font-size:9px;line-height:1.3;padding:3px 5px;border-radius:4px;z-index:20;box-shadow:0 2px 6px rgba(0,0,0,0.4);text-align:left;pointer-events:none;border:1px solid #2dd4bf">${lines}${extra>0?`<div style="border-top:1px solid rgba(94,234,212,0.35);margin:2px 0"></div><i>+${extra} mai multe</i>`:""}</div>`;
   }
   return `<div class="${classes.join(" ")}" ${clickHandler} ${titleAttr}>${reminderMark}${inner}</div>`;
 }
@@ -5794,14 +5858,14 @@ function mergeLeaves(leaves){
 // ============================================================
 let tlDrag = {active:false,driverId:null,startDay:null,endDay:null,removing:false};
 
-function tlDragStart(driverId,dn,isSun,onLeave){
+function tlDragStart(driverId,dn,isSun,onLeave,rtype){
   if(isSun)return;
   if(!canEdit()) return; // Tania și alții fără drepturi de editare nu pot modifica concedii
   if(event&&event.button===2)return; // ignore right click
   // Also block holidays
   const d=new Date(currentDate.getFullYear(),currentDate.getMonth(),dn);
   if(getHoliday(d))return;
-  tlDrag={active:true,driverId,startDay:dn,endDay:dn,removing:onLeave};
+  tlDrag={active:true,driverId,startDay:dn,endDay:dn,removing:onLeave,rtype:rtype||"leaves"};
   document.querySelectorAll(".tl-row,.tl-driver-row").forEach(el=>el.classList.remove("tl-row-active"));
   document.querySelectorAll(`.tl-row[data-driver-row="${driverId}"],.tl-driver-row[data-driver-row="${driverId}"]`).forEach(el=>el.classList.add("tl-row-active"));
   tlDragUpdate(dn);
@@ -5816,7 +5880,7 @@ function tlDragMove(dn,pageX,pageY){
     // Count workdays in selection
     const from=new Date(y,m,s),to=new Date(y,m,e);
     const days=countWorkdays(from,to);
-    tip.textContent=tlDrag.removing?"🗑 Șterge "+days+"z lucr. ("+s+"–"+e+")":"✓ Adaugă "+days+"z lucr. ("+s+"–"+e+")";
+    tip.textContent=tlDrag.removing?"🗑 Șterge "+({leaves:"concediu",krank:"krank",unpaid:"fără plată",special:"zi specială"}[tlDrag.rtype||"leaves"])+" "+days+"z lucr. ("+s+"–"+e+")":"✓ Adaugă "+days+"z lucr. ("+s+"–"+e+")";
     tip.style.display="block";tip.style.left=(pageX+14)+"px";tip.style.top=(pageY-32)+"px";
   }
 }
@@ -5857,31 +5921,30 @@ function tlDragEnd(){
   const endStr2=y+"-"+String(m+1).padStart(2,"0")+"-"+String(filtEnd).padStart(2,"0");
 
   if(tlDrag.removing){
-    const before=dr.leaves.length;
+    // Șterge DOAR tipul pe care ai început drag-ul (concediu / krank / fără plată / zi specială) — restul perioadei rămâne, împărțit în două dacă e cazul
+    const rt=tlDrag.rtype||"leaves";
+    const arrName={leaves:"leaves",krank:"krankLeaves",unpaid:"unpaidLeaves",special:"specialLeaves"}[rt]||"leaves";
+    const label={leaves:"Concediu",krank:"Krank",unpaid:"Fără plată",special:"Zi specială"}[rt]||"Concediu";
+    if((rt==="unpaid"||rt==="special")&&!canEditAbsence(rt,dr)){ toast("Nu ai permisiunea de a modifica „"+label+"”",true); tlDrag={active:false,driverId:null,startDay:null,endDay:null,removing:false}; return; }
     const newLeaves=[];
     let changed=false;
-    (dr.leaves||[]).forEach(l=>{
-      // No overlap — keep as is
-      if(l.end<startStr||l.start>endStr){ newLeaves.push(l); return; }
+    (dr[arrName]||[]).forEach(l=>{
+      if(l.end<startStr||l.start>endStr){ newLeaves.push(l); return; } // nu se atinge de selecție
       changed=true;
-      // Keep part before selection
-      if(l.start<startStr){
-        const dayBefore=new Date(parseDate(startStr));
-        dayBefore.setDate(dayBefore.getDate()-1);
-        newLeaves.push({start:l.start,end:fmtDate(dayBefore)});
+      if(l.start<startStr){ // partea de dinainte rămâne
+        const dayBefore=new Date(parseDate(startStr)); dayBefore.setDate(dayBefore.getDate()-1);
+        newLeaves.push({...l,start:l.start,end:fmtDate(dayBefore)});
       }
-      // Keep part after selection
-      if(l.end>endStr){
-        const dayAfter=new Date(parseDate(endStr));
-        dayAfter.setDate(dayAfter.getDate()+1);
-        newLeaves.push({start:fmtDate(dayAfter),end:l.end});
+      if(l.end>endStr){ // partea de după rămâne
+        const dayAfter=new Date(parseDate(endStr)); dayAfter.setDate(dayAfter.getDate()+1);
+        newLeaves.push({...l,start:fmtDate(dayAfter),end:l.end});
       }
     });
     if(changed){
-      dr.leaves=newLeaves;
-      reconcileBorrowedDays(dr, parseDate(startStr).getFullYear());
-      logActivity("🗑 Concediu șters",dr.name,startStr+" → "+endStr,"concedii");
-      renderAll();scheduleSave();toast("🗑 Concediu șters pentru "+dr.name);
+      dr[arrName]=newLeaves;
+      if(rt==="leaves") reconcileBorrowedDays(dr, parseDate(startStr).getFullYear());
+      logActivity("🗑 "+label+" șters",dr.name,startStr+" → "+endStr,"concedii");
+      renderAll();scheduleSave();toast("🗑 "+label+" șters pentru "+dr.name+" ("+startStr.slice(8)+"."+startStr.slice(5,7)+" – "+endStr.slice(8)+"."+endStr.slice(5,7)+")");
     } else toast("Nicio perioadă de șters",true);
   } else {
     const newDays=countWorkdays(new Date(y,m,s),new Date(y,m,e));
@@ -6032,6 +6095,7 @@ function renderTimeline(){
       if(onLeave&&!isPresP&&!isPresA&&!holiday) dailyCounts[dn]++;
       const ds=fmtDate(d);
       const isOccupied=onLeave||onKrank||onUnpaid||onSpecial;
+      const rmType=onKrank?"krank":onUnpaid?"unpaid":onSpecial?"special":onLeave?"leaves":"";
       const isBlocked=isSun||!!holiday||!contractActive;
       // Verificăm dacă această celulă are un conflict detectat la import Excel
       const conflictKey=dr.id+"_"+ds;
@@ -6044,9 +6108,9 @@ function renderTimeline(){
       if(!isBlocked){
         if(canEditPres){
           // stânga: drag concediu normal; dreapta: drag prezent (Camion: ciclu prezent→jumătate→gol)
-          mousedown=`onmousedown="if(event.button===2){event.preventDefault();presDragStart('`+safeName2+`',${dn})}else{tlDragStart('${dr.id}',${dn},false,${isOccupied})}" `;
+          mousedown=`onmousedown="if(event.button===2){event.preventDefault();presDragStart('`+safeName2+`',${dn})}else{tlDragStart('${dr.id}',${dn},false,${isOccupied},'${rmType}')}" `;
         } else {
-          mousedown=`onmousedown="if(event.button!==2)tlDragStart('${dr.id}',${dn},false,${isOccupied})" `;
+          mousedown=`onmousedown="if(event.button!==2)tlDragStart('${dr.id}',${dn},false,${isOccupied},'${rmType}')" `;
         }
       }
       const mousemoveAttr=isBlocked?"":
@@ -10925,7 +10989,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.21-04";
+const APP_VERSION = "2026.10.22-01";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12269,7 +12333,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.21-04</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.22-01</div>
 
 </body>
 </html>
