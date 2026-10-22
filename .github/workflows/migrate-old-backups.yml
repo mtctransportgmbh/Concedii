@@ -1,0 +1,60 @@
+name: Criptează backup-urile vechi (o singură dată)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo public (backup-urile vechi)
+        uses: actions/checkout@v4
+
+      - name: Verifică secretele și că repo-ul de backup e PRIVAT
+        env:
+          BACKUP_REPO: ${{ secrets.BACKUP_REPO }}
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          [ -n "$BACKUP_REPO" ] && [ -n "$BACKUP_REPO_TOKEN" ] || { echo "::error::Lipsesc BACKUP_REPO / BACKUP_REPO_TOKEN"; exit 1; }
+          [ ${#BACKUP_ENCRYPTION_KEY} -ge 24 ] || { echo "::error::BACKUP_ENCRYPTION_KEY lipsește sau e prea scurtă"; exit 1; }
+          PRIV=$(curl -fsS -H "Authorization: Bearer $BACKUP_REPO_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$BACKUP_REPO" | python3 -c "import sys,json;print(json.load(sys.stdin).get('private'))")
+          [ "$PRIV" = "True" ] || { echo "::error::Repo-ul de backup e PUBLIC — oprit."; exit 1; }
+          ls backups/history 2>/dev/null | head -5 || true
+          echo "Fișiere JSON vechi: $(ls backups/history/*.json 2>/dev/null | wc -l)"
+
+      - name: Checkout repo PRIVAT de backup
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.BACKUP_REPO }}
+          token: ${{ secrets.BACKUP_REPO_TOKEN }}
+          path: private-backup
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Criptează backup-urile vechi
+        env:
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+          BACKUP_OUT_DIR: ${{ github.workspace }}/private-backup/backup
+        run: node scripts/encrypt-old-backups.js
+
+      - name: Salvează în repo-ul privat
+        working-directory: private-backup
+        run: |
+          git config user.name "MTC Backup Bot"
+          git config user.email "actions@github.com"
+          [ -d backup ] || { echo "::error::Nu s-a creat folderul backup/"; exit 1; }
+          git add -A backup
+          if git diff --staged --quiet; then
+            echo "Nimic nou de salvat."
+          else
+            git commit -m "🔒 Backup-uri vechi migrate (criptate)"
+            git push
+            echo "✅ Salvat."
+          fi
