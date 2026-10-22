@@ -1083,7 +1083,7 @@
   }
 
 
-  /* ================= OPTIMIZARE TELEFON (v2026.10.22-03) ================= */
+  /* ================= OPTIMIZARE TELEFON (v2026.10.22-06) ================= */
   @media (max-width: 768px) {
     html, body { overflow-x: hidden; max-width: 100%; -webkit-text-size-adjust: 100%; }
     /* pagina derulează normal (înainte, panoul de sus rămânea fix și acoperea jumătate din ecran) */
@@ -1913,7 +1913,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") toggleSecretDrawer
 <div class="modal-bg" id="modalPinAdmin">
   <div class="modal">
     <h3>🔐 Coduri PIN utilizatori</h3>
-    <div class="modal-sub">Vizualizează sau resetează PIN-urile utilizatorilor.</div>
+    <div class="modal-sub">PIN-urile sunt stocate doar ca hash pe server și nu pot fi vizualizate. După 3 încercări greșite contul se blochează până îl deblochezi tu.</div>
     <div id="pinAdminList" style="margin-top:12px"></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modalPinAdmin')">Închide</button>
@@ -2082,6 +2082,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") toggleSecretDrawer
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script>
 // ============================================================
@@ -2120,10 +2121,12 @@ const auth = firebase.auth();
 // curent e deschis și dispare garantat la închiderea lui reală.
 auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(e=>console.warn("auth persistence err",e));
 const db   = firebase.firestore();
+const fns  = firebase.app().functions("europe-west1");
+const callFn = async (name,data)=>{ const r = await fns.httpsCallable(name)(data||{}); return r.data; };
 // Pornim încărcarea permisiunilor cât mai devreme posibil — de regulă se
 // termină cu mult înainte ca userul să apuce să se logheze (PIN/parolă),
 // ca enterApp() să aibă deja datele disponibile sincron.
-setTimeout(()=>{ if(typeof loadPermOverrides==="function"){ _permOverridesPromise = loadPermOverrides(); } }, 0);
+// Permisiunile se încarcă DUPĂ autentificare (regulile Firestore cer utilizator logat) — vezi enterAppSafe()
 
 const ADMIN_EMAIL = "paulandreimacarie@yahoo.com";
 
@@ -2139,19 +2142,8 @@ const USERS = {
   admin:    {name:"Admin",    color:"linear-gradient(135deg,#f59e0b,#ef4444)", initial:"A"}
 };
 
-const DRIVERS_MADALINA = ["Aremia Aurel","Asmarandei Andrei","Bruma Alexandru","Gruia Raul","Movila Andrei","Pana Alexandru","Paul Petre","Rus Denisa","Stranici Cristian","Tufisi Rares","Vancea Cosmin"];
-const DRIVERS_RALUCA   = ["Badea Madalin","Bainoczi Razvan","Bejenaru Ioan","Birliba Mihaela","Bisoc Ionut","Bitiusca Gabriel","Buciu Petre","Burlacu Andrei","Cazan Ionut","Ciobotaru Adrian","Ciobotaru Iulian","Ciobotaru Larisa","Crainic Adrian","Deleu Daniel","Dobinda Dumitru","Dutescu Daniel","Farkas Rudolf","Feraru Razvan","Ferent Simon","Ghebu Andreas","Iacob Mihai","Macarie Paul","Maies Antonio","Margau Rafael","Maricosu Adelin","Mereacre Mihail","Mihai Adrian","Moise Alexandru","Morosanu Lucian","Musteata Ion","Plesca Mihaita","Pop Marcel","Raghinaru Marian","Rudareanu Vladut","Serban Florin","Sparios Eduard","Stan Ionel","Stanciu Dumitru","Stinga Valeriu","Tuca Valentin","Zestrea Mihail"];
-const DRIVERS_CORINA   = ["Sulaj Adriano","Ciuciuc Ionut","Bitto Robert","Nae Andrei","Barlovan Florin","Codreanu Daniel","Mario Martens","Gheorghe Ivan","Sarneki Sebastian"];
-const DRIVERS_TANIA    = [...new Set([...DRIVERS_RALUCA,...DRIVERS_MADALINA,...DRIVERS_CORINA])].sort((a,b)=>a.localeCompare(b,"ro"));
-
-// Filter groups for Tania/Admin tabs
-const GROUPS = {
-  total:     null, // all
-  eiselfing: DRIVERS_MADALINA,
-  ruhstorf:  DRIVERS_RALUCA,
-  camion:    DRIVERS_CORINA
-};
-
+// Grupurile și vizibilitatea vin din aplicația Angajați (câmpul dr.group / dr.visibleTo) —
+// nu mai există liste de nume în codul sursă.
 // ============================================================
 // STATE
 // ============================================================
@@ -2759,7 +2751,6 @@ async function saveDriversNow(){
 // backup-urile programate și cele manuale citesc istoricul mai larg (1000).
 async function fetchCompleteServerState(activityLimit){
   if(activityLimit===undefined) activityLimit=1000;
-  const pinKeys=["raluca","madalina","corina","mihaela","tania"];
   const [concSnap, sortSnap, planSnap, presSnap, libSnap, pinSnaps, permSnap,
          excelStatusSnap, backupDiffSnap, planWarnSnap, calRemindSnap, activitySnap] = await Promise.all([
     db.collection(concediiColl()).get(), // TOATĂ colecția, nu doar 4 documente cunoscute — evită orice discrepanță dacă apare un document neașteptat
@@ -2767,7 +2758,7 @@ async function fetchCompleteServerState(activityLimit){
     db.collection("planificare").doc("ruhstorf").get(),
     db.collection(prezenteColl()).doc("state").get(),
     db.collection(libereColl()).doc("state").get(),
-    Promise.all(pinKeys.map(pk=>db.collection("pins").doc(pk).get())),
+    Promise.resolve([]),
     db.collection("permissions").doc("overrides").get(),
     db.collection(excelImportColl()).get(), // toate documentele (câte unul per lună)
     db.collection("backup_diff_settings").doc("manual_name_links").get(),
@@ -2796,11 +2787,8 @@ async function fetchCompleteServerState(activityLimit){
   const presData = presSnap.exists ? presSnap.data() : null;
   const libData = libSnap.exists ? libSnap.data() : null;
 
-  // Coduri PIN (login) — un document per user
+  // PIN-urile NU mai fac parte din backup (sunt doar hash-uri pe server, inaccesibile clientului)
   const pinsData = {};
-  pinKeys.forEach((pk,i)=>{
-    if(pinSnaps[i].exists) pinsData[pk] = pinSnaps[i].data();
-  });
   // Permisiuni acordate (panoul de Permisiuni) — un singur document
   const permissionsData = permSnap.exists ? permSnap.data() : null;
 
@@ -3055,16 +3043,11 @@ function loadBackupInfoFromStorage(){
 // ============================================================
 const PIN_SESSION_MINS = 1; // 1 minut inactivitate = deconectare automată (useri normali)
 const ADMIN_LOCK_SECONDS = 10; // 10 secunde inactivitate = lock screen pentru Admin
-const ADMIN_LOCK_PIN = "060823"; // PIN dedicat pentru deblocarea ecranului Admin (diferit de parola de login)
-let pinState = {userKey:null, mode:"enter", entered:"", firstPin:"", attempts:0};
+let pinState = {userKey:null, mode:"enter", entered:"", firstPin:"", oldPin:"", busy:false};
+// curățăm orice rest de PIN-uri/hash-uri din versiunile vechi
+try{ Object.keys(localStorage).filter(k=>k.startsWith("mtc_pin_")).forEach(k=>localStorage.removeItem(k)); }catch(e){}
 let autoLogoutTimer = null;
 let adminLockTimer = null;
-
-function hashPin(pin){
-  let h=5381;
-  for(let i=0;i<pin.length;i++) h=((h<<5)+h)+pin.charCodeAt(i);
-  return (h>>>0).toString(36);
-}
 
 // sessionStorage se șterge automat la închiderea tab-ului
 // localStorage persistă — NU îl folosim pentru sesiuni
@@ -3211,6 +3194,22 @@ function showLockScreen(){
     </div>`;
   document.body.appendChild(overlay);
 
+  if(uk==="admin"){
+    // Admin: deblocare cu PAROLA contului (re-autentificare Firebase) — nu mai există PIN în sursă
+    overlay.innerHTML = `
+    <div style="background:var(--bg-elev);border:1px solid var(--border);border-radius:20px;padding:32px;max-width:360px;width:92%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,0.5)">
+      <div style="font-size:48px;margin-bottom:8px">🔒</div>
+      <div style="font-size:19px;font-weight:800;color:var(--accent);margin-bottom:6px">Sesiune blocată — Admin</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px">Introdu parola contului pentru a continua.</div>
+      <input id="adminUnlockPass" type="password" autocomplete="current-password" style="width:100%;padding:11px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:15px;margin-bottom:8px" onkeydown="if(event.key==='Enter')adminUnlockSubmit()">
+      <div id="lockPinErr" style="font-size:12px;color:var(--red);height:16px;margin-bottom:10px"></div>
+      <button class="btn" onclick="adminUnlockSubmit()" style="width:100%;margin-bottom:10px">Deblochează</button>
+      <button onclick="switchUserFromLock()" style="background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:8px;padding:8px 20px;cursor:pointer;font-size:12px">🔄 Deconectare</button>
+    </div>`;
+    setTimeout(()=>{ const i=document.getElementById("adminUnlockPass"); if(i) i.focus(); },50);
+    return;
+  }
+
   // Suport tastatură pentru lock screen
   window._lockKeyHandler = function(e){
     if(!document.getElementById("lockScreenOverlay")) {
@@ -3228,6 +3227,20 @@ function showLockScreen(){
   window._lockPin = "";
 }
 
+window.adminUnlockSubmit = async function(){
+  const inp=document.getElementById("adminUnlockPass"), err=document.getElementById("lockPinErr");
+  const pass=inp?inp.value:""; if(!pass) return;
+  try{
+    await auth.currentUser.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(ADMIN_EMAIL,pass));
+    unlockScreen(); resetAdminAutoLock();
+    toast("✓ Bine ai revenit, Admin! 😊");
+  }catch(e){
+    if(inp) inp.value="";
+    if(err) err.textContent = (e.code==="auth/too-many-requests") ? "Prea multe încercări. Așteaptă puțin." : "❌ Parolă incorectă";
+    setTimeout(()=>{ if(err) err.textContent=""; },2500);
+  }
+};
+
 window.lockPinKey = async function(k){
   if(k==="⌫"){ window._lockPin=(window._lockPin||"").slice(0,-1); updateLockDots(); return; }
   window._lockPin=(window._lockPin||"")+k;
@@ -3237,13 +3250,19 @@ window.lockPinKey = async function(k){
     const entered=window._lockPin;
     window._lockPin="";
     updateLockDots();
-    let pinCorrect=false;
-    if(uk==="admin"){
-      // Admin folosește un PIN dedicat de deblocare (diferit de parola de login Firebase)
-      pinCorrect = (entered===ADMIN_LOCK_PIN);
-    } else {
-      const storedHash=await getPinFromFirestore(uk);
-      pinCorrect = !!(storedHash && hashPin(entered)===storedHash);
+    let pinCorrect=false, lockedOut=false, remaining=null;
+    try{
+      const r = await callFn("pinLogin",{userKey:uk,pin:entered});
+      pinCorrect = true;
+      try{ await auth.signInWithCustomToken(r.token); }catch(e){}
+    }catch(e){
+      const i=pinErrInfo(e); remaining=i.remaining;
+      lockedOut = (i.reason==="locked" || i.remaining===0);
+    }
+    if(lockedOut){
+      toast("🔒 Cont blocat după 3 încercări greșite. Contactează Admin.",true);
+      switchUserFromLock();
+      return;
     }
     if(pinCorrect){
       // PIN corect — deblocăm
@@ -3253,7 +3272,7 @@ window.lockPinKey = async function(k){
       toast("✓ Bine ai revenit, "+(USERS[uk]?.name||uk)+"! 😊");
     } else {
       // PIN greșit
-      document.getElementById("lockPinErr").textContent="❌ PIN incorect, încearcă din nou";
+      document.getElementById("lockPinErr").textContent="❌ PIN incorect"+(typeof remaining==="number"?" — mai ai "+remaining:"");
       for(let i=0;i<6;i++){const d=document.getElementById("lpd"+i);if(d){d.style.background="#ef4444";d.style.borderColor="#ef4444";}}
       setTimeout(()=>{ updateLockDots(); document.getElementById("lockPinErr").textContent=""; },700);
     }
@@ -3289,6 +3308,7 @@ function switchUserFromLock(){
   clearSession(uk);
   window.activeUserKey=null;
   fullReset();
+  try{ auth.signOut(); }catch(e){}
   document.getElementById("appRoot").style.display="none";
   document.getElementById("authScreen").style.display="flex";
 }
@@ -3317,69 +3337,44 @@ function resetAdminAutoLock(){
   },{passive:true})
 );
 
-async function getPinFromFirestore(uk){
-  try{
-    const snap = await db.collection("pins").doc(uk).get();
-    if(snap.exists){
-      const data = snap.data();
-      // If admin reset the PIN, clear local cache and force new PIN
-      if(data.resetAt && !data.hash){
-        localStorage.removeItem("mtc_pin_"+uk);
-        clearSession(uk);
-        return null;
-      }
-      return data.hash||null;
-    }
-    // Migrate from localStorage
-    const localHash = localStorage.getItem("mtc_pin_"+uk);
-    if(localHash){
-      await db.collection("pins").doc(uk).set({hash:localHash, updatedAt:new Date().toISOString()});
-      return localHash;
-    }
-    return null;
-  }catch(e){ return localStorage.getItem("mtc_pin_"+uk); }
-}
-
-async function setPinToFirestore(uk, pin){
-  const h = hashPin(pin);
-  try{
-    await db.collection("pins").doc(uk).set({
-      hash: h,
-      plainPin: pin,
-      updatedAt: new Date().toISOString()
-    });
-  }catch(e){ console.warn("pin save err",e); }
-  localStorage.setItem("mtc_pin_"+uk, h);
-}
-
-async function clearPinFromFirestore(uk){
-  try{ await db.collection("pins").doc(uk).delete(); }catch(e){}
-  localStorage.removeItem("mtc_pin_"+uk);
+// PIN-urile NU se mai stochează în aplicație/Firestore-ul clientului: verificarea se face pe server
+// (funcțiile pinLogin/pinChange, hash bcrypt în colecția `credentials`, inaccesibilă clienților).
+function pinErrInfo(e){
+  const d = e && e.details || {};
+  return { code: e && e.code || "", msg: (e && e.message) || "Eroare", remaining: d.remaining, reason: d.reason };
 }
 
 window.loginAsUser = function(userKey){
   if(typeof enterApp !== "function"){ setTimeout(()=>window.loginAsUser(userKey),100); return; }
   fullReset(); // curăță datele user-ului anterior
-  if(getSession(userKey)){ window.activeUserKey=userKey; resetAutoLogout(); enterAppSafe(userKey); return; }
+  if(getSession(userKey) && auth.currentUser && auth.currentUser.email!==ADMIN_EMAIL){ window.activeUserKey=userKey; resetAutoLogout(); enterAppSafe(userKey); return; }
   showPinScreen(userKey);
 };
 
 async function showPinScreen(userKey){
   pinState.userKey = userKey;
   pinState.entered = "";
-  pinState.attempts = 0;
-  const storedHash = await getPinFromFirestore(userKey);
-  pinState.mode = storedHash ? "enter" : "create";
+  pinState.firstPin = "";
+  pinState.oldPin = "";
+  pinState.mode = "enter";
   const av = document.getElementById("pinAvatar");
   av.style.background = USERS[userKey].color;
   av.textContent = USERS[userKey].initial;
-  const names = {raluca:"Raluca",tania:"Tania",madalina:"Mădălina",corina:"Corina",mihaela:"Mihaela"};
-  document.getElementById("pinTitle").textContent = names[userKey];
-  document.getElementById("pinSub").textContent = pinState.mode==="create" ? "Creează codul tău PIN din 6 cifre" : "Introdu codul PIN";
-  document.getElementById("pinForgot").style.display = pinState.mode==="enter" ? "block" : "none";
+  document.getElementById("pinTitle").textContent = USERS[userKey].name;
+  document.getElementById("pinSub").textContent = "Se verifică...";
+  document.getElementById("pinForgot").style.display = "block";
   document.getElementById("pinErr").textContent = "";
   updatePinDots();
   document.getElementById("pinScreen").classList.add("show");
+  try{
+    const st = await callFn("pinStatus",{userKey});
+    if(st.state==="none"){ pinState.mode="blocked"; document.getElementById("pinSub").textContent="PIN nesetat — cere-i lui Admin un PIN temporar."; }
+    else if(st.state==="locked"){ pinState.mode="blocked"; document.getElementById("pinSub").textContent="🔒 Cont blocat după 3 încercări greșite. Contactează Admin pentru deblocare."; }
+    else document.getElementById("pinSub").textContent = "Introdu codul PIN";
+  }catch(e){
+    pinState.mode="blocked";
+    document.getElementById("pinSub").textContent="Nu mă pot conecta la server. Verifică internetul și încearcă din nou.";
+  }
 }
 
 function updatePinDots(){
@@ -3394,105 +3389,129 @@ function pinDotsError(){
   setTimeout(()=>{ pinState.entered=""; for(let i=0;i<6;i++){const d=document.getElementById("pd"+i);d.classList.remove("error","filled");} },600);
 }
 
-window.pinKey = function(digit){ if(pinState.entered.length>=6)return; pinState.entered+=digit; updatePinDots(); if(pinState.entered.length===6)setTimeout(pinSubmit,80); };
-window.pinBackspace = function(){ pinState.entered=pinState.entered.slice(0,-1); updatePinDots(); };
+window.pinKey = function(digit){ if(pinState.busy||pinState.mode==="blocked")return; if(pinState.entered.length>=6)return; pinState.entered+=digit; updatePinDots(); if(pinState.entered.length===6)setTimeout(pinSubmit,80); };
+window.pinBackspace = function(){ if(pinState.busy)return; pinState.entered=pinState.entered.slice(0,-1); updatePinDots(); };
+
+async function pinFinishLogin(token){
+  await auth.signInWithCustomToken(token);
+  setSession(pinState.userKey);
+  resetAutoLogout();
+  document.getElementById("pinScreen").classList.remove("show");
+  await enterAppSafe(pinState.userKey);
+}
 
 async function pinSubmit(){
   const pin = pinState.entered;
-  if(pinState.mode==="create"){
-    pinState.firstPin = pin; pinState.entered = ""; pinState.mode = "confirm";
-    document.getElementById("pinSub").textContent = "Confirmă codul PIN";
-    document.getElementById("pinErr").textContent = "";
-    updatePinDots();
-  } else if(pinState.mode==="confirm"){
-    if(pin===pinState.firstPin){
-      await setPinToFirestore(pinState.userKey, pin);
-      setSession(pinState.userKey);
-      resetAutoLogout();
+  const errEl = document.getElementById("pinErr"), subEl = document.getElementById("pinSub");
+  if(pinState.busy) return;
+  if(pinState.mode==="newpin"){
+    pinState.firstPin = pin; pinState.entered = ""; pinState.mode = "confirmnew";
+    subEl.textContent = "Confirmă noul cod PIN"; errEl.textContent = ""; updatePinDots();
+    return;
+  }
+  if(pinState.mode==="confirmnew"){
+    if(pin!==pinState.firstPin){
+      pinDotsError(); pinState.mode="newpin"; pinState.firstPin="";
+      errEl.textContent="PIN-urile nu se potrivesc"; subEl.textContent="Alege un PIN nou din 6 cifre";
+      return;
+    }
+    pinState.busy=true;
+    try{
+      await callFn("pinChange",{oldPin:pinState.oldPin,newPin:pin});
+      pinState.oldPin="";
+      setSession(pinState.userKey); resetAutoLogout();
       document.getElementById("pinScreen").classList.remove("show");
       await enterAppSafe(pinState.userKey);
       toast("✓ Cod PIN setat cu succes!");
-    } else {
-      pinDotsError();
-      pinState.mode="create"; pinState.firstPin=""; pinState.entered="";
-      document.getElementById("pinSub").textContent = "Codurile nu coincid. Încearcă din nou.";
-      document.getElementById("pinErr").textContent = "PIN-urile nu se potrivesc";
-      setTimeout(()=>{ document.getElementById("pinSub").textContent="Creează codul tău PIN din 6 cifre"; document.getElementById("pinErr").textContent=""; updatePinDots(); },1400);
+    }catch(e){
+      const i=pinErrInfo(e);
+      pinDotsError(); pinState.mode="newpin"; pinState.firstPin="";
+      subEl.textContent="Alege un PIN nou din 6 cifre"; errEl.textContent=i.msg;
     }
-  } else {
-    const stored = await getPinFromFirestore(pinState.userKey);
-    if(stored && hashPin(pin)===stored){
-      pinState.attempts = 0;
-      setSession(pinState.userKey);
-      resetAutoLogout();
-      document.getElementById("pinScreen").classList.remove("show");
-      await enterAppSafe(pinState.userKey);
-    } else {
-      pinState.attempts++;
-      pinDotsError();
-      pinState.entered = "";
-      const rem = 5-pinState.attempts;
-      document.getElementById("pinErr").textContent = rem>0 ? "PIN greșit. Mai ai "+rem+" încercări." : "Prea multe încercări.";
-    }
+    pinState.busy=false;
+    return;
   }
+  // mode === "enter"
+  pinState.busy=true;
+  try{
+    const r = await callFn("pinLogin",{userKey:pinState.userKey,pin});
+    if(r.mustChange){
+      // PIN temporar de la Admin — intrăm doar ca să-și aleagă PIN-ul personal
+      await auth.signInWithCustomToken(r.token);
+      pinState.oldPin = pin; pinState.entered=""; pinState.firstPin=""; pinState.mode="newpin";
+      subEl.textContent="PIN temporar. Alege acum un PIN personal din 6 cifre"; errEl.textContent=""; updatePinDots();
+    } else {
+      await pinFinishLogin(r.token);
+    }
+  }catch(e){
+    const i=pinErrInfo(e);
+    pinDotsError(); pinState.entered="";
+    if(i.reason==="locked"){ pinState.mode="blocked"; errEl.textContent=""; subEl.textContent="🔒 Cont blocat după 3 încercări greșite. Contactează Admin pentru deblocare."; }
+    else if(i.reason==="not-set"){ pinState.mode="blocked"; errEl.textContent=""; subEl.textContent="PIN nesetat — cere-i lui Admin un PIN temporar."; }
+    else if(typeof i.remaining==="number") errEl.textContent = i.remaining>0 ? "PIN greșit. Mai ai "+i.remaining+(i.remaining===1?" încercare.":" încercări.") : "Cont blocat.";
+    else errEl.textContent = "Eroare de conexiune. Încearcă din nou.";
+    if(i.remaining===0){ pinState.mode="blocked"; subEl.textContent="🔒 Cont blocat după 3 încercări greșite. Contactează Admin pentru deblocare."; }
+  }
+  pinState.busy=false;
 }
 
-window.pinForgotFlow = function(){ alert("Contactează Admin pentru a-ți reseta PIN-ul.\nAdmin poate reseta din secțiunea Coduri PIN."); };
+window.pinForgotFlow = function(){ alert("Contactează Admin pentru un PIN temporar sau pentru deblocarea contului."); };
 window.pinChangeUser = function(){
   document.getElementById("pinScreen").classList.remove("show");
-  pinState.entered = "";
-  pinState.firstPin = "";
+  pinState.entered = ""; pinState.firstPin = ""; pinState.oldPin = "";
   updatePinDots();
+  try{ if(auth.currentUser && auth.currentUser.email!==ADMIN_EMAIL) auth.signOut(); }catch(e){}
 };
 
 document.addEventListener("keydown",e=>{ if(!document.getElementById("pinScreen").classList.contains("show"))return; if(e.key>="0"&&e.key<="9")window.pinKey(e.key); else if(e.key==="Backspace")window.pinBackspace(); });
 
+// ---- Panou Admin: stare conturi PIN (fără vizualizare PIN — nu există nicăieri) ----
 window.openPinAdmin = async function(){
   const list = document.getElementById("pinAdminList");
   list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:8px">Se încarcă...</div>';
   openModal("modalPinAdmin");
-  const names = {raluca:"Raluca",tania:"Tania",madalina:"Mădălina",corina:"Corina",mihaela:"Mihaela"};
+  let st;
+  try{ st = await callFn("adminPinStatus"); }
+  catch(e){ list.innerHTML = '<div style="color:var(--red);font-size:12px;padding:8px">Eroare: '+escapeHtmlSafe(e.message||"")+'</div>'; return; }
   const users = ["raluca","tania","madalina","corina","mihaela"];
-  const results = await Promise.all(users.map(async uk=>{
-    const snap = await db.collection("pins").doc(uk).get();
-    const hash = snap.exists ? snap.data().hash : null;
-    // Reconstituie PIN-ul din hash (nu se poate — hash e one-way)
-    // Dar putem stoca PIN-ul plain în Firestore la creare
-    const storedPin = snap.exists ? snap.data().plainPin||null : null;
-    return {uk, hash, storedPin};
-  }));
-  list.innerHTML = results.map(({uk,hash,storedPin})=>{
-    const color = USERS[uk].color;
-    const initial = USERS[uk].initial;
-    const hasPin = !!hash;
-    const pinDisplay = storedPin ? `<span style="font-family:monospace;font-size:16px;letter-spacing:4px;color:var(--accent);background:var(--bg);padding:2px 8px;border-radius:4px">${storedPin}</span>` : (hasPin?`<span style="color:var(--text-dim);font-size:11px">Setat înainte de această versiune — va fi vizibil după ce userul resetează PIN-ul</span>`:"<span style='color:var(--text-dim)'>—</span>");
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg-elev-2);border-radius:6px;margin-bottom:6px">
-      <div style="width:32px;height:32px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0">${initial}</div>
-      <div style="flex:1">
-        <div style="font-weight:600;font-size:13px">${names[uk]}</div>
-        <div style="font-size:12px;margin-top:2px">PIN: ${pinDisplay}</div>
+  list.innerHTML = users.map(uk=>{
+    const s = st[uk]||{};
+    const badge = s.locked ? '<span style="color:#ef4444;font-weight:700">🔒 BLOCAT</span>'
+      : !s.hasPin ? '<span style="color:var(--text-dim)">fără PIN</span>'
+      : s.mustChange ? '<span style="color:#f59e0b">PIN temporar (neschimbat)</span>'
+      : '<span style="color:#10b981">activ</span>'+(s.attempts?(' · '+s.attempts+' greșite'):'');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg-elev-2);border-radius:6px;margin-bottom:6px;flex-wrap:wrap">
+      <div style="width:32px;height:32px;border-radius:50%;background:${USERS[uk].color};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0">${USERS[uk].initial}</div>
+      <div style="flex:1;min-width:120px">
+        <div style="font-weight:600;font-size:13px">${USERS[uk].name}</div>
+        <div style="font-size:12px;margin-top:2px">${badge}</div>
       </div>
-      <button class="btn btn-secondary btn-small" onclick="adminResetPin('${uk}')" style="font-size:11px">Reset</button>
+      ${s.locked?`<button class="btn btn-small" onclick="adminUnlockPin('${uk}')" style="font-size:11px">Deblochează</button>`:""}
+      <button class="btn btn-secondary btn-small" onclick="adminResetPin('${uk}')" style="font-size:11px">${s.hasPin?"Resetează PIN":"Setează PIN"}</button>
     </div>`;
-  }).join("");
+  }).join("") + '<div id="pinTempBox"></div>';
+};
+function escapeHtmlSafe(t){ return String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+window.adminUnlockPin = async function(uk){
+  try{ await callFn("adminUnlock",{userKey:uk}); toast("✓ Cont deblocat: "+USERS[uk].name); }
+  catch(e){ toast("Eroare: "+(e.message||e),true); }
+  window.openPinAdmin();
 };
 
 window.adminResetPin = async function(uk){
-  const names = {raluca:"Raluca",tania:"Tania",madalina:"Mădălina",corina:"Corina",mihaela:"Mihaela"};
-  if(!confirm("Resetezi PIN-ul pentru "+names[uk]+"?\nPe toate device-urile vor fi nevoiți să creeze PIN nou.")) return;
-  // Delete pin + store reset timestamp so all devices know to ask for new PIN
+  if(!confirm("Generezi un PIN temporar pentru "+USERS[uk].name+"?\nPIN-ul vechi nu va mai funcționa, iar la prima logare își va alege unul personal.")) return;
   try{
-    await db.collection("pins").doc(uk).set({
-      hash: null,
-      plainPin: null,
-      resetAt: new Date().toISOString(),
-      resetBy: "admin"
-    });
-    localStorage.removeItem("mtc_pin_"+uk);
-    clearSession(uk);
-  }catch(e){ console.error(e); }
-  toast("✓ PIN resetat pentru "+names[uk]+" — va trebui să creeze PIN nou pe orice device");
-  window.openPinAdmin();
+    const r = await callFn("adminSetTempPin",{userKey:uk});
+    await window.openPinAdmin();
+    const box = document.getElementById("pinTempBox");
+    if(box) box.innerHTML = `<div style="margin-top:10px;padding:14px;border:2px solid #f59e0b;border-radius:10px;text-align:center;background:var(--bg)">
+      <div style="font-size:12px;color:var(--text-dim)">PIN temporar pentru <b>${USERS[uk].name}</b> — se afișează O SINGURĂ DATĂ și nu este salvat nicăieri</div>
+      <div style="font-family:monospace;font-size:32px;letter-spacing:8px;font-weight:800;color:var(--accent);margin:8px 0">${r.pin}</div>
+      <div style="font-size:11px;color:var(--text-dim)">Comunică-l personat. La prima logare va fi obligat să-și aleagă alt PIN.</div>
+    </div>`;
+    logActivity("🔐 PIN temporar generat","—",USERS[uk].name,"sistem");
+  }catch(e){ toast("Eroare: "+(e.message||e),true); }
 };
 
 // ============================================================
@@ -3545,7 +3564,7 @@ auth.onAuthStateChanged(user=>{
 window.doLogout = async function(){
   const prevUser = window.activeUserKey;
   clearSession(prevUser);
-  if(prevUser==="admin") await auth.signOut().catch(()=>{});
+  await auth.signOut().catch(()=>{});
   window.activeUserKey = null;
   fullReset();
   document.getElementById("appRoot").style.display = "none";
@@ -4002,11 +4021,10 @@ function getVisibleDrivers(ignoreMonthFilter){
     if(activeGroup!=="total"){
       const groupUserKey = activeGroup==="eiselfing"?"madalina":(activeGroup==="ruhstorf"||activeGroup==="paketshop"||activeGroup==="sortat")?"raluca":activeGroup==="camion"?"corina":null;
       if(groupUserKey){
-        const nameSet = new Set((GROUPS[activeGroup]||[]).map(n=>n.toLowerCase()));
         drivers = drivers.filter(dr=>{
           if(dr.group) return dr.group===activeGroup; // sursă principală
           if(dr.visibleTo && dr.visibleTo.length>0) return dr.visibleTo.includes(groupUserKey);
-          return nameSet.has(dr.name.toLowerCase());
+          return false;
         });
       }
     }
@@ -4032,14 +4050,7 @@ function getVisibleDrivers(ignoreMonthFilter){
   drivers = state.drivers.filter(dr=>{
     if(dr.archived) return false;
     if(dr.group) return grantedGroups.includes(dr.group); // sursă principală
-    if(!dr.visibleTo||dr.visibleTo.length===0){
-      return allowedIdentityKeys.some(k=>{
-        if(k==="raluca")   return DRIVERS_RALUCA.includes(dr.name);
-        if(k==="madalina") return DRIVERS_MADALINA.includes(dr.name);
-        if(k==="corina")   return DRIVERS_CORINA.includes(dr.name);
-        return false;
-      });
-    }
+    if(!dr.visibleTo||dr.visibleTo.length===0) return false;
     return allowedIdentityKeys.some(k=>dr.visibleTo.includes(k));
   });
   // Filtrează după data angajare/plecare — la fel, sărim peste dacă e cerut explicit
@@ -4065,24 +4076,9 @@ function specialOnDate(date){
   return getVisibleDrivers().filter(dr=>(dr.specialLeaves||[]).some(l=>dateInLeave(date,l)));
 }
 
-function visibleToForName(name){
-  const vis=["tania"];
-  if(DRIVERS_RALUCA.includes(name))   vis.push("raluca");
-  if(DRIVERS_MADALINA.includes(name)) vis.push("madalina");
-  if(DRIVERS_CORINA.includes(name))   vis.push("corina");
-  return [...new Set(vis)];
-}
-
-function getDriverListForUser(uk){
-  if(uk==="madalina") return DRIVERS_MADALINA;
-  if(uk==="raluca")   return DRIVERS_RALUCA;
-  if(uk==="corina")   return DRIVERS_CORINA;
-  return DRIVERS_TANIA;
-}
-
 function loadDefaultDrivers(){
-  const list = getDriverListForUser(window.activeUserKey||"tania");
-  state.drivers = list.map(name=>({id:uid(),name,leaves:[],krankLeaves:[],unpaidLeaves:[],specialLeaves:[],maxDays:0,carryOverDays:0,visibleTo:visibleToForName(name)}));
+  // Persoanele vin exclusiv din aplicația Angajați (sincronizare automată)
+  state.drivers = [];
 }
 
 // ============================================================
@@ -5279,11 +5275,7 @@ function importBackup(e){
       if(loaded.planificareWarnings) savePromises.push(db.collection("planificare_warnings").doc("list").set(loaded.planificareWarnings));
       if(loaded.calendarReminders) savePromises.push(db.collection("calendar_reminders").doc("list").set(loaded.calendarReminders));
       // ── 8. CODURI PIN — un document separat per user, scriem direct ──
-      if(loaded.pins){
-        Object.entries(loaded.pins).forEach(([uk,pinDoc])=>{
-          savePromises.push(db.collection("pins").doc(uk).set(pinDoc));
-        });
-      }
+      // (PIN-urile nu se mai restaurează — dacă un backup vechi conține `pins`, sunt ignorate)
       await Promise.all(savePromises);
 
       logActivity("♻️ Restaurare COMPLETĂ din fișier","—",state.drivers.length+" persoane + toate modulele (inclusiv PIN-uri și permisiuni)","sistem");
@@ -6560,10 +6552,6 @@ function renderMain(){if(view==="calendar")renderCalendar();else renderTimeline(
 // ============================================================
 // SORTATORI MODULE — complet rescris
 // ============================================================
-const SORT_EISELFING_DEFAULT = ["Aremia Aurel","Asmarandei Andrei","Bruma Alexandru","Gruia Raul","Movila Andrei","Pana Alexandru","Paul Petre","Rus Denisa","Stranici Cristian","Tufisi Rares","Vancea Cosmin"];
-const SORT_RUHSTORF_PERM_DEFAULT    = ["Ciobotaru Adrian","Ciobotaru Iulian","Ciobotaru Larisa","Feraru Razvan","Ferent Simon","Pop Marcel","Stan Ionel","Toiu Georgiana","Tufeanu Claudia","Stanciu Anastasia","Toth Cristina","Zestrea Mihail"];
-const SORT_RUHSTORF_ROTATIE_DEFAULT = ["Dutescu Daniel","Maricosu Adelin","Maies Antonio","Mereacre Mihail","Tuca Valentin"];
-const SORT_RUHSTORF_URGENTA_DEFAULT = ["Raghinaru Marian","Dobinda Dumitru"];
 
 let sortState = {drivers:[], presence:{}};
 let sortCurrentDate = new Date();
@@ -6684,7 +6672,6 @@ function setAppMode(mode){
 // ============================================================
 const SAL_PKG_RATE = 0.66, SAL_SORT_RATE = 22, SAL_DEFAULT_DAY_RATE = 66;
 const SAL_TYPES = {fix:"Salar fix", pachete:"Din pachete", sortat:"Doar sortator"};
-const SAL_SEED = [["Asmarandei Andrei","pachete"],["Badea Madalin","sortat"],["Bainoczi Razvan","sortat"],["Bejenaru Ioan","sortat"],["Birliba Mihaela","fix"],["Bisoc Ionut","pachete"],["Bitiusca Gabriel","fix"],["Bruma Alexandru","fix"],["Bruma Virgil","fix"],["Buciu Petre","fix"],["Burlacu Andrei","sortat"],["Cazan Ionut","pachete"],["Ciobotaru Adrian","pachete"],["Ciobotaru Iulian","pachete"],["Ciobotaru Larisa","pachete"],["Codreanu Izabela","fix"],["Costache Stefan","sortat"],["Crainic Adrian","pachete"],["Deleu Daniel","fix"],["Dobinda Dumitru","pachete"],["Donisa Vlad","sortat"],["Dutescu Daniel","pachete"],["Feraru Razvan","pachete"],["Ferent Simon","pachete"],["Florut Alin","fix"],["Ghebu Andreas","sortat"],["Gheorghe Nicolae","sortat"],["Gruia Raul","sortat"],["Iacob Mihai","pachete"],["Jekal Norbert","sortat"],["Iancu Adriana","fix"],["Iancu Cristian","fix"],["Iancu Madalina","fix"],["Klausnitzer Thomas","fix"],["Lacatus Stefan","sortat"],["Macarie Paul","fix"],["Maftei Radu","fix"],["Magheru Dan","fix"],["Margau Rafael","sortat"],["Maies Antonio","sortat"],["Maricosu Adelin","pachete"],["Mereacre Mihail","pachete"],["Mihai Adrian","pachete"],["Moise Alexandru","pachete"],["Movila Andrei","pachete"],["Musteata Ion","pachete"],["Neagu Ramon","sortat"],["Nae Andrei","fix"],["Pana Alexandru","sortat"],["Paul Petre","pachete"],["Perna Pasquale","sortat"],["Plesca Mihaita","pachete"],["Raghinaru Marian","pachete"],["Rimoczi Florin","sortat"],["Rudareanu Vladut","pachete"],["Rus Denisa","pachete"],["Sandulescu Adrian","sortat"],["Serban Florin","pachete"],["Sparios Eduard","sortat"],["Stan Ionel","pachete"],["Stanciu Anastasia","fix"],["Stanciu Dumitru","pachete"],["Stinga Valeriu","pachete"],["Stranici Cristian","pachete"],["Toiu Georgiana","fix"],["Toth Cristina","fix"],["Toth Raluca","fix"],["Tuca Valentin","sortat"],["Tufeanu Claudia","fix"],["Tufisi Rares","pachete"],["Vancea Cosmin","pachete"],["Zestrea Mihail","pachete"]];
 let salEmps = [];
 let salMonthData = {rows:{}};
 let salCur = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
@@ -6898,10 +6885,7 @@ function salAddEmp(){
   if(salAddEmpRaw(inp.value,"fix")){ salSaveEmps(); inp.value=""; salRenderEmployees(); renderSalarii(); }
   else toast("Numele e gol sau există deja",true);
 }
-function salSeed(){
-  let n=0; SAL_SEED.forEach(([nm,t])=>{ if(salAddEmpRaw(nm,t)) n++; });
-  salSaveEmps(); salRenderEmployees(); renderSalarii(); toast("✓ "+n+" angajați adăugați");
-}
+function salSeed(){ toast("Angajații vin automat din aplicația Angajați",true); }
 function salReadWorkbook(file, cb){
   const rd=new FileReader();
   rd.onload=ev=>{ try{ cb(XLSX.read(ev.target.result,{type:"array"})); }catch(e){ toast("Fișier invalid: "+e.message,true); } };
@@ -7435,10 +7419,9 @@ async function loadPermOverrides(){
 // repede decât apucă să se termine fetch-ul de permisiuni (declanșat devreme,
 // dar fără nicio garanție de ordine față de login).
 async function enterAppSafe(userKey){
-  if(!_permOverridesLoaded){
-    if(!_permOverridesPromise) _permOverridesPromise = loadPermOverrides();
-    await _permOverridesPromise;
-  }
+  // Reîncărcăm mereu permisiunile după autentificare (regulile Firestore cer utilizator logat)
+  _permOverridesPromise = loadPermOverrides();
+  await _permOverridesPromise;
   enterApp(userKey);
   startPermChangeWatch(userKey);
 }
@@ -8207,13 +8190,7 @@ function loadSortState(){
       }
     } else {
       // Prima dată — init cu liste default
-      sortState.drivers = [
-        ...SORT_EISELFING_DEFAULT.map(n=>({id:uid(),name:n,group:"eiselfing",category:"permanent"})),
-        ...SORT_RUHSTORF_PERM_DEFAULT.map(n=>({id:uid(),name:n,group:"ruhstorf",category:"permanent"})),
-        ...SORT_RUHSTORF_ROTATIE_DEFAULT.map(n=>({id:uid(),name:n,group:"ruhstorf",category:"rotatie"})),
-        ...SORT_RUHSTORF_CAMION_DEFAULT.map(n=>({id:uid(),name:n,group:"ruhstorf",category:"camion"})),
-        ...SORT_RUHSTORF_URGENTA_DEFAULT.map(n=>({id:uid(),name:n,group:"ruhstorf",category:"urgenta"}))
-      ];
+      sortState.drivers = []; // listele vin din Angajați / adăugare din aplicație
       sortState.presence = {};
       saveSortState();
     }
@@ -8358,7 +8335,7 @@ function updateTodayLeavePanel(){
   const relevantDrivers = (state.drivers||[]).filter(dr=>{
     if(dr.group) return grantedSortGroups.includes(dr.group);
     if(dr.visibleTo && dr.visibleTo.length>0) return identityKeys.some(k=>dr.visibleTo.includes(k));
-    return identityKeys.some(k=> k==="raluca" ? DRIVERS_RALUCA.includes(dr.name) : DRIVERS_MADALINA.includes(dr.name));
+    return false;
   });
 
   const namesOnDate = (date)=>{
@@ -10339,9 +10316,6 @@ async function confirmRestoreBackup(){
       permOverrides = bd.permissions;
       await savePermOverrides();
     }
-    if(bd.pins && Object.keys(bd.pins).length>0){
-      await Promise.all(Object.entries(bd.pins).map(([uk,pinDoc])=>db.collection("pins").doc(uk).set(pinDoc)));
-    }
     if(bd.excelImportStatus && Object.keys(bd.excelImportStatus).length>0){
       await Promise.all(Object.entries(bd.excelImportStatus).map(([mk,statusDoc])=>db.collection(excelImportColl()).doc(mk).set(statusDoc)));
       excelImportStatus = bd.excelImportStatus;
@@ -11006,7 +10980,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.22-03";
+const APP_VERSION = "2026.10.22-06";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12008,14 +11982,7 @@ function showLoginNotification(userKey){
   const visibleDrivers = (state.drivers||[]).filter(d=>{
     if(d.group) return grantedGroups.includes(d.group); // sursă principală
     const vis = d.visibleTo||[];
-    if(vis.length===0){
-      return allowedIdentityKeys2.some(k=>{
-        if(k==="raluca")   return DRIVERS_RALUCA.includes(d.name);
-        if(k==="madalina") return DRIVERS_MADALINA.includes(d.name);
-        if(k==="corina")   return DRIVERS_CORINA.includes(d.name);
-        return false;
-      });
-    }
+    if(vis.length===0) return false;
     return allowedIdentityKeys2.some(k=>vis.includes(k)) || vis.includes(userKey);
   });
   // Absențe de azi: concediu, krank (medical), fără plată și zi specială — vizibile tuturor userilor (în limita grupurilor lor)
@@ -12350,7 +12317,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.22-03</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.22-06</div>
 
 </body>
 </html>
