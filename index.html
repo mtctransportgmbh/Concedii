@@ -1083,7 +1083,7 @@
   }
 
 
-  /* ================= OPTIMIZARE TELEFON (v2026.10.22-08) ================= */
+  /* ================= OPTIMIZARE TELEFON (v2026.10.22-09) ================= */
   @media (max-width: 768px) {
     html, body { overflow-x: hidden; max-width: 100%; -webkit-text-size-adjust: 100%; }
     /* pagina derulează normal (înainte, panoul de sus rămânea fix și acoperea jumătate din ecran) */
@@ -3568,9 +3568,10 @@ auth.onAuthStateChanged(user=>{
 window.doLogout = async function(){
   const prevUser = window.activeUserKey;
   clearSession(prevUser);
-  await auth.signOut().catch(()=>{});
   window.activeUserKey = null;
-  fullReset();
+  fullReset(); // oprim mai întâi toate listenerele, apoi deconectăm (altfel apar erori „insufficient permissions")
+  _versionUnsub && (()=>{ try{_versionUnsub();}catch(e){} _versionUnsub=null; })();
+  await auth.signOut().catch(()=>{});
   document.getElementById("appRoot").style.display = "none";
   document.getElementById("authScreen").style.display = "flex";
 };
@@ -10984,7 +10985,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.22-08";
+const APP_VERSION = "2026.10.22-09";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12321,7 +12322,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.22-08</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.22-09</div>
 
 </body>
 </html>
