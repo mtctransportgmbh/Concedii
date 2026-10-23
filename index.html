@@ -785,6 +785,13 @@
   #libereTimeline { grid-template-columns: 200px 1fr; }
   .tl-driver-col { position: sticky; left: 0; background: var(--bg-elev); z-index: 2; border-right: 2px solid var(--border); display: flex; flex-direction: column; }
   .tl-driver-header { padding: 0 12px; height: 42px; display: flex; align-items: center; font-size: 11px; text-transform: uppercase; color: var(--text-dim); border-bottom: 1px solid var(--border); font-weight: 600; letter-spacing: 0.5px; position: sticky; top: 0; background: var(--bg-elev); z-index: 3; flex-shrink: 0; }
+  .lib-hide-btn { opacity: 0; cursor: pointer; margin-left: 6px; font-size: 12px; transition: opacity .15s; flex-shrink: 0; }
+  .tl-driver-row:hover .lib-hide-btn { opacity: .75; }
+  .lib-hide-btn:hover { opacity: 1 !important; }
+  @media (hover: none) { .lib-hide-btn { opacity: .45; } }
+  #libereHiddenBar { display: none; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; padding: 6px 10px; border: 1px dashed var(--border); border-radius: 8px; font-size: 12px; color: var(--text-dim); }
+  #libereHiddenBar .lib-chip { cursor: pointer; padding: 2px 8px; border-radius: 12px; background: var(--bg-elev-2); border: 1px solid var(--border); color: var(--text); }
+  #libereHiddenBar .lib-chip:hover { border-color: #10b981; }
   .tl-driver-row { padding: 0 12px; height: 34px; min-height: 34px; display: flex; align-items: center; border-bottom: 1px solid var(--border); font-size: 12px; cursor: pointer; flex-shrink: 0; box-sizing: border-box; }
   .sort-cat-drop.drag-over {
     outline: 2px dashed currentColor;
@@ -1228,9 +1235,9 @@
 
     <div class="admin-form" id="adminForm">
       <label>Email</label>
-      <input type="email" id="adminEmail" value="paulandreimacarie@yahoo.com" readonly style="opacity:0.6; cursor:not-allowed">
+      <input type="email" id="adminEmail" name="username" autocomplete="username" value="paulandreimacarie@yahoo.com" readonly style="opacity:0.6; cursor:not-allowed">
       <label>Parolă</label>
-      <input type="password" id="adminPass" placeholder="Introdu parola..." onkeydown="if(event.key==='Enter')loginAdmin()">
+      <input type="password" id="adminPass" name="password" autocomplete="current-password" placeholder="Introdu parola..." onkeydown="if(event.key==='Enter')loginAdmin()">
       <button class="auth-login-btn" onclick="loginAdmin()">Intră ca Admin</button>
     </div>
 
@@ -1289,7 +1296,7 @@
     <button class="btn btn-secondary btn-small" id="adminPanelBtn" onclick="openAdminPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#6366f1; color:#6366f1; font-weight:700">⚙️ Panou Admin</button>
 
     <div style="position:relative;margin-bottom:8px">
-      <input type="text" id="searchDriver" placeholder="🔍 Caută persoană..." oninput="renderDrivers()" style="width:100%;padding-right:28px">
+      <input type="search" id="searchDriver" name="mtc_cauta_persoana" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" readonly onfocus="this.removeAttribute('readonly')" placeholder="🔍 Caută persoană..." oninput="renderDrivers()" style="width:100%;padding-right:28px">
       <button onclick="clearSearch('searchDriver')" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;line-height:1;padding:2px">✕</button>
     </div>
     <div class="driver-list" id="driverList"></div>
@@ -1453,6 +1460,7 @@
         </div>
       </div>
       <!-- Statistici sumare -->
+      <div id="libereHiddenBar"></div>
       <div id="libereStats" style="margin-bottom:10px"></div>
       <div id="libereFreeRecommendation" style="display:none;margin-bottom:10px"></div>
       <!-- Timeline Libere -->
@@ -2105,7 +2113,10 @@ const auth = firebase.auth();
 // la închiderea browserului/tab-ului) — exact opusul comportamentului dorit
 // pentru Admin. Setăm SESSION: sesiunea de autentificare ține doar cât tab-ul
 // curent e deschis și dispare garantat la închiderea lui reală.
-auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(e=>console.warn("auth persistence err",e));
+// La orice încărcare/refresh a paginii sesiunea e NOUĂ: se șterge orice autentificare rămasă și noua autentificare
+// se ține doar în memorie (NONE) — nu mai supraviețuiește nici la refresh. Trebuie introdus din nou PIN-ul / parola.
+window._freshSession = false;   // până se termină curățarea, ignorăm evenimentele de autentificare (evită „clipirea” unei sesiuni vechi)
+auth.signOut().catch(()=>{}).then(()=>auth.setPersistence(firebase.auth.Auth.Persistence.NONE)).catch(e=>console.warn("auth persistence err",e)).then(()=>{ window._freshSession = true; });
 const db   = firebase.firestore();
 const fns  = firebase.app().functions("europe-west1");
 const callFn = async (name,data)=>{
@@ -3555,6 +3566,7 @@ window.loginAdmin = async function(){
   catch(e){ if(e.code==="auth/wrong-password"||e.code==="auth/invalid-credential") showErr("Parolă greșită"); else showErr("Eroare: "+e.message); }
 };
 auth.onAuthStateChanged(user=>{
+  if(!window._freshSession) return;
   if(user&&user.email===ADMIN_EMAIL){ window.activeUserKey="admin"; enterAppSafe("admin"); }
   else if(!user&&window.activeUserKey==="admin"){ window.activeUserKey=null; document.getElementById("authScreen").style.display="flex"; document.getElementById("appRoot").style.display="none"; }
 });
@@ -7672,6 +7684,27 @@ function hasAnyPrevMonthPersons(){
   return getLiberePersons(prevKey).length>0;
 }
 
+// ---- Ascundere persoane din vizualizarea Libere (doar pe acest dispozitiv; nu modifică niciun fel de date) ----
+const LIB_HIDE_KEY = "mtc_lib_hidden_v1";
+function libereHiddenAll(){ try{ return JSON.parse(localStorage.getItem(LIB_HIDE_KEY)||"{}")||{}; }catch(e){ return {}; } }
+function libereHiddenSet(){ return new Set(libereHiddenAll()[libereView]||[]); }
+function libereSaveHidden(set){
+  try{ const all=libereHiddenAll(); all[libereView]=[...set]; localStorage.setItem(LIB_HIDE_KEY,JSON.stringify(all)); }
+  catch(e){ toast("Nu pot salva lista de persoane ascunse în acest browser",true); }
+}
+const libEnc = n => encodeURIComponent(n).replace(/'/g,"%27");   // encodeURIComponent nu codifică apostroful
+window.libereHidePerson = function(name){ const s=libereHiddenSet(); s.add(name); libereSaveHidden(s); renderLibere(); };
+window.libereUnhidePerson = function(name){ const s=libereHiddenSet(); s.delete(name); libereSaveHidden(s); renderLibere(); };
+window.libereUnhideAll = function(){ libereSaveHidden(new Set()); renderLibere(); };
+function renderLibereHiddenBar(hiddenNames){
+  const el=document.getElementById("libereHiddenBar"); if(!el) return;
+  if(!hiddenNames.length){ el.style.display="none"; el.innerHTML=""; return; }
+  el.style.display="flex";
+  el.innerHTML = '<span>🙈 Ascunse ('+hiddenNames.length+'):</span>' +
+    hiddenNames.map(n=>'<span class="lib-chip" title="Click ca să o arăți din nou" onclick="libereUnhidePerson(decodeURIComponent(\''+libEnc(n)+'\'))">'+escapeHtml(n)+' ✕</span>').join("") +
+    '<span class="lib-chip" onclick="libereUnhideAll()" style="margin-left:auto">Arată toți</span>';
+}
+
 function renderLibere(){
   const y = libereCurrentDate.getFullYear();
   const m = libereCurrentDate.getMonth();
@@ -7697,17 +7730,27 @@ function renderLibere(){
   // "negăsit" înseamnă de regulă "aparține altui grup", nu "fără date".
   const groupKey = libereView==="eiselfing" ? "madalina" : "raluca";
   const allPersonsThisMonth = getLiberePersons(mk);
-  const persons = allPersonsThisMonth.filter(name=>{
+  const personsAll = allPersonsThisMonth.filter(name=>{
     const dr = state.drivers.find(d=>d.name===name);
     if(!dr) return false;
     if(dr.group) return dr.group===libereView;
     if(!dr.visibleTo || dr.visibleTo.length===0) return isAdmin(); // ungrouped: vizibil doar pentru Admin, ca semnal de categorisit
     return dr.visibleTo.includes(groupKey);
   });
+  // Persoanele ascunse de utilizator (doar vizual, pe acest dispozitiv — datele nu se modifică)
+  const _hidSet = libereHiddenSet();
+  const persons = personsAll.filter(n=>!_hidSet.has(n));
+  renderLibereHiddenBar(personsAll.filter(n=>_hidSet.has(n)));
   const dayData = (libereState.days||{})[mk]||{};
   const tl = document.getElementById("libereTimeline");
   if(!tl) return;
 
+  if(!persons.length && personsAll.length){
+    tl.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-dim);grid-column:1/-1">Toate persoanele din această lună sunt ascunse. Apasă pe numele lor de mai sus sau pe „Arată toți”.</div>`;
+    document.getElementById("libereStats").innerHTML = "";
+    const _rec0 = document.getElementById("libereFreeRecommendation"); if(_rec0) _rec0.style.display="none";
+    return;
+  }
   if(!persons.length){
     tl.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-dim);grid-column:1/-1">
       ${canManagePersons("libere",libereView)?'Nicio persoană selectată pentru '+MONTHS[m]+' '+y+'. Apasă ⚙️ <b>Selectează persoane</b> din dreapta sus'+(hasAnyPrevMonthPersons()?' sau <a href="#" onclick="copyLiberePersonsFromPrevMonth();return false;" style="color:var(--accent)">copiază din luna anterioară</a>':'')+'.':'Nicio persoană configurată pentru acest tab, luna aceasta.'}
@@ -7737,7 +7780,7 @@ function renderLibere(){
   const statsPerPerson = {};
 
   persons.forEach(name=>{
-    driverHtml+=`<div class='tl-driver-row' style='font-size:12px'>${escapeHtml(name)}</div>`;
+    driverHtml+=`<div class='tl-driver-row' style='font-size:12px'><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}</span><span class="lib-hide-btn" title="Ascunde din vizualizare (doar pe acest dispozitiv)" onclick="event.stopPropagation();libereHidePerson(decodeURIComponent('${libEnc(name)}'))">🙈</span></div>`;
     gridHtml+=`<div class='tl-row' style='grid-template-columns:${gridCols}'>`;
 
     // Persoana din Concedii — folosită doar pentru data de angajare (startDate)
@@ -10978,7 +11021,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.23-02";
+const APP_VERSION = "2026.10.23-03";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12315,7 +12358,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.23-02</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.23-03</div>
 
 </body>
 </html>
