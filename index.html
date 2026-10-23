@@ -1913,7 +1913,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") toggleSecretDrawer
 <div class="modal-bg" id="modalPinAdmin">
   <div class="modal">
     <h3>🔐 Coduri PIN utilizatori</h3>
-    <div class="modal-sub">PIN-urile sunt stocate doar ca hash pe server și nu pot fi vizualizate. După 3 încercări greșite contul se blochează până îl deblochezi tu.</div>
+    <div class="modal-sub">PIN-urile sunt stocate doar ca hash pe server și nu pot fi vizualizate. După 3 încercări greșite contul se blochează temporar (5 min, apoi 15 min, apoi 1 oră); îl poți debloca oricând de aici.</div>
     <div id="pinAdminList" style="margin-top:12px"></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modalPinAdmin')">Închide</button>
@@ -3240,17 +3240,17 @@ window.lockPinKey = async function(k){
     const entered=window._lockPin;
     window._lockPin="";
     updateLockDots();
-    let pinCorrect=false, lockedOut=false, remaining=null;
+    let pinCorrect=false, lockedOut=false, remaining=null, lockRetry=0;
     try{
       const r = await callFn("pinLogin",{userKey:uk,pin:entered});
       pinCorrect = true;
       try{ await auth.signInWithCustomToken(r.token); }catch(e){}
     }catch(e){
-      const i=pinErrInfo(e); remaining=i.remaining;
+      const i=pinErrInfo(e); remaining=i.remaining; lockRetry=i.retry;
       lockedOut = (i.reason==="locked" || i.remaining===0);
     }
     if(lockedOut){
-      toast("🔒 Cont blocat după 3 încercări greșite. Contactează Admin.",true);
+      toast(lockText(lockRetry),true);
       switchUserFromLock();
       return;
     }
@@ -3331,7 +3331,13 @@ function resetAdminAutoLock(){
 // (funcțiile pinLogin/pinChange, hash bcrypt în colecția `credentials`, inaccesibilă clienților).
 function pinErrInfo(e){
   const d = e && e.details || {};
-  return { code: e && e.code || "", msg: (e && e.message) || "Eroare", remaining: d.remaining, reason: d.reason };
+  return { code: e && e.code || "", msg: (e && e.message) || "Eroare", remaining: d.remaining, reason: d.reason, retry: d.retryAfterSeconds || 0 };
+}
+// Text pentru cont blocat: temporar (cu timp) sau definitiv (doar Admin poate debloca)
+function lockText(sec){
+  if(!sec) return "🔒 Cont blocat. Contactează Admin pentru deblocare.";
+  const t = sec>=3600 ? Math.ceil(sec/3600)+" oră" : sec>=60 ? Math.ceil(sec/60)+" min" : sec+" s";
+  return "🔒 Prea multe încercări greșite. Încearcă din nou peste "+t+" (sau cere deblocare de la Admin).";
 }
 
 window.loginAsUser = function(userKey){
@@ -3359,7 +3365,7 @@ async function showPinScreen(userKey){
   try{
     const st = await callFn("pinStatus",{userKey});
     if(st.state==="none"){ pinState.mode="blocked"; document.getElementById("pinSub").textContent="PIN nesetat — cere-i lui Admin un PIN temporar."; }
-    else if(st.state==="locked"){ pinState.mode="blocked"; document.getElementById("pinSub").textContent="🔒 Cont blocat după 3 încercări greșite. Contactează Admin pentru deblocare."; }
+    else if(st.state==="locked"){ pinState.mode="blocked"; document.getElementById("pinSub").textContent=lockText(st.retryAfterSeconds); }
     else document.getElementById("pinSub").textContent = "Introdu codul PIN";
   }catch(e){
     pinState.mode="blocked";
@@ -3436,11 +3442,12 @@ async function pinSubmit(){
   }catch(e){
     const i=pinErrInfo(e);
     pinDotsError(); pinState.entered="";
-    if(i.reason==="locked"){ pinState.mode="blocked"; errEl.textContent=""; subEl.textContent="🔒 Cont blocat după 3 încercări greșite. Contactează Admin pentru deblocare."; }
+    if(i.reason==="locked"){ pinState.mode="blocked"; errEl.textContent=""; subEl.textContent=lockText(i.retry); }
+    else if(i.reason==="rate-limited"){ errEl.textContent="Prea multe cereri. Încearcă din nou peste câteva minute."; }
     else if(i.reason==="not-set"){ pinState.mode="blocked"; errEl.textContent=""; subEl.textContent="PIN nesetat — cere-i lui Admin un PIN temporar."; }
     else if(typeof i.remaining==="number") errEl.textContent = i.remaining>0 ? "PIN greșit. Mai ai "+i.remaining+(i.remaining===1?" încercare.":" încercări.") : "Cont blocat.";
     else errEl.textContent = "Eroare: "+(i.msg||"conexiune")+(i.code?" ["+i.code+"]":"");
-    if(i.remaining===0){ pinState.mode="blocked"; subEl.textContent="🔒 Cont blocat după 3 încercări greșite. Contactează Admin pentru deblocare."; }
+    if(i.remaining===0){ pinState.mode="blocked"; subEl.textContent=lockText(i.retry); }
   }
   pinState.busy=false;
 }
@@ -3466,7 +3473,7 @@ window.openPinAdmin = async function(){
   const users = ["raluca","tania","madalina","corina","mihaela"];
   list.innerHTML = users.map(uk=>{
     const s = st[uk]||{};
-    const badge = s.locked ? '<span style="color:#ef4444;font-weight:700">🔒 BLOCAT</span>'
+    const badge = s.locked ? '<span style="color:#ef4444;font-weight:700">🔒 BLOCAT'+(s.retryAfterSeconds?' (încă '+(s.retryAfterSeconds>=3600?Math.ceil(s.retryAfterSeconds/3600)+' oră':Math.ceil(s.retryAfterSeconds/60)+' min')+')':'')+'</span>'
       : !s.hasPin ? '<span style="color:var(--text-dim)">fără PIN</span>'
       : s.mustChange ? '<span style="color:#f59e0b">PIN temporar (neschimbat)</span>'
       : '<span style="color:#10b981">activ</span>'+(s.attempts?(' · '+s.attempts+' greșite'):'');
@@ -10971,7 +10978,7 @@ function confirmSortEdit(){
 
 // VERSION UPDATE NOTIFICATION
 // ============================================================
-const APP_VERSION = "2026.10.22-10";
+const APP_VERSION = "2026.10.23-02";
 
 // La login admin — publică automat dacă versiunea din cod e nouă față de Firestore
 async function autoPublishVersionIfNew(){
@@ -12308,7 +12315,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 </script>
 
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
-<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.22-10</div>
+<div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.23-02</div>
 
 </body>
 </html>
