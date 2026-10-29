@@ -1392,6 +1392,7 @@
       </div>
     </div>
     <div id="holidayBanner" class="holiday-banner" style="display:none"></div>
+    <div id="blockedEntriesBanner" style="display:none;background:#fee2e2;color:#7f1d1d;border:1px solid #ef4444;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px"></div>
     <div id="excelImportReminderBanner" style="display:none;background:#f59e0b;color:#000;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px"></div>
     
     <div class="legend">
@@ -4194,6 +4195,15 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") toggleSecretDrawer
     <div class="modal-sub" id="archiveSub">Persoane care nu mai lucrează la noi — istoricul rămâne salvat.</div>
     <div id="archiveContent" style="margin-top:12px"></div>
     <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('modalArchive')">Închide</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalBlocked">
+  <div class="modal" style="max-width:720px;max-height:92vh;overflow-y:auto">
+    <h3>⚠️ Zile marcate în afara perioadei de angajare</h3>
+    <div class="modal-sub">Prezențe sau concedii/krank/fără plată/zile speciale rămase pe zile în care persoana nu e angajată (după plecare, înainte de angajare sau între perioade).</div>
+    <div id="blockedContent" style="margin-top:12px"></div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('modalBlocked')">Închide</button></div>
   </div>
 </div>
 
@@ -14966,6 +14976,87 @@ function openSortPrintModal(){
 }
 
 
+// ---- Intrări rămase pe zile blocate (persoană plecată / neangajată încă) ----
+const BLK_TYPES=[["leaves","Concediu"],["krankLeaves","Krank"],["unpaidLeaves","Fără plată"],["specialLeaves","Zi specială"]];
+function blockedEntriesFor(dr){
+  const out={pres:[],leaves:{}};
+  if(!(dr.startDate||dEnd(dr)||(dr.periods&&dr.periods.length))) return out;
+  const pr=(presState&&presState.presence)||{};
+  Object.keys(pr).forEach(mk=>{
+    const byName=pr[mk]&&pr[mk][dr.name]; if(!byName) return;
+    const [yy,mm]=mk.split("-").map(Number);
+    Object.keys(byName).forEach(dn=>{
+      const d=new Date(yy,mm-1,parseInt(dn,10));
+      if(d.getDay()===0||getHoliday(d)) return;
+      if(!isDriverActiveOnDay(dr,d)) out.pres.push({mk,dn});
+    });
+  });
+  BLK_TYPES.forEach(([k])=>{
+    let days=0;
+    (dr[k]||[]).forEach(l=>{ for(let d=parseDate(l.start),e=parseDate(l.end);d<=e;d.setDate(d.getDate()+1)){ if(isWorkday(d,dr)&&!isDriverActiveOnDay(dr,d)) days++; } });
+    if(days) out.leaves[k]=days;
+  });
+  return out;
+}
+function allBlockedEntries(){
+  const res=[];
+  (state.drivers||[]).forEach(dr=>{
+    const b=blockedEntriesFor(dr);
+    const nl=Object.values(b.leaves).reduce((a,x)=>a+x,0);
+    if(b.pres.length||nl) res.push({dr,b,np:b.pres.length,nl});
+  });
+  return res;
+}
+function updateBlockedBanner(){
+  const el=document.getElementById("blockedEntriesBanner"); if(!el) return;
+  if(!isAdmin()){ el.style.display="none"; return; }
+  let list=[]; try{ list=allBlockedEntries(); }catch(e){ console.warn("blocked",e); }
+  if(!list.length){ el.style.display="none"; return; }
+  el.innerHTML=`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:18px">⚠️</span><span style="flex:1;min-width:200px"><b>${list.length} ${list.length===1?"persoană are":"persoane au"} zile marcate în afara perioadei de angajare</b> (prezențe/concedii sub zonele gri): <span style="opacity:.85">${escapeHtml(list.slice(0,5).map(x=>x.dr.name).join(", "))}${list.length>5?" +"+(list.length-5)+" altele":""}</span></span><button onclick="openBlockedModal()" style="background:#b91c1c;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:800;font-size:12px">Vezi și curăță</button></div>`;
+  el.style.display="block";
+}
+function openBlockedModal(){
+  if(!isAdmin()) return;
+  const list=allBlockedEntries();
+  const c=document.getElementById("blockedContent");
+  if(!list.length){ c.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-dim)">Nimic de curățat ✓</div>'; openModal("modalBlocked"); return; }
+  c.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:5px 8px;border-bottom:1px solid var(--border)">Persoană</th><th style="padding:5px 6px;border-bottom:1px solid var(--border)">Prezențe</th><th style="padding:5px 6px;border-bottom:1px solid var(--border)">Concedii / krank / etc. (zile)</th><th style="border-bottom:1px solid var(--border)"></th></tr></thead><tbody>`+
+   list.map(x=>`<tr><td style="padding:5px 8px;font-weight:600">${escapeHtml(x.dr.name)}<div style="font-size:10px;color:var(--text-dim)">${(drPeriods(x.dr)).map(p=>(p.start||"…")+" → "+(p.end||"prezent")).join(" · ")}</div></td><td style="text-align:center">${x.np||"—"}</td><td style="text-align:center">${BLK_TYPES.filter(([k])=>x.b.leaves[k]).map(([k,l])=>l+": "+x.b.leaves[k]).join(" · ")||"—"}</td><td style="text-align:center"><button class="btn btn-secondary btn-small" onclick="clearBlockedFor('${x.dr.id}')">🗑 Șterge</button></td></tr>`).join("")+
+   `</tbody></table><div style="margin-top:12px;text-align:right"><button class="btn btn-secondary" style="border-color:#ef4444;color:#ef4444" onclick="clearBlockedFor('*')">🗑 Șterge tot</button></div>`;
+  openModal("modalBlocked");
+}
+function trimRangesToActive(arr,dr){
+  const out=[];
+  (arr||[]).forEach(l=>{
+    let cur=null;
+    for(let d=parseDate(l.start),e=parseDate(l.end);d<=e;d.setDate(d.getDate()+1)){
+      const keep=isDriverActiveOnDay(dr,d)||!isWorkday(d,dr); // zilele libere (duminici/sărbători) rămân dacă se află în interiorul unui interval activ
+      const ds=fmtDate(d);
+      if(isDriverActiveOnDay(dr,d)){ if(!cur) cur={...l,start:ds,end:ds}; else cur.end=ds; }
+      else if(cur){ out.push(cur); cur=null; }
+    }
+    if(cur) out.push(cur);
+  });
+  return out;
+}
+async function clearBlockedFor(id){
+  if(!isAdmin()) return;
+  const targets=(id==="*")?allBlockedEntries().map(x=>x.dr):[state.drivers.find(d=>d.id===id)].filter(Boolean);
+  if(!targets.length) return;
+  if(!confirm("Ștergi prezențele și concediile/krank/fără plată/zilele speciale marcate pe zile blocate pentru "+(id==="*"?targets.length+" persoane":targets[0].name)+"?\n\nZilele din perioadele active NU se ating.")) return;
+  let presChanged=false, drChanged=false, np=0;
+  targets.forEach(dr=>{
+    const b=blockedEntriesFor(dr);
+    b.pres.forEach(({mk,dn})=>{ try{ delete presState.presence[mk][dr.name][dn]; presChanged=true; np++; }catch(e){} });
+    BLK_TYPES.forEach(([k])=>{ if(b.leaves[k]){ dr[k]=trimRangesToActive(dr[k],dr); drChanged=true; } });
+    try{ logActivity("🧹 Curățat zile blocate",dr.name,b.pres.length+" prezențe; "+Object.entries(b.leaves).map(([k,v])=>k+":"+v).join(","),"concedii"); }catch(e){}
+  });
+  if(presChanged) await savePresState();
+  if(drChanged) scheduleSave();
+  renderAll(); openBlockedModal();
+  toast("🧹 Curățat — "+np+" prezențe"+(drChanged?" și intervale de concediu":"")+" șterse de pe zilele blocate");
+}
+
 function renderAll(includeDrivers=true){
   const uk = window.activeUserKey;
   if(uk && uk!=="mihaela"){
@@ -14975,6 +15066,7 @@ function renderAll(includeDrivers=true){
   if(includeDrivers)renderDrivers();
   renderMain();
   updateTodayLeavePanel();
+  try{ updateBlockedBanner(); }catch(e){}
 }
 
 function openStats(filter){
