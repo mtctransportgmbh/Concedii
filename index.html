@@ -4220,6 +4220,10 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") toggleSecretDrawer
         Suprascrie manual — ignoră regula automată după data angajării
       </label>
     </div>
+    <label id="leaveNoSatRow" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);margin-bottom:10px;cursor:pointer">
+      <input type="checkbox" id="leaveNoSatCheck" onchange="toggleNoSaturday()">
+      Anulează sâmbăta — ca la sărbătoare: nimic nu se poate adăuga sâmbătă și nu se ia în calcul
+    </label>
     <label>De la</label>
     <input type="date" id="leaveStart">
     <label>Până la (inclusiv)</label>
@@ -4738,7 +4742,7 @@ function buildAbsenceData(y,m,groupFilter,types){
         const s=parseDate(l.start), e=parseDate(l.end);
         if(e<mStart||s>mEnd) return;
         const from=s<mStart?mStart:s, to=e>mEnd?mEnd:e;
-        const wd=countWorkdays(from,to);
+        const wd=countWorkdays(from,to,dr);
         if(wd<=0) return;
         const rl={label:absRangeLabel(from,to), days:wd};
         if(t.key==="specialLeaves" && l.reason) rl.reason=l.reason;
@@ -5225,7 +5229,7 @@ function buildCompleteBackup(){
       name:          dr.name,
       visibleTo:     dr.visibleTo||[],
       maxDays:       dr.maxDays||0,
-      maxDaysOverride: dr.maxDaysOverride||false,
+      maxDaysOverride: dr.maxDaysOverride||false, noSaturday: dr.noSaturday||false,
       carryOverDays: dr.carryOverDays||0,
       carryOverByYear: dr.carryOverByYear||{},
       borrowedDays: dr.borrowedDays||[],
@@ -5272,6 +5276,7 @@ function restoreCompleteBackup(bk){
       dr.specialLeaves = bkDr.specialLeaves||[];
       dr.maxDays       = bkDr.maxDays||dr.maxDays||0;
       if(bkDr.maxDaysOverride) dr.maxDaysOverride=true; else delete dr.maxDaysOverride;
+      if(bkDr.noSaturday) dr.noSaturday=true; else delete dr.noSaturday;
       dr.carryOverDays = bkDr.carryOverDays||0;
       dr.carryOverByYear = bkDr.carryOverByYear||{};
       dr.borrowedDays = bkDr.borrowedDays||[];
@@ -5355,7 +5360,7 @@ async function _runAutoBackup(time, customDocId, activityLimit){
     allDrivers.forEach(dr=>{
       driversData[dr.id||dr.name]={
         name:dr.name, visibleTo:dr.visibleTo||[],
-        maxDays:dr.maxDays||0, maxDaysOverride:dr.maxDaysOverride||false, carryOverDays:dr.carryOverDays||0,
+        maxDays:dr.maxDays||0, maxDaysOverride:dr.maxDaysOverride||false, noSaturday:dr.noSaturday||false, carryOverDays:dr.carryOverDays||0,
         carryOverByYear:dr.carryOverByYear||{},
         borrowedDays:dr.borrowedDays||[],
         group:dr.group||null,
@@ -6285,12 +6290,12 @@ function findConcDriverByName(name){
 }
 function formatDateRO(ds){const[y,m,d]=ds.split("-");return parseInt(d)+" "+["Ian","Feb","Mar","Apr","Mai","Iun","Iul","Aug","Sep","Oct","Nov","Dec"][parseInt(m)-1]+" "+y;}
 
-function isWorkday(date){return date.getDay()!==0 && !getHoliday(date);}
+function isWorkday(date,dr){return date.getDay()!==0 && !getHoliday(date) && !(dr&&dr.noSaturday&&date.getDay()===6);}
 
-function countWorkdays(from,to){
+function countWorkdays(from,to,dr){
   let count=0;
   const d=new Date(from);
-  while(d<=to){if(isWorkday(d))count++;d.setDate(d.getDate()+1);}
+  while(d<=to){if(isWorkday(d,dr))count++;d.setDate(d.getDate()+1);}
   return count;
 }
 
@@ -6302,7 +6307,7 @@ function usedDaysThisYear(dr, type, year){
     if(e.getFullYear()<y||s.getFullYear()>y)return sum;
     const ys=new Date(y,0,1),ye=new Date(y,11,31);
     const from=s<ys?ys:s, to=e>ye?ye:e;
-    return sum+countWorkdays(from,to);
+    return sum+countWorkdays(from,to,dr);
   },0);
   // Zile jumătate Prezent/Concediu — DOAR grupul Camion (Corina): fiecare
   // 2 jumătăți de zi marcate în calendar scad 1 zi întreagă din cota de
@@ -6350,6 +6355,9 @@ function isDriverGoneBefore(dr, y, m){
 // A plecat definitiv (arhivă): toate perioadele încheiate înainte de luna curentă a calendarului reală
 function isDriverDeparted(dr){ const t=new Date(); return !!dr.archived || isDriverGoneBefore(dr,t.getFullYear(),t.getMonth()); }
 function checkDateRangeConflict(dr, startStr, endStr, excludeType){
+  if(dr && dr.noSaturday && startStr===endStr && parseDate(startStr).getDay()===6){
+    return {conflict:true, type:"contract", label:"Sâmbăta e anulată pentru această persoană"};
+  }
   // Blocaj de contract: nicio zi din interval nu poate cădea LA sau DUPĂ
   // data de plecare (endDate), nici înainte de data de angajare (startDate).
   if(dEnd(dr) && endStr>=dEnd(dr)){
@@ -6712,7 +6720,7 @@ function getFutureLeaveAfterDeparture(dr, endDateStr){
       const ys=new Date(yr,0,1), ye=new Date(yr,11,31);
       const from = ls>ys?ls:ys, to = le<ye?le:ye;
       if(from<=to){
-        byYear[yr] = (byYear[yr]||0) + countWorkdays(from,to);
+        byYear[yr] = (byYear[yr]||0) + countWorkdays(from,to,dr);
       }
     }
   });
@@ -7055,8 +7063,8 @@ function renderArchiveList(){
     const _ps=drPeriods(d), _lastEnd=(_ps.length&&_ps[_ps.length-1].end)||d.endDate||"";
     const y=_lastEnd?parseInt(_lastEnd.slice(0,4),10):currentDate.getFullYear(); // anul plecării
     const usedConc=usedDaysThisYear(d,"leaves",y);
-    const usedKrank=(d.krankLeaves||[]).reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end)),0);
-    const usedUnpaid=(d.unpaidLeaves||[]).reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end)),0);
+    const usedKrank=(d.krankLeaves||[]).reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end),d),0);
+    const usedUnpaid=(d.unpaidLeaves||[]).reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end),d),0);
     const carry=getCarryOverForYear(d,y);
     const total=getEffectiveMaxDays(d,y)+carry;
     const rowBg=i%2===0?"var(--bg)":"var(--bg-elev)";
@@ -7220,14 +7228,26 @@ function openLeaveModal(id, leaveType){
     if(cr)cr.style.display="none";
   }
 
+  { const _r=document.getElementById("leaveNoSatRow"), _c=document.getElementById("leaveNoSatCheck");
+    const _can=isAdmin()||(window.activeUserKey==="corina"&&(dr.group==="camion"||(dr.visibleTo||[]).includes("corina")));
+    if(_r){ _r.style.display=_can?"flex":"none"; if(_c) _c.checked=!!dr.noSaturday; } }
   const arrKey2 = leaveType==="krank"?"krankLeaves":leaveType==="unpaid"?"unpaidLeaves":leaveType==="special"?"specialLeaves":"leaves";
   const arr = dr[arrKey2]||[];
-  const total2=arr.reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end)),0);
+  const total2=arr.reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end),dr),0);
   document.getElementById("modalLeaveSub").textContent=arr.length+" perioadă(e) · "+total2+" zile lucrătoare";
   renderLeaveList(dr, leaveType);
   openModal("modalLeave");
 }
 
+function toggleNoSaturday(){
+  const dr=state.drivers.find(d=>d.id===leaveDriverId);if(!dr)return;
+  const on=document.getElementById("leaveNoSatCheck").checked;
+  if(!(isAdmin()||(window.activeUserKey==="corina"))){ toast("Nu ai permisiunea",true); return; }
+  if(on) dr.noSaturday=true; else delete dr.noSaturday;
+  logActivity(on?"🚫 Sâmbăta anulată":"✅ Sâmbăta reactivată",dr.name,"","concedii");
+  toast(on?"✓ Sâmbăta anulată pentru "+dr.name:"✓ Sâmbăta reactivată pentru "+dr.name);
+  renderAll(); openLeaveModal(leaveDriverId,document.getElementById("modalLeave").dataset.leaveType||"leaves"); scheduleSave();
+}
 function saveMaxDays(){
   const dr=state.drivers.find(d=>d.id===leaveDriverId);if(!dr)return;
   // Dacă persoana are dată de angajare și suprascrierea manuală NU e bifată,
@@ -7272,7 +7292,7 @@ function renderLeaveList(dr, leaveType){
   if(!arr.length){list.innerHTML='<div class="empty">Nicio perioadă</div>';return;}
   const sorted=[...arr].sort((a,b)=>a.start.localeCompare(b.start));
   list.innerHTML=sorted.map(l=>{
-    const days=countWorkdays(parseDate(l.start),parseDate(l.end));
+    const days=countWorkdays(parseDate(l.start),parseDate(l.end),dr);
     const reasonHtml = (leaveType==="special"&&l.reason) ? `<div style="font-size:11px;color:var(--text-dim);margin-top:2px">🎗️ ${escapeHtml(l.reason)}</div>` : "";
     return `<div class="leave-row">
       <span>${formatDateRO(l.start)} → ${formatDateRO(l.end)} <span style="color:var(--text-dim);font-size:11px">(${days}z lucr.)</span>${reasonHtml}</span>
@@ -7290,7 +7310,7 @@ function addLeave(){
   if(start>end){toast("Data început după data sfârșit",true);return;}
   const dr=state.drivers.find(d=>d.id===leaveDriverId);if(!dr)return;
   if(!canEditAbsence(leaveType,dr)){ toast("Nu ai permisiunea de a modifica „"+(leaveType==="unpaid"?"Fără plată":"Zi specială")+"” pentru această persoană",true); return; }
-  const newDays=countWorkdays(parseDate(start),parseDate(end));
+  const newDays=countWorkdays(parseDate(start),parseDate(end),dr);
 
   let specialReason="";
   if(leaveType==="special"){
@@ -7378,7 +7398,7 @@ function addLeave(){
         // Calculează suprapunerea exactă
         const from=l.start>start?l.start:start;
         const to=l.end<end?l.end:end;
-        return sum+countWorkdays(parseDate(from),parseDate(to));
+        return sum+countWorkdays(parseDate(from),parseDate(to),dr);
       },0);
       const typeLabel=leaveType==="krank"?"krank":leaveType==="special"?"zi specială":"fără plată";
       const action=leaveType==="krank"?"restaurate la disponibile":"restaurate la disponibile";
@@ -7545,7 +7565,7 @@ function saveQuickLeave(){
   if(!start||!end){toast("Selectează ambele date",true);return;}
   if(start>end){toast("Data început după data sfârșit",true);return;}
   const dr=state.drivers.find(d=>d.id===comboSelectedId);if(!dr)return;
-  const newDays=countWorkdays(parseDate(start),parseDate(end));
+  const newDays=countWorkdays(parseDate(start),parseDate(end),dr);
   const _qType=document.getElementById("modalQuick")?.dataset?.quickType||"leaves";
   if(!canEditAbsence(_qType,dr)){ toast("Nu ai permisiunea de a modifica „Fără plată” pentru această persoană",true); return; }
 
@@ -7690,7 +7710,7 @@ function importBackup(e){
         name: d.name,
         visibleTo: d.visibleTo||["tania"],
         maxDays: d.maxDays||0,
-        maxDaysOverride: d.maxDaysOverride||false,
+        maxDaysOverride: d.maxDaysOverride||false, noSaturday: d.noSaturday||false,
         carryOverDays: d.carryOverDays||0,
         carryOverByYear: d.carryOverByYear||{},
         borrowedDays: d.borrowedDays||[],
@@ -7816,7 +7836,7 @@ function uploadLocalBackup(e){
           name:           d.name,
           visibleTo:      d.visibleTo||["tania"],
           maxDays:        d.maxDays||0,
-          maxDaysOverride: d.maxDaysOverride||false,
+          maxDaysOverride: d.maxDaysOverride||false, noSaturday: d.noSaturday||false,
           carryOverDays:  d.carryOverDays||0,
           carryOverByYear:d.carryOverByYear||{},
           borrowedDays:  d.borrowedDays||[],
@@ -7868,7 +7888,7 @@ async function downloadBackupNow(){
            excelStatusData, backupDiffData, planWarningsData, calRemindersData, activityData} = await fetchCompleteServerState();
     const driversData=allDrivers.map(dr=>({
       name:dr.name, visibleTo:dr.visibleTo||[],
-      maxDays:dr.maxDays||0, maxDaysOverride:dr.maxDaysOverride||false, carryOverDays:dr.carryOverDays||0,
+      maxDays:dr.maxDays||0, maxDaysOverride:dr.maxDaysOverride||false, noSaturday:dr.noSaturday||false, carryOverDays:dr.carryOverDays||0,
       carryOverByYear:dr.carryOverByYear||{},
       borrowedDays:dr.borrowedDays||[],
       group:dr.group||null,
@@ -8334,6 +8354,7 @@ function tlDragStart(driverId,dn,isSun,onLeave,rtype){
   // Also block holidays
   const d=new Date(currentDate.getFullYear(),currentDate.getMonth(),dn);
   if(getHoliday(d))return;
+  { const _dr=state.drivers.find(x=>x.id===driverId); if(_dr&&_dr.noSaturday&&d.getDay()===6) return; }
   tlDrag={active:true,driverId,startDay:dn,endDay:dn,removing:onLeave,rtype:rtype||"leaves"};
   document.querySelectorAll(".tl-row,.tl-driver-row").forEach(el=>el.classList.remove("tl-row-active"));
   document.querySelectorAll(`.tl-row[data-driver-row="${driverId}"],.tl-driver-row[data-driver-row="${driverId}"]`).forEach(el=>el.classList.add("tl-row-active"));
@@ -8348,7 +8369,8 @@ function tlDragMove(dn,pageX,pageY){
     const y=currentDate.getFullYear(),m=currentDate.getMonth();
     // Count workdays in selection
     const from=new Date(y,m,s),to=new Date(y,m,e);
-    const days=countWorkdays(from,to);
+    const dr=state.drivers.find(x=>x.id===tlDrag.driverId);
+    const days=countWorkdays(from,to,dr);
     tip.textContent=tlDrag.removing?"🗑 Șterge "+({leaves:"concediu",krank:"krank",unpaid:"fără plată",special:"zi specială"}[tlDrag.rtype||"leaves"])+" "+days+"z lucr. ("+s+"–"+e+")":"✓ Adaugă "+days+"z lucr. ("+s+"–"+e+")";
     tip.style.display="block";tip.style.left=(pageX+14)+"px";tip.style.top=(pageY-32)+"px";
   }
@@ -8360,7 +8382,8 @@ function tlDragUpdate(currentDn){
   document.querySelectorAll(`.tl-cell[data-driver="${tlDrag.driverId}"]`).forEach(cell=>{
     const dn=parseInt(cell.dataset.day);
     const d=new Date(y,m,dn);
-    const blocked=isSunday(d)||!!getHoliday(d);
+    const _ddr=state.drivers.find(x=>x.id===tlDrag.driverId);
+    const blocked=isSunday(d)||!!getHoliday(d)||!!(_ddr&&_ddr.noSaturday&&d.getDay()===6);
     const inRange=dn>=s&&dn<=e&&!blocked;
     cell.classList.toggle("tl-selecting", inRange&&!isRemoving);
     cell.classList.toggle("tl-removing",  inRange&&isRemoving);
@@ -8416,7 +8439,7 @@ function tlDragEnd(){
       renderAll();scheduleSave();toast("🗑 "+label+" șters pentru "+dr.name+" ("+startStr.slice(8)+"."+startStr.slice(5,7)+" – "+endStr.slice(8)+"."+endStr.slice(5,7)+")");
     } else toast("Nicio perioadă de șters",true);
   } else {
-    const newDays=countWorkdays(new Date(y,m,s),new Date(y,m,e));
+    const newDays=countWorkdays(new Date(y,m,s),new Date(y,m,e),dr);
     const viewedYear=currentDate.getFullYear();
     const maxDays=getEffectiveMaxDays(dr,viewedYear)+getCarryOverForYear(dr,viewedYear);
     if(maxDays>0){
@@ -8504,7 +8527,7 @@ function renderTimeline(){
         const ls=parseDate(l.start),le=parseDate(l.end);
         if(ls>=ms) return s;
         const to=le<ms?le:new Date(ms.getTime()-86400000);
-        return s+countWorkdays(ls,to);
+        return s+countWorkdays(ls,to,dr);
       },0);
       // Folosite în luna curentă
       const me=new Date(y,m+1,0);
@@ -8512,7 +8535,7 @@ function renderTimeline(){
         const ls=parseDate(l.start),le=parseDate(l.end);
         const from=ls<ms?ms:ls,to=le>me?me:le;
         if(from>to) return s;
-        return s+countWorkdays(from,to);
+        return s+countWorkdays(from,to,dr);
       },0);
       const rem=total-usedBefore-usedThis;
       const cls=rem<0?"neg":rem<3?"warn":"pos";
@@ -8531,7 +8554,7 @@ function renderTimeline(){
   sortedDrivers.forEach(dr=>{
     gridHtml+=`<div class='tl-row' data-driver-row='${dr.id}' style='grid-template-columns:${gridCols}'>`;
     for(let dn=1;dn<=daysInMonth;dn++){
-      const d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d);
+      const d=new Date(y,m,dn),isSun=isSunday(d),holiday=getHoliday(d)||((dr.noSaturday&&d.getDay()===6)?"Sâmbătă liberă":null);
       const onLeave=!isSun&&(dr.leaves||[]).some(l=>dateInLeave(d,l));
       const onKrank=!isSun&&(dr.krankLeaves||[]).some(l=>dateInLeave(d,l));
       const onUnpaid=!isSun&&(dr.unpaidLeaves||[]).some(l=>dateInLeave(d,l));
@@ -8909,7 +8932,7 @@ function runCarryOverCalculation(){
       if(e.getFullYear()<fromYear||s.getFullYear()>fromYear)return sum;
       const ys=new Date(fromYear,0,1),ye=new Date(fromYear,11,31);
       const from=s<ys?ys:s,to=e>ye?ye:e;
-      return sum+countWorkdays(from,to);
+      return sum+countWorkdays(from,to,dr);
     },0);
     const prevCarry = (dr.carryOverByYear && dr.carryOverByYear[String(fromYear)]!==undefined) ? dr.carryOverByYear[String(fromYear)] : (dr.carryOverDays||0);
     const alreadyBorrowed = getBorrowedDaysForYear(dr, toYear);
@@ -8993,7 +9016,7 @@ function autoCalculateCarryOver(fromYear, toYear){
       if(e.getFullYear()<fromYear||s.getFullYear()>fromYear)return sum;
       const ys=new Date(fromYear,0,1),ye=new Date(fromYear,11,31);
       const from=s<ys?ys:s,to=e>ye?ye:e;
-      return sum+countWorkdays(from,to);
+      return sum+countWorkdays(from,to,dr);
     },0);
     // prevCarry (reportul intrat în fromYear) NU include vreun împrumut al lui
     // fromYear→toYear (acela ține de toYear, nu de fromYear) — citim direct
@@ -9317,10 +9340,10 @@ function salFindDriver(emp){
   const k=salNameKey(emp.name);
   return (state.drivers||[]).find(d=>salNameKey(d.name)===k)||null;
 }
-function salDaysIn(list, y, m, skip){ // zile (convenția aplicației: fără duminici/sărbători)
+function salDaysIn(list, y, m, skip, dr){ // zile (convenția aplicației: fără duminici/sărbători)
   let c=0; const last=new Date(y,m+1,0).getDate();
   for(let day=1;day<=last;day++){
-    const d=new Date(y,m,day); if(!isWorkday(d)) continue;
+    const d=new Date(y,m,day); if(!isWorkday(d,dr)) continue;
     const ds=fmtDateStr(d);
     if(skip && skip(ds)) continue;
     if((list||[]).some(l=>ds>=l.start&&ds<=l.end)) c++;
@@ -9334,8 +9357,8 @@ function salAutoDays(emp){
   const inAny=(ds)=>dr && ["leaves","krankLeaves","unpaidLeaves","specialLeaves"].some(t=>(dr[t]||[]).some(l=>ds>=l.start&&ds<=l.end));
   const outsideContract=(ds)=>dr && ((dr.startDate&&ds<dr.startDate)||(dr.endDate&&ds>dr.endDate));
   if(dr && out.yearOk){
-    out.c=salDaysIn(dr.leaves,y,m);
-    out.k=salDaysIn(dr.krankLeaves,y,m);
+    out.c=salDaysIn(dr.leaves,y,m,undefined,dr);
+    out.k=salDaysIn(dr.krankLeaves,y,m,undefined,dr);
   }
   const last=new Date(y,m+1,0).getDate();
   for(let day=1;day<=last;day++){
@@ -10759,7 +10782,7 @@ function renderLibereFreeRecommendation(persons, mk, y, m){
   container.innerHTML = html;
 }
 
-function isWorkday(d){ return !isSunday(d)&&!getHoliday(d); }
+function isWorkday(d,dr){ return !isSunday(d)&&!getHoliday(d)&&!(dr&&dr.noSaturday&&d.getDay()===6); }
 
 function renderLibereStats(persons, stats, mk, y, m){
   const container=document.getElementById("libereStats");
@@ -12232,21 +12255,21 @@ function buildPrintHTML(group){
       const ms=new Date(y,m,1),me=new Date(y,m+1,0);
       const from=ls<ms?ms:ls,to=le>me?me:le;
       if(from>to) return sum;
-      return sum+countWorkdays(from,to);
+      return sum+countWorkdays(from,to,dr);
     },0);
     const kMonth=(dr.krankLeaves||[]).reduce((sum,l)=>{
       const ls=parseDate(l.start),le=parseDate(l.end);
       const ms=new Date(y,m,1),me=new Date(y,m+1,0);
       const from=ls<ms?ms:ls,to=le>me?me:le;
       if(from>to) return sum;
-      return sum+countWorkdays(from,to);
+      return sum+countWorkdays(from,to,dr);
     },0);
     const sMonth=(dr.unpaidLeaves||[]).reduce((sum,l)=>{
       const ls=parseDate(l.start),le=parseDate(l.end);
       const ms=new Date(y,m,1),me=new Date(y,m+1,0);
       const from=ls<ms?ms:ls,to=le>me?me:le;
       if(from>to) return sum;
-      return sum+countWorkdays(from,to);
+      return sum+countWorkdays(from,to,dr);
     },0);
 
     // Zile la start lună = total - zile folosite ÎNAINTE de această lună
@@ -12258,7 +12281,7 @@ function buildPrintHTML(group){
       const ms=new Date(y,m,1);
       if(ls>=ms) return sum; // perioada începe deja în luna curentă sau mai târziu — nimic de numărat înainte
       const to = le<ms ? le : new Date(ms.getTime()-86400000); // limităm la ultima zi dinaintea lunii curente
-      return sum+countWorkdays(ls,to);
+      return sum+countWorkdays(ls,to,dr);
     },0);
     const startMonth = total>0 ? (total-usedBeforeMonth) : "-";
     const endMonth   = total>0 ? (total-usedBeforeMonth-usedMonth) : "-";
@@ -12988,8 +13011,8 @@ function previewBackup(idx){
 
   driversArr.forEach((d,i)=>{
     const usedConc = usedDaysThisYear(d,"leaves",y);
-    const usedKrank = (d.krankLeaves||[]).reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end)),0);
-    const usedUnpaid = (d.unpaidLeaves||[]).reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end)),0);
+    const usedKrank = (d.krankLeaves||[]).reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end),d),0);
+    const usedUnpaid = (d.unpaidLeaves||[]).reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end),d),0);
     const carry = getCarryOverForYear(d,y);
     const total = getEffectiveMaxDays(d,y)+carry;
     const rem = total>0 ? Math.max(0,total-usedConc) : "—";
@@ -13076,7 +13099,7 @@ async function confirmRestoreBackup(){
       name: d.name,
       visibleTo: d.visibleTo||["tania"],
       maxDays: d.maxDays||0,
-      maxDaysOverride: d.maxDaysOverride||false,
+      maxDaysOverride: d.maxDaysOverride||false, noSaturday: d.noSaturday||false,
       carryOverDays: d.carryOverDays||0,
       carryOverByYear: d.carryOverByYear||{},
       borrowedDays: d.borrowedDays||[],
@@ -14978,13 +15001,13 @@ function openStats(filter){
       if(e.getFullYear()<y||s.getFullYear()>y) return;
       const ys=new Date(y,0,1), ye=new Date(y,11,31);
       const from=s<ys?ys:s, to=e>ye?ye:e;
-      const days=countWorkdays(from,to);
+      const days=countWorkdays(from,to,dr);
       krankPersons[dr.name]=(krankPersons[dr.name]||0)+days;
       // Per month
       for(let m=0;m<12;m++){
         const ms=new Date(y,m,1), me=new Date(y,m+1,0);
         const mfrom=from<ms?ms:from, mto=to>me?me:to;
-        if(mfrom<=mto) krankByMonth[m]+=countWorkdays(mfrom,mto);
+        if(mfrom<=mto) krankByMonth[m]+=countWorkdays(mfrom,mto,dr);
       }
     });
     // Unpaid
@@ -14993,12 +15016,12 @@ function openStats(filter){
       if(e.getFullYear()<y||s.getFullYear()>y) return;
       const ys=new Date(y,0,1), ye=new Date(y,11,31);
       const from=s<ys?ys:s, to=e>ye?ye:e;
-      const days=countWorkdays(from,to);
+      const days=countWorkdays(from,to,dr);
       unpaidPersons[dr.name]=(unpaidPersons[dr.name]||0)+days;
       for(let m=0;m<12;m++){
         const ms=new Date(y,m,1), me=new Date(y,m+1,0);
         const mfrom=from<ms?ms:from, mto=to>me?me:to;
-        if(mfrom<=mto) unpaidByMonth[m]+=countWorkdays(mfrom,mto);
+        if(mfrom<=mto) unpaidByMonth[m]+=countWorkdays(mfrom,mto,dr);
       }
     });
   });
