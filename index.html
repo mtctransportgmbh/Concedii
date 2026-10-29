@@ -4587,7 +4587,9 @@ function initApp(userKey){
     const cache = {}; let loaded = 0;
     const rebuild = (live) => {
       const byName = {};
-      ["madalina","corina","raluca","tania"].forEach(dk=>{
+      // "tania" e doar o oglindă completă, scrisă de Admin/Tania; Corina/Raluca/Mădălina scriu NUMAI în documentul lor
+      // (nu au voie în „tania”) → documentul propriu e sursa de adevăr și trebuie să câștige, nu oglinda veche.
+      ["tania","madalina","corina","raluca"].forEach(dk=>{
         if(cache[dk])(cache[dk].drivers||[]).forEach(d=>{byName[d.name]=d;});
       });
       state = {drivers:Object.values(byName), thresholds:{warn:3,crit:5}};
@@ -6333,14 +6335,32 @@ function usedDaysThisYear(dr, type, year){
 // ============================================================
 // Data de plecare „efectivă”: o plecare ANTERIOARĂ datei de angajare = plecare veche (persoană reangajată) → se ignoră.
 function dEnd(dr){ return (dr.endDate && !(dr.startDate && dr.endDate<dr.startDate)) ? dr.endDate : null; }
+// Perioade de angajare (reangajare): [{start,end}] din Angajați; fără perioade → perioada unică startDate/endDate.
+function drPeriods(dr){
+  if(dr && Array.isArray(dr.periods) && dr.periods.length) return dr.periods;
+  if(dr && (dr.startDate||dEnd(dr))) return [{start:dr.startDate||"", end:dEnd(dr)||""}];
+  return [];
+}
+// A plecat definitiv înainte de începutul lunii (y,m)? (toate perioadele s-au încheiat)
+function isDriverGoneBefore(dr, y, m){
+  const ps=drPeriods(dr); if(!ps.length) return false;
+  const ms=fmtDate(new Date(y,m,1));
+  return ps.every(p=>p.end && p.end<ms);
+}
+// A plecat definitiv (arhivă): toate perioadele încheiate înainte de luna curentă a calendarului reală
+function isDriverDeparted(dr){ const t=new Date(); return !!dr.archived || isDriverGoneBefore(dr,t.getFullYear(),t.getMonth()); }
 function checkDateRangeConflict(dr, startStr, endStr, excludeType){
   // Blocaj de contract: nicio zi din interval nu poate cădea LA sau DUPĂ
   // data de plecare (endDate), nici înainte de data de angajare (startDate).
   if(dEnd(dr) && endStr>=dEnd(dr)){
     return {conflict:true, type:"contract", label:"După data de plecare ("+dEnd(dr)+")"};
   }
-  if(dr.startDate && startStr<dr.startDate){
+  if(dr.startDate && startStr<dr.startDate && !(Array.isArray(dr.periods)&&dr.periods.length>1)){
     return {conflict:true, type:"contract", label:"Înainte de data de angajare ("+dr.startDate+")"};
+  }
+  if(Array.isArray(dr.periods) && dr.periods.length>1){ // reangajat: ziua trebuie să fie într-o perioadă de angajare
+    const inside=dr.periods.some(p=>(!p.start||startStr>=p.start)&&(!p.end||endStr<p.end));
+    if(!inside) return {conflict:true, type:"contract", label:"În afara perioadelor de angajare"};
   }
 
   // excludeType = tipul pe care tocmai încercăm să-l scriem (nu se auto-exclude pe sine)
@@ -6478,7 +6498,7 @@ function getVisibleDrivers(ignoreMonthFilter){
     // Filtrează după data angajare/plecare — DOAR dacă nu e cerut explicit
     // să sărim peste (ex: lista din sidebar trebuie să arate PE TOȚI cei
     // nearhivați, indiferent de luna curent navigată în calendar).
-    if(ignoreMonthFilter) return drivers;
+    if(ignoreMonthFilter) return drivers.filter(dr=>!isDriverDeparted(dr)); // plecații sunt doar în Arhivă
     return drivers.filter(dr=>isDriverActiveInMonth(dr,y,m));
   }
 
@@ -6501,7 +6521,7 @@ function getVisibleDrivers(ignoreMonthFilter){
     return allowedIdentityKeys.some(k=>dr.visibleTo.includes(k));
   });
   // Filtrează după data angajare/plecare — la fel, sărim peste dacă e cerut explicit
-  if(ignoreMonthFilter) return drivers;
+  if(ignoreMonthFilter) return drivers.filter(dr=>!isDriverDeparted(dr));
   return drivers.filter(dr=>isDriverActiveInMonth(dr,y,m));
 }
 
@@ -6556,6 +6576,10 @@ function canEdit(){return isAdmin()||hasModuleEdit(window.activeUserKey||"","con
 
 // Verifică dacă persoana e activă (contractul activ) într-o lună
 function isDriverActiveInMonth(dr, y, m){
+  if(Array.isArray(dr.periods) && dr.periods.length>1){
+    const a=fmtDate(new Date(y,m,1)), b=fmtDate(new Date(y,m+1,0));
+    return dr.periods.some(p=>(!p.start||p.start<=b)&&(!p.end||p.end>=a));
+  }
   if(!dr.startDate && !dEnd(dr)) return true;
   const monthStart = new Date(y, m, 1);
   const monthEnd   = new Date(y, m+1, 0);
@@ -6573,6 +6597,10 @@ function isDriverActiveInMonth(dr, y, m){
 // Verifică dacă o zi specifică e în intervalul contractului — INCLUSIV
 // ziua de plecare (endDate) e deja considerată INACTIVĂ, nu doar ziua de după
 function isDriverActiveOnDay(dr, d){
+  if(Array.isArray(dr.periods) && dr.periods.length>1){
+    const ds=fmtDate(d);
+    return dr.periods.some(p=>(!p.start||ds>=p.start)&&(!p.end||ds<p.end));
+  }
   if(!dr.startDate && !dEnd(dr)) return true;
   if(dr.startDate && d < parseDate(dr.startDate)) return false;
   if(dEnd(dr)     && d >= parseDate(dEnd(dr)))  return false;
@@ -7000,7 +7028,7 @@ function openArchive(){
 }
 
 function renderArchiveList(){
-  const archived=(state.drivers||[]).filter(dr=>dr.archived).sort((a,b)=>(b.archivedAt||"").localeCompare(a.archivedAt||""));
+  const archived=(state.drivers||[]).filter(dr=>isDriverDeparted(dr)).sort((a,b)=>((b.endDate||b.archivedAt)||"").localeCompare((a.endDate||a.archivedAt)||""));
   const y=currentDate.getFullYear();
   const sub=document.getElementById("archiveSub");
   if(sub) sub.textContent=archived.length+" persoane arhivate";
@@ -7014,7 +7042,7 @@ function renderArchiveList(){
     <table style="width:100%;border-collapse:collapse;font-size:12px">
       <thead style="position:sticky;top:0;background:var(--bg-elev-2);z-index:1"><tr>
         <th style="text-align:left;padding:5px 8px;border-bottom:1px solid var(--border)">Nume</th>
-        <th style="padding:5px 6px;border-bottom:1px solid var(--border)">Arhivat la</th>
+        <th style="padding:5px 6px;border-bottom:1px solid var(--border)">Plecat la</th>
         <th style="padding:5px 6px;border-bottom:1px solid var(--border)" title="Total disponibil">Disp.</th>
         <th style="padding:5px 6px;border-bottom:1px solid var(--border);color:#f59e0b">Conc.</th>
         <th style="padding:5px 6px;border-bottom:1px solid var(--border);color:#ef4444">Krank</th>
@@ -7024,6 +7052,8 @@ function renderArchiveList(){
         <th style="padding:5px 6px;border-bottom:1px solid var(--border)"></th>
       </tr></thead><tbody>`;
   archived.forEach((d,i)=>{
+    const _ps=drPeriods(d), _lastEnd=(_ps.length&&_ps[_ps.length-1].end)||d.endDate||"";
+    const y=_lastEnd?parseInt(_lastEnd.slice(0,4),10):currentDate.getFullYear(); // anul plecării
     const usedConc=usedDaysThisYear(d,"leaves",y);
     const usedKrank=(d.krankLeaves||[]).reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end)),0);
     const usedUnpaid=(d.unpaidLeaves||[]).reduce((s,l)=>s+countWorkdays(parseDate(l.start),parseDate(l.end)),0);
@@ -7037,8 +7067,8 @@ function renderArchiveList(){
     const remColor = remaining<0 ? "#ef4444" : "#10b981";
     const paidVal = d.remainingDaysPaid===true?"da":d.remainingDaysPaid===false?"nu":"";
     html+=`<tr style="background:${rowBg}">
-      <td style="padding:4px 8px;font-weight:600">${escapeHtml(d.name)}${d.endDate?`<div style="font-size:10px;color:var(--text-dim)">plecat: ${d.endDate}</div>`:""}</td>
-      <td style="text-align:center;padding:4px 6px;color:var(--text-dim)">${d.archivedAt||"—"}</td>
+      <td style="padding:4px 8px;font-weight:600">${escapeHtml(d.name)}<div style="font-size:10px;color:var(--text-dim)">${_ps.map(p=>(p.start||"…")+" → "+(p.end||"prezent")).join(" · ")}</div></td>
+      <td style="text-align:center;padding:4px 6px;color:var(--text-dim)">${_lastEnd||d.archivedAt||"—"}</td>
       <td style="text-align:center;padding:4px 6px">${total||"—"}</td>
       <td style="text-align:center;padding:4px 6px;color:#f59e0b">${usedConc||"—"}</td>
       <td style="text-align:center;padding:4px 6px;color:#ef4444">${usedKrank||"—"}</td>
@@ -9040,7 +9070,8 @@ function setMonthDrivers(drivers, mk){
 }
 
 function getSortDrivers(){
-  const all = getMonthDrivers();
+  const _sd=getSortKey().split("-"), _sy=parseInt(_sd[0],10), _sm=parseInt(_sd[1],10)-1;
+  const all = getMonthDrivers().filter(d=>{ const cd=state.drivers.find(x=>x.name===d.name); return !(cd && (cd.archived || isDriverGoneBefore(cd,_sy,_sm))); });
   return all.filter(d=>d.group===sortView);
 }
 
@@ -9696,6 +9727,9 @@ function salProcessSync(){
       if(adm){
         // persoană legată de Angajați → nume și date vin DOAR de acolo (în Concedii sunt blocate)
         if(item.start&&dr.startDate!==item.start){ dr.startDate=item.start; chD=true; }
+        { const np=Array.isArray(it.periods)?it.periods.filter(p=>p&&p.start):[];
+          if(np.length>1){ if(JSON.stringify(dr.periods||null)!==JSON.stringify(np)){ dr.periods=np; chD=true; } }
+          else if(dr.periods){ delete dr.periods; chD=true; } }
         { // data plecării = exact ca în Angajați; la reangajare (fără plecare, sau plecare mai veche decât angajarea) se șterge
           const effEnd=(item.end&&!(item.start&&item.end<item.start))?item.end:"";
           if((dr.endDate||"")!==effEnd){ if(effEnd) dr.endDate=effEnd; else delete dr.endDate; chD=true; } }
@@ -10453,6 +10487,7 @@ function renderLibere(){
   const personsAll = allPersonsThisMonth.filter(name=>{
     const dr = state.drivers.find(d=>d.name===name);
     if(!dr) return false;
+    if(dr.archived || isDriverGoneBefore(dr, libereCurrentDate.getFullYear(), libereCurrentDate.getMonth())) return false; // plecat → dispare din luni; rămâne în Arhivă
     if(dr.group) return dr.group===libereView;
     if(!dr.visibleTo || dr.visibleTo.length===0) return isAdmin(); // ungrouped: vizibil doar pentru Admin, ca semnal de categorisit
     return dr.visibleTo.includes(groupKey);
