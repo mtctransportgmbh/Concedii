@@ -8214,17 +8214,30 @@ function canSeeReminder(reminder, uk){
   return allowed.includes(reminder.author);
 }
 
+let _remUnsub=null, _remFirst=true;
 async function loadCalendarReminders(){
-  try{
-    const snap = await db.collection("calendar_reminders").doc("list").get();
-    _calendarReminders = snap.exists ? (snap.data().reminders||[]) : [];
-  }catch(e){ console.warn("loadCalendarReminders err",e); _calendarReminders=[]; }
-  _calendarRemindersLoaded = true;
+  // ascultare în timp real: ce adaugă Raluca/Corina/Mădălina apare imediat la ceilalți (înainte lista se citea o singură dată)
+  if(_remUnsub) return _calendarReminders;
+  await new Promise(resolve=>{
+    let done=false;
+    _remUnsub = db.collection("calendar_reminders").doc("list").onSnapshot(snap=>{
+      _calendarReminders = snap.exists ? (snap.data().reminders||[]) : [];
+      _calendarRemindersLoaded = true;
+      if(!done){ done=true; resolve(); }
+      else { try{ renderAll(); if(_currentDayDetailDate && document.getElementById("modalDay")?.classList.contains("show")) renderDayReminders(_currentDayDetailDate); }catch(e){} }
+    }, err=>{ console.warn("reminders snapshot",err); _calendarRemindersLoaded=true; if(!done){ done=true; resolve(); } });
+  });
   return _calendarReminders;
 }
 
-async function saveCalendarReminders(){
-  await db.collection("calendar_reminders").doc("list").set({reminders:_calendarReminders});
+// Modificările se fac pe lista de pe server (tranzacție), nu pe copia locală — altfel o listă veche ștergea reminderele altora.
+async function mutateCalendarReminders(fn){
+  const ref=db.collection("calendar_reminders").doc("list");
+  await db.runTransaction(async tx=>{
+    const snap=await tx.get(ref);
+    const cur=snap.exists?(snap.data().reminders||[]):[];
+    tx.set(ref,{reminders:fn(cur)});
+  });
 }
 
 async function submitDayReminder(){
@@ -8233,16 +8246,16 @@ async function submitDayReminder(){
   if(!text) return;
   const uk = window.activeUserKey||"?";
   if(!_calendarRemindersLoaded) await loadCalendarReminders();
-  _calendarReminders.push({
+  const _newRem = {
     id: uid(),
     dateStr: _currentDayDetailDate,
     text,
     author: uk,
     group: getReminderGroupForUser(uk),
     createdAt: new Date().toISOString()
-  });
+  };
   try{
-    await saveCalendarReminders();
+    await mutateCalendarReminders(cur=>cur.concat([_newRem]));
     input.value="";
     logActivity("📌 Reminder adăugat", uk, _currentDayDetailDate+": "+text, "concedii");
   }catch(e){
@@ -8257,9 +8270,8 @@ async function deleteDayReminder(id){
   const uk = window.activeUserKey||"?";
   if(uk!=="tania" && r.author!==uk){ toast("Poți șterge doar reminderele tale",true); return; }
   if(!confirm("Ștergi acest reminder?")) return;
-  _calendarReminders = _calendarReminders.filter(x=>x.id!==id);
   try{
-    await saveCalendarReminders();
+    await mutateCalendarReminders(cur=>cur.filter(x=>x.id!==id));
   }catch(e){
     toast("⚠️ Ștergerea nu s-a putut salva: "+e.message,true);
   }
@@ -15232,7 +15244,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261030-112228';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261030-113201';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -15318,6 +15330,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 </body>
 </html>
