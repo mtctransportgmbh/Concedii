@@ -15230,5 +15230,94 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
 <div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.23-03</div>
 
+<!--MTC-UPDATE-START-->
+<script id="mtc-update">
+/*MTC_VERSION*/const MTC_APP_VERSION='20261030-112228';
+(function(){
+  var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
+  window.MTC_APP_VERSION=V;
+  try{ if(/[?&]v=/.test(location.search)) history.replaceState(null,'',location.pathname+location.hash); }catch(e){}
+  function tries(sv){ try{ var o=JSON.parse(sessionStorage.getItem('mtc_upd_try')||'{}'); return o.v===sv?(o.n||0):0; }catch(e){ return 0; } }
+  function setTries(sv,n){ try{ sessionStorage.setItem('mtc_upd_try',JSON.stringify({v:sv,n:n})); }catch(e){} }
+  var base=location.pathname.replace(/[^\/]*$/,'');
+  var page=location.pathname.slice(base.length)||'index.html';
+  async function serverVersion(force){
+    var bust='cb='+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+    try{ var r=await fetch(base+'version.json?'+bust,{cache:'no-store'}); if(r.ok){ var j=await r.json(); if(j&&j.version) return String(j.version); } }catch(e){}
+    // plan B: citește direct pagina (max. o dată la 3 minute) și caută constanta de versiune
+    if(!force && Date.now()-lastIdx<180000) return null;
+    lastIdx=Date.now();
+    try{ var r2=await fetch(base+page+'?'+bust,{cache:'no-store'}); if(r2.ok){ var t=await r2.text(); var m=t.match(/MTC_APP_VERSION\s*=\s*'([^']+)'/); if(m) return m[1]; } }catch(e){}
+    return null;
+  }
+  async function check(force){
+    if(busy) return false;
+    var sv=await serverVersion(force);
+    if(sv && sv>V){ show(sv); return true; }
+    return false;
+  }
+  function show(sv){
+    var ov=document.getElementById('mtc-upd-overlay'), n=tries(sv);
+    if(!ov){
+      ov=document.createElement('div'); ov.id='mtc-upd-overlay';
+      ov.style.cssText='position:fixed;inset:0;z-index:2147483647;background:rgba(10,12,20,.92);display:flex;align-items:center;justify-content:center;padding:20px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;';
+      document.body.appendChild(ov);
+    }
+    // blochează tot ce e în spate (click, tastatură, Tab)
+    Array.prototype.forEach.call(document.body.children,function(el){ if(el!==ov) try{ el.setAttribute('inert',''); }catch(e){} });
+    try{ document.body.style.overflow='hidden'; }catch(e){}
+    shown=true;
+    ov.innerHTML='<div style="background:#fff;color:#111;max-width:420px;width:100%;border-radius:16px;padding:28px 26px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5)">'+
+      '<div style="font-size:42px;line-height:1">🔄</div>'+
+      '<div style="font-size:20px;font-weight:800;margin:10px 0 8px">Versiune nouă — actualizare obligatorie</div>'+
+      '<div style="font-size:14px;line-height:1.5;color:#444">Aplicația a fost îmbunătățită. Ca să continui, apasă butonul de mai jos: se șterge memoria veche și se încarcă ultima versiune. Contul și datele tale rămân neschimbate.</div>'+
+      '<div style="font-size:12px;color:#888;margin:12px 0 16px">versiunea ta: '+V+'<br>versiune nouă: '+sv+'</div>'+
+      '<button id="mtc-upd-btn" style="width:100%;padding:14px;border:0;border-radius:10px;background:#d97706;color:#fff;font-size:16px;font-weight:800;cursor:pointer">Actualizează acum</button>'+
+      '<div id="mtc-upd-st" style="font-size:12px;color:#666;margin-top:10px;min-height:16px"></div>'+
+      (n>=1?'<div style="font-size:12px;color:#b45309;margin-top:8px">'+(n>=3?'Actualizarea nu reușește. Închide complet aplicația și deschide-o din nou, sau apasă Ctrl+Shift+R (pe telefon: șterge datele site-ului din setările browserului).':'Prima încercare nu a ajuns complet. Apasă din nou — facem o curățare completă.')+'</div>':'')+
+      '</div>';
+    document.getElementById('mtc-upd-btn').onclick=function(){ force(sv); };
+  }
+  async function force(sv){
+    if(busy) return; busy=true;
+    var btn=document.getElementById('mtc-upd-btn'), st=document.getElementById('mtc-upd-st');
+    function say(t){ if(st) st.textContent=t; }
+    function wait(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
+    if(btn){ btn.disabled=true; btn.style.opacity='.6'; }
+    say('Se salvează datele…'); await wait(900);
+    var n=tries(sv)+1; setTries(sv,n);
+    say('Se șterge memoria veche…');
+    try{ if(window.caches){ var ks=await caches.keys(); await Promise.all(ks.map(function(k){ return caches.delete(k); })); } }catch(e){}
+    try{
+      if('serviceWorker' in navigator){
+        var regs=await navigator.serviceWorker.getRegistrations();
+        if(n>=2) await Promise.all(regs.map(function(r){ return r.unregister().catch(function(){}); }));
+        else await Promise.all(regs.map(function(r){ return r.update().catch(function(){}); }));
+      }
+    }catch(e){}
+    say('Se încarcă versiunea nouă…'); await wait(400);
+    location.replace(location.pathname+'?v='+encodeURIComponent(sv)+'&t='+Date.now());
+  }
+  window.mtcCheckUpdate=function(){ return check(true); };
+  window.mtcHardRefresh=function(){ setTries(V,1); busy=false; force(V); };
+  setTimeout(function(){ check(true); },1500);
+  setInterval(function(){ check(false); },60000);
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') check(true); });
+  window.addEventListener('online',function(){ check(true); });
+  window.addEventListener('focus',function(){ check(false); });
+  // etichetă mică cu versiunea (click = verificare manuală)
+  if(!window.MTC_NO_VERSION_BADGE){
+    window.addEventListener('load',function(){
+      var b=document.createElement('div'); b.id='mtc-ver-badge'; b.textContent='v'+V;
+      b.title='Click: verifică dacă există o versiune nouă';
+      b.style.cssText='position:fixed;left:6px;bottom:4px;z-index:2147483000;font:10px/1 system-ui,sans-serif;color:#888;opacity:.55;cursor:pointer;user-select:none;';
+      b.onclick=async function(){ b.textContent='se verifică…'; var f=await check(true); b.textContent=f?'versiune nouă!':'✓ v'+V; setTimeout(function(){ b.textContent='v'+V; },2500); };
+      document.body.appendChild(b);
+    });
+  }
+})();
+</script>
+<!--MTC-UPDATE-END-->
+
 </body>
 </html>
