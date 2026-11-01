@@ -3915,6 +3915,16 @@ var qrcode = function() {
     <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('salBaniModal')">Anulează</button><button class="btn btn-primary" onclick="salBaniSave()">Salvează</button></div>
   </div>
 </div>
+<div class="modal-bg" id="salLmaModal">
+  <div class="modal" style="max-width:420px">
+    <h3>📥 Încarcă LMA — alege luna</h3>
+    <div id="salLmaInfo" style="margin:10px 0;font-size:13px"></div>
+    <label style="font-size:12px;color:var(--text-dim)">Pentru ce lună sunt pachetele?<input id="salLmaMonth" type="month" onchange="salLmaMonthHint()" oninput="salLmaMonthHint()" style="width:100%;padding:8px;margin-top:3px"></label>
+    <div id="salLmaHint" style="font-size:13px;margin-top:8px"></div>
+    <div id="salLmaErr" style="color:#ef4444;font-size:12px;min-height:16px;margin-top:6px"></div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="_salLmaPending=null;closeModal('salLmaModal')">Anulează</button><button class="btn btn-primary" onclick="salLmaConfirm()">Încarcă</button></div>
+  </div>
+</div>
 <div class="modal-bg" id="salVorsHist">
   <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto">
     <h3 id="salVorsHistTitle">Istoric vorschuss</h3>
@@ -10193,13 +10203,61 @@ function salLmaImport(rows,fileName){
   }
   const n=Object.keys(tours).length;
   if(!n){ toast("Nu am găsit ture în fișier",true); return; }
-  const old=salLma(), lbl=MONTHS[salCur.getMonth()]+" "+salCur.getFullYear();
-  if(old&&!confirm("Există deja un fișier LMA încărcat pentru "+lbl+" ("+Object.keys(old.tours||{}).length+" ture).\nÎl înlocuiești cu „"+fileName+"” ("+n+" ture)?\nAtribuirile de ture rămân, iar pachetele persoanelor se recalculează (cele marcate plătite nu se ating).")) return;
-  salMonthData.lma={file:fileName,at:new Date().toISOString(),col:(old&&old.col)||"z",tours};
-  let skipped=0;
-  Object.keys(salMonthData.rows).forEach(id=>{ const r=salMonthData.rows[id]; if(r&&Array.isArray(r.tours)&&r.tours.length){ if(salRowPaid(id)) skipped++; else salApplyTours(id); } });
-  salSaveMonthSoon(); salShowView("pkg");
-  toast("✓ LMA încărcat: "+n+" ture pentru "+lbl+(skipped?" · "+skipped+" persoane plătite neatinse":""));
+  const tot=Object.keys(tours).reduce((t,k)=>t+tours[k].z,0);
+  _salLmaPending={fileName,tours,n,tot};
+  document.getElementById("salLmaInfo").innerHTML="📄 <b>"+escapeHtml(fileName)+"</b><br>"+n+" ture · "+salInt(tot)+" pachete livrate";
+  document.getElementById("salLmaMonth").value=salMk();
+  document.getElementById("salLmaErr").textContent="";
+  salLmaMonthHint();
+  openModal("salLmaModal");
+}
+let _salLmaPending=null;
+function salLmaMonthHint(){
+  const v=document.getElementById("salLmaMonth").value; const el=document.getElementById("salLmaHint");
+  if(!/^\d{4}-\d{2}$/.test(v)){ el.textContent=""; return; }
+  const [y,m]=v.split("-").map(Number);
+  el.innerHTML="Pachetele vor fi trecute la <b>"+MONTHS[m-1]+" "+y+"</b>."+(v!==salMk()?" <span style='color:var(--sal-amber)'>(altă lună decât cea afișată acum)</span>":"");
+}
+async function salLmaConfirm(){
+  const pd=_salLmaPending; if(!pd) return;
+  const mk=document.getElementById("salLmaMonth").value, err=document.getElementById("salLmaErr");
+  if(!/^\d{4}-\d{2}$/.test(mk)){ err.textContent="Alege luna"; return; }
+  const [y,m]=mk.split("-").map(Number), lbl=MONTHS[m-1]+" "+y;
+  if(!confirm("CONFIRMARE\n\nÎncarci fișierul „"+pd.fileName+"” ("+pd.n+" ture, "+salInt(pd.tot)+" pachete) pentru luna:\n\n      "+lbl.toUpperCase()+"\n\nEste luna corectă?")) return;
+  const mkNow=salMk();
+  const doApply=()=>{   // lucrează pe salMonthData curent
+    const old=salLma();
+    if(old&&!confirm("Pentru "+lbl+" există deja un fișier LMA ("+Object.keys(old.tours||{}).length+" ture, „"+(old.file||"")+"”).\nÎl înlocuiești? Atribuirile de ture rămân, iar pachetele persoanelor se recalculează (cele plătite nu se ating).")) return false;
+    salMonthData.lma={file:pd.fileName,at:new Date().toISOString(),col:(old&&old.col)||"z",tours:pd.tours};
+    let skipped=0;
+    Object.keys(salMonthData.rows).forEach(id=>{ const r=salMonthData.rows[id]; if(r&&Array.isArray(r.tours)&&r.tours.length){ if(salRowPaid(id)) skipped++; else salApplyTours(id); } });
+    return skipped;
+  };
+  try{
+    if(mk===mkNow){
+      const sk=doApply(); if(sk===false) return;
+      salSaveMonthSoon();
+    } else {
+      const snap=await db.collection("salarii").doc("m_"+mk).get();
+      const keep=salMonthData; salMonthData={rows:(snap.exists?snap.data().rows:null)||{},lma:snap.exists?(snap.data().lma||null):null};
+      const sk=doApply(); const data=salMonthData; salMonthData=keep; if(sk===false) return;
+      await db.collection("salarii").doc("m_"+mk).set(JSON.parse(JSON.stringify({rows:data.rows,lma:data.lma,updatedAt:new Date().toISOString()})));
+      salCur=new Date(y,m-1,1); _salMonthLoadedKey=null; _salPkgCache={};
+    }
+  }catch(e){ err.textContent="Eroare: "+(e.message||e.code); return; }
+  _salLmaPending=null; closeModal("salLmaModal");
+  salLoadMonth(); salShowView("pkg");
+  toast("✓ LMA încărcat pentru "+lbl+" ("+pd.n+" ture)");
+}
+function salLmaDelete(){
+  const l=salLma(); if(!l) return;
+  const lbl=MONTHS[salCur.getMonth()]+" "+salCur.getFullYear();
+  const withTours=Object.keys(salMonthData.rows).filter(id=>(salMonthData.rows[id].tours||[]).length);
+  const paid=withTours.filter(salRowPaid).length;
+  if(!confirm("ȘTERGI fișierul LMA pentru "+lbl.toUpperCase()+"?\n\n• Se șterg cele "+Object.keys(l.tours||{}).length+" ture din fișier.\n• Turele atribuite se scot de la "+(withTours.length-paid)+" persoane, iar pachetele calculate din ele se șterg (revin valorile de dinainte).\n"+(paid?"• "+paid+" persoane marcate plătite NU se ating.\n":"")+"\nContinui?")) return;
+  withTours.forEach(id=>{ if(salRowPaid(id)) return; salMonthData.rows[id].tours=[]; salApplyTours(id); });
+  salMonthData.lma=null; _salPkgCache={};
+  salSaveMonthSoon(); renderSalarii(); toast("🗑 Fișierul LMA pentru "+lbl+" a fost șters");
 }
 function salLmaSetCol(col){
   const l=salLma(); if(!l) return; l.col=col;
@@ -10244,6 +10302,7 @@ function renderPkg(){
         <span>📄 ${escapeHtml(l.file||"")} · ${new Date(l.at).toLocaleDateString("ro-RO")}</span>
         <label>Coloana de pachete: <select onchange="salLmaSetCol(this.value)" style="padding:4px 6px;font-size:12px">${Object.keys(SAL_LMA_COLS).map(k=>`<option value="${k}" ${k===(l.col||"z")?"selected":""}>${SAL_LMA_COLS[k]}</option>`).join("")}</select></label>
         <button onclick="salTourCopyPrev()" style="padding:5px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elev-2);cursor:pointer;font-size:12px;color:var(--text)">↺ Preia turele din luna anterioară</button>
+        <button onclick="salLmaDelete()" style="padding:5px 12px;border:1px solid #ef4444;border-radius:8px;background:none;cursor:pointer;font-size:12px;color:#ef4444">🗑 Șterge fișierul LMA din această lună</button>
       </div>
       <div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:var(--bg-elev);max-height:60vh;overflow-y:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>
         <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;color:var(--text-dim);position:sticky;top:0;background:var(--bg-elev)">Tura</th>
@@ -15572,7 +15631,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261101-131759';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261101-132149';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -15658,6 +15717,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
