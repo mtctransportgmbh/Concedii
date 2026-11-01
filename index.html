@@ -991,6 +991,10 @@
   .sal-lock{ padding:8px 12px; border-radius:999px; border:1px solid var(--border); background:#fff; color:var(--text-dim); font-size:12px; cursor:pointer }
   .sal-lock:hover{ color:#b91c1c; border-color:#ef4444 }
   #salariiModule.sal-theme .header{ background:none; border:none; padding:0 }
+  .sal-tour{ display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin-top:3px }
+  .sal-tchip{ font-size:11px; padding:2px 7px; border-radius:999px; background:rgba(99,102,241,.14); color:#4f46e5; font-weight:700; white-space:nowrap }
+  .sal-tchip b{ cursor:pointer; margin-left:5px; color:#ef4444 }
+  .sal-tsel{ font-size:11px; padding:2px 4px; max-width:150px; border:1px solid var(--border); border-radius:5px; background:var(--bg-elev-2); color:var(--text) }
   .vs-cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin-bottom:14px }
   .vs-card{ padding:14px 16px; border-radius:14px; background:linear-gradient(160deg,#ffffff,#eef8f4); border:1px solid var(--border); box-shadow:0 2px 8px rgba(16,90,70,.06) }
   .vs-card .l{ font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-dim) } .vs-card .v{ font-size:24px; font-weight:800; margin-top:4px }
@@ -1496,7 +1500,7 @@
       <div class="sal-top">
         <button class="sal-back" onclick="setAppMode('concedii')">← Înapoi la Concedii</button>
         <div class="sal-title">💶 Salarii</div>
-        <div class="sal-tabs"><button id="salTabMain" class="sal-tab on" onclick="salShowView('main')">Salarii</button><button id="salTabVors" class="sal-tab" onclick="salShowView('vors')">🧾 Vorschuss</button></div>
+        <div class="sal-tabs"><button id="salTabMain" class="sal-tab on" onclick="salShowView('main')">Salarii</button><button id="salTabVors" class="sal-tab" onclick="salShowView('vors')">🧾 Vorschuss</button><button id="salTabPkg" class="sal-tab" onclick="salShowView('pkg')">📦 Pachete</button><button id="salTabBani" class="sal-tab" onclick="salShowView('bani')">💰 Bani</button></div>
         <button class="sal-lock" onclick="salLockNow(false)" title="Blochează Salarii acum">🔒 Blochează</button>
       </div>
       <div id="salViewMain">
@@ -1523,6 +1527,29 @@
       <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5">
         <b>●</b> verde = sincronizat din Angajați, ○ = nelegat. <b>Formule:</b> Pachete = pachete×0,66 + sortat×22 + (zile concediu + Feiertag + Krank)×66 − chirie · Doar sortator și Salar fix = salar + sortat×22 + sumele lunare scrise de tine la Concediu/Feiertag/Krank − chirie. Zilele de concediu/Feiertag/Krank se calculează la toți cu 66 € / zi; la cei fără pachete poți suprascrie suma scriind-o în căsuța de sub zile. Zilele de sortat (din modulul Sortatori), concediu, Krank și Feiertag se preiau automat; poți suprascrie manual (apare ↺ pentru revenire).
       </div>
+      </div>
+      <div id="salViewPkg" style="display:none">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <button onclick="salChangeMonth(-1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--text-dim)">◀</button>
+          <span id="salMonthLabel3" style="font-size:16px;font-weight:800;min-width:150px;text-align:center"></span>
+          <button onclick="salChangeMonth(1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--text-dim)">▶</button>
+          <button onclick="salGoToday()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;color:var(--text-dim)">Azi</button>
+          <button onclick="document.getElementById('salPkgFile').click()" style="margin-left:auto;padding:8px 16px;border:none;border-radius:999px;background:linear-gradient(135deg,var(--sal-em),#0ea5a4);color:#fff;font-weight:800;cursor:pointer">📥 Încarcă fișier LMA (ture)</button>
+        </div>
+        <div id="salPkgMonth"></div>
+        <h3 style="margin:22px 0 8px;font-size:15px">📊 Statistică pachete pe luni</h3>
+        <div id="salPkgStats"></div>
+      </div>
+      <div id="salViewBani" style="display:none">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <input id="salBaniSearch" type="text" placeholder="🔍 Caută persoană…" oninput="renderBani()" style="padding:6px 10px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elev-2);color:var(--text);width:190px">
+          <button onclick="salBaniExport()" style="padding:6px 12px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;color:var(--text)">⬇️ Export Excel</button>
+          <button onclick="salBaniOpenAdd('','dat')" style="margin-left:auto;padding:8px 16px;border:none;border-radius:999px;background:linear-gradient(135deg,var(--sal-em),#0ea5a4);color:#fff;font-weight:800;cursor:pointer">＋ Adaugă mișcare</button>
+        </div>
+        <div id="salBaniCards"></div>
+        <div style="overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--bg-elev)"><table id="salBaniTable" style="width:100%;border-collapse:collapse;font-size:13px"></table></div>
+        <div id="salBaniDetail" style="margin-top:16px"></div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5">Registru separat de Vorschuss: aici notezi banii dați și banii primiți înapoi (și din urmă, cu data). Nu se scad automat din salariu. <b>Sold</b> = dat − primit; pozitiv = persoana îți mai datorează.</div>
       </div>
       <div id="salViewVors" style="display:none">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
@@ -3872,6 +3899,20 @@ var qrcode = function() {
     </div>
     <div id="salVorsErr" style="color:#ef4444;font-size:12px;min-height:16px;margin-top:6px"></div>
     <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('salVorsModal')">Anulează</button><button class="btn btn-primary" onclick="salVorsAdd()">Adaugă</button></div>
+  </div>
+</div>
+<div class="modal-bg" id="salBaniModal">
+  <div class="modal" style="max-width:420px">
+    <h3 id="salBaniTitle">💰 Mișcare bani</h3>
+    <div style="display:grid;gap:8px;margin-top:10px">
+      <label style="font-size:12px;color:var(--text-dim)">Persoană<select id="salBaniEmp" style="width:100%;padding:8px;margin-top:3px"></select></label>
+      <label style="font-size:12px;color:var(--text-dim)">Tip<select id="salBaniKind" style="width:100%;padding:8px;margin-top:3px"><option value="dat">💸 Am dat bani</option><option value="primit">✅ Am primit înapoi</option></select></label>
+      <label style="font-size:12px;color:var(--text-dim)">Sumă (€)<input id="salBaniAmt" type="text" inputmode="decimal" style="width:100%;padding:8px;margin-top:3px"></label>
+      <label style="font-size:12px;color:var(--text-dim)">Data<input id="salBaniDate" type="date" style="width:100%;padding:8px;margin-top:3px"></label>
+      <label style="font-size:12px;color:var(--text-dim)">Notă (opțional)<input id="salBaniNote" type="text" style="width:100%;padding:8px;margin-top:3px"></label>
+    </div>
+    <div id="salBaniErr" style="color:#ef4444;font-size:12px;min-height:16px;margin-top:6px"></div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('salBaniModal')">Anulează</button><button class="btn btn-primary" onclick="salBaniSave()">Salvează</button></div>
   </div>
 </div>
 <div class="modal-bg" id="salVorsHist">
@@ -9204,14 +9245,15 @@ async function salLockNow(auto,noNav){
   const was=_salUnlocked; _salUnlocked=false;
   clearTimeout(_salIdleTimer); clearInterval(_salRenewTimer); _salRenewTimer=null;
   if(_salUnsubMonth){ try{_salUnsubMonth();}catch(e){} _salUnsubMonth=null; }
-  _salMonthLoadedKey=null; salMonthData={rows:{}};
+  _salMonthLoadedKey=null; salMonthData={rows:{},lma:null}; _salPkgCache={}; _salPkgYear=null;
+  if(_salUnsubBani){ try{_salUnsubBani();}catch(e){} _salUnsubBani=null; } salBani={entries:[]}; if(_salBaniTimer){ clearTimeout(_salBaniTimer); _salBaniTimer=null; } _salBaniSel="";
   if(_salUnsubVors){ try{_salUnsubVors();}catch(e){} _salUnsubVors=null; } salVors={emps:{}}; if(_salVorsTimer){ clearTimeout(_salVorsTimer); _salVorsTimer=null; }
   if(was){ try{ await callFn("salLock"); }catch(e){} }
   if(!noNav && appMode==="salarii") setAppMode("concedii");
   if(auto && was) toast("🔒 Salarii blocat — redeschide cu PIN-ul");
 }
 function salStartSession(){
-  _salUnlocked=true; _salLastAct=Date.now(); salTouch(); loadVorschuss();
+  _salUnlocked=true; _salLastAct=Date.now(); salTouch(); loadVorschuss(); loadBani();
   clearInterval(_salRenewTimer);
   _salRenewTimer=setInterval(async()=>{
     if(!_salUnlocked) return;
@@ -9296,7 +9338,7 @@ async function salPinSubmit(){
 const SAL_PKG_RATE = 0.66, SAL_SORT_RATE = 22, SAL_DEFAULT_DAY_RATE = 66;
 const SAL_TYPES = {fix:"Salar fix", pachete:"Din pachete", sortat:"Doar sortator"};
 let salEmps = [];
-let salMonthData = {rows:{}};
+let salMonthData = {rows:{},lma:null};
 let salCur = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let _salUnsubEmps=null, _salUnsubMonth=null, _salMonthLoadedKey=null, _salSaveTimer=null, _salEmpTimer=null, _salPkgPreview=null;
 
@@ -9334,10 +9376,10 @@ function salLoadMonth(){
   if(_salMonthLoadedKey===mk) return;
   if(_salUnsubMonth){ try{_salUnsubMonth();}catch(e){} }
   _salMonthLoadedKey=mk;
-  salMonthData={rows:{}};
+  salMonthData={rows:{},lma:null};
   _salUnsubMonth = db.collection("salarii").doc("m_"+mk).onSnapshot(snap=>{
     if(_salSaveTimer) return; // nu suprascriem editarea în curs
-    salMonthData = snap.exists ? {rows:(snap.data().rows||{})} : {rows:{}};
+    salMonthData = snap.exists ? {rows:(snap.data().rows||{}),lma:(snap.data().lma||null)} : {rows:{},lma:null};
     if(appMode==="salarii") renderSalarii();
   }, e=>{ console.warn("salarii month err",e); if(e&&e.code==="permission-denied") salLockNow(true); });
 }
@@ -9346,7 +9388,7 @@ function salSaveMonthSoon(){
   const mk=salMk();
   _salSaveTimer=setTimeout(async()=>{
     _salSaveTimer=null;
-    try{ await db.collection("salarii").doc("m_"+mk).set(JSON.parse(JSON.stringify({rows:salMonthData.rows,updatedAt:new Date().toISOString()}))); }
+    try{ await db.collection("salarii").doc("m_"+mk).set(JSON.parse(JSON.stringify({rows:salMonthData.rows,lma:salMonthData.lma||null,updatedAt:new Date().toISOString()}))); }
     catch(e){ toast("❌ Eroare salvare salarii: "+(e.message||e.code),true); }
   },600);
 }
@@ -9451,9 +9493,9 @@ function renderSalarii(){
     };
     const tcol=c.type==="pachete"?"#6366f1":c.type==="sortat"?"var(--sal-em)":"var(--sal-amber)";
     body.push(`<tr style="border-top:1px solid var(--border)">
-      <td style="padding:4px 8px;font-weight:600;white-space:nowrap">${salDot(!!e.angajatiId)}${escapeHtml(e.name)}${c.a.linked?"":` <span title="Nu există în Concedii — zilele de concediu/krank nu pot fi preluate automat. Folosește 👥 Angajați → Creează în Concedii." style="color:#ef4444;cursor:help">⚠️</span>`}</td>
+      <td style="padding:4px 8px;font-weight:600;${salLma()?"":"white-space:nowrap"}">${salDot(!!e.angajatiId)}${escapeHtml(e.name)}${c.a.linked?"":` <span title="Nu există în Concedii — zilele de concediu/krank nu pot fi preluate automat. Folosește 👥 Angajați → Creează în Concedii." style="color:#ef4444;cursor:help">⚠️</span>`}${salTourCell(e,c,ed)}</td>
       <td style="padding:4px 6px"><select ${ed?"":"disabled"} onchange="salSet('${e.id}','type',this.value)" style="padding:3px 4px;font-size:12px;border:1px solid ${tcol};border-radius:5px;background:var(--bg-elev-2);color:var(--text)">${Object.keys(SAL_TYPES).map(t=>`<option value="${t}" ${t===c.type?"selected":""}>${SAL_TYPES[t]}</option>`).join("")}</select></td>
-      <td style="padding:4px 6px;text-align:right">${inp("salar",c.rd.salar,80)}<div style="font-size:10px;color:var(--text-dim)">${c.type==="pachete"?"pachete → "+salFmt(c.salar*SAL_PKG_RATE):(c.type==="sortat"?"sumă":"sumă fixă")}</div></td>
+      <td style="padding:4px 6px;text-align:right">${inp("salar",c.rd.salar,80)}<div style="font-size:10px;color:var(--text-dim)">${c.type==="pachete"?(c.rd.tourAuto?"din ture · ":"")+"pachete → "+salFmt(c.salar*SAL_PKG_RATE):(c.type==="sortat"?"sumă":"sumă fixă")}</div></td>
       <td style="padding:4px 6px;text-align:right"><input type="text" inputmode="decimal" value="${c.sortat||""}" placeholder="0" ${ed?"":"disabled"} onchange="salSet('${e.id}','sortat',this.value)" style="width:50px;padding:3px 5px;text-align:right;border:1px solid ${c.sortOv?'var(--sal-amber)':'var(--border)'};border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:12px">${c.sortOv?`<span title="Suprascris manual (automat din Sortatori: ${c.aS.n}) — click pentru revenire" onclick="salSet('${e.id}','sortat','')" style="cursor:pointer;color:var(--sal-amber)"> ↺</span>`:""}<div style="font-size:10px;color:var(--text-dim)">${c.aS.found||c.sortOv?"zile → "+salFmt(c.sortat*SAL_SORT_RATE):"nu e în Sortatori"}</div></td>
       ${dayCell("c","ovC",c.dC,c.aC,c.a.c)}${dayCell("f","ovF",c.dF,c.aF,c.a.f)}${dayCell("k","ovK",c.dK,c.aK,c.a.k)}
       <td style="padding:4px 6px;text-align:right">${inp("chirie",c.rd.chirie,70)}</td>
@@ -9468,6 +9510,7 @@ function renderSalarii(){
     ${[["💶 Total de plată",salFmt(tot)+" €","var(--sal-em)"],["Bază (salar/pachete/sortat)",salFmt(totBase)+" €","var(--text)"],["Concediu+Feiertag+Krank",salFmt(totAbs)+" €","var(--text)"],["Chirie reținută","− "+salFmt(totChirie)+" €","#ef4444"],["Vorschuss tras luna aceasta","− "+salFmt(totVors)+" €","var(--sal-blue)"],["✔ Plătiți",nPaid+" / "+active.length+" · "+salFmt(totPaid)+" €","var(--sal-green)"],["Tipuri",cnt.fix+" fix · "+cnt.pachete+" pachete · "+cnt.sortat+" sortator","var(--text-dim)"]].map(x=>`<div style="padding:8px 14px;background:var(--bg-elev);border:1px solid var(--border);border-radius:10px"><div style="font-size:11px;color:var(--text-dim)">${x[0]}</div><div style="font-size:16px;font-weight:800;color:${x[2]}">${x[1]}</div></div>`).join("")}</div>`
     + (unlinked?`<div style="font-size:12px;color:#ef4444;margin-top:6px">⚠️ ${unlinked} angajați nu sunt în Concedii (zilele de concediu/krank nu se pot prelua). Vezi 👥 Angajați.</div>`:"");
   try{ renderVors(); }catch(e){ console.warn("renderVors",e); }
+  try{ if(_salView==='pkg') renderPkg(); else if(_salView==='bani') renderBani(); }catch(e){ console.warn("renderPkg/Bani",e); }
 }
 function salSet(id,field,val){
   if(!canSalarii()) return;
@@ -9526,10 +9569,8 @@ function salVorsSaveSoon(){
 }
 function salShowView(v){
   _salView=v;
-  document.getElementById("salViewMain").style.display=v==="main"?"":"none";
-  document.getElementById("salViewVors").style.display=v==="vors"?"":"none";
-  document.getElementById("salTabMain").classList.toggle("on",v==="main");
-  document.getElementById("salTabVors").classList.toggle("on",v==="vors");
+  ["main","vors","pkg","bani"].forEach(k=>{ const el=document.getElementById("salView"+k.charAt(0).toUpperCase()+k.slice(1)); if(el) el.style.display=v===k?"":"none"; const tb=document.getElementById("salTab"+(k==="main"?"Main":k.charAt(0).toUpperCase()+k.slice(1))); if(tb) tb.classList.toggle("on",v===k); });
+  if(v==="pkg") salPkgLoadYear(false);
   renderSalarii();
 }
 function salVorsSetDed(id,val){
@@ -10019,6 +10060,7 @@ function salCreateInConcedii(){
 function salPackagesFile(inp){
   const f=inp.files[0]; inp.value=""; if(!f) return;
   salReadWorkbook(f, wb=>{
+    for(const sn of wb.SheetNames){ const rr=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:""}); if(salIsLma(rr)){ salLmaImport(rr,f.name); return; } }   // fișier LMA (ture), nu listă cu nume
     const agg={}; // key -> {name,pkgs}
     wb.SheetNames.forEach(sn=>{
       const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:""});
@@ -10083,6 +10125,289 @@ function salApplyPkgs(){
     r.type="pachete"; r.salar=String(x.pkgs); n++;
   });
   salSaveMonthSoon(); closeModal("salPkgModal"); renderSalarii(); toast("✓ Pachete aplicate la "+n+" angajați");
+}
+
+// ============================================================
+// PACHETE din fișierul LMA (ture) → atribuire pe persoane → suma de plată
+//   Luna: salarii/m_YYYY-MM  →  { rows:{ [empId]:{ ..., tours:["557"], tourAuto:1, typeWas } }, lma:{ file, at, col, tours:{ "557":{z,s,c,r} } } }
+//   Fișierul nu are dată: se leagă de luna aleasă în Salarii. Coloana de pachete se alege (implicit Zustellungen = livrate).
+// ============================================================
+const SAL_LMA_COLS={z:"Zustellungen (livrate)",s:"Standardleistungen",c:"Coincident",r:"Rückläufer"};
+const salInt=n=>Math.round(n||0).toLocaleString("ro-RO");
+function salLma(){ return salMonthData.lma||null; }
+function salTourPk(t){ const l=salLma(); if(!l||!l.tours||!l.tours[t]) return 0; return salNum(l.tours[t][l.col||"z"]); }
+function salTourOwner(t){ for(const id of Object.keys(salMonthData.rows||{})){ const r=salMonthData.rows[id]; if(r&&Array.isArray(r.tours)&&r.tours.includes(t)) return id; } return ""; }
+function salEmpName(id){ const e=salEmps.find(x=>x.id===id); return e?e.name:"(șters din listă)"; }
+function salRowPaid(id){ const r=salMonthData.rows[id]; return !!(r&&r.paid&&r.paid.at); }
+function salApplyTours(id){
+  const r=salMonthData.rows[id]; if(!r) return;
+  const tours=Array.isArray(r.tours)?r.tours:[];
+  if(tours.length){
+    if(!r.tourAuto) r.typeWas=(r.type==null?null:r.type);
+    r.type="pachete"; r.salar=String(tours.reduce((t,x)=>t+salTourPk(x),0)); r.tourAuto=1;
+  } else {
+    delete r.tours;
+    if(r.tourAuto){
+      delete r.salar; delete r.tourAuto;
+      if("typeWas" in r){ if(r.typeWas==null) delete r.type; else r.type=r.typeWas; delete r.typeWas; }
+    }
+  }
+}
+function salTourAssign(tour,empId){          // empId "" = neatribuită
+  if(!canSalarii()) return;
+  const cur=salTourOwner(tour);
+  if((cur&&salRowPaid(cur))||(empId&&salRowPaid(empId))){ toast("🔒 Persoană marcată plătită — deschide-o cu PIN ca s-o modifici",true); renderSalarii(); return; }
+  if(cur){ const rc=salMonthData.rows[cur]; rc.tours=rc.tours.filter(x=>x!==tour); salApplyTours(cur); }
+  if(empId){ const r=salMonthData.rows[empId]||(salMonthData.rows[empId]={}); r.tours=(r.tours||[]).concat([tour]); salApplyTours(empId); }
+  salSaveMonthSoon(); renderSalarii();
+}
+function salTourPick(empId,val){
+  if(!val) return;
+  if(val==="__none"){
+    const r=salMonthData.rows[empId]; if(!r||!(r.tours||[]).length) return;
+    if(salRowPaid(empId)){ toast("🔒 Persoană marcată plătită",true); renderSalarii(); return; }
+    r.tours=[]; salApplyTours(empId); salSaveMonthSoon(); renderSalarii(); return;
+  }
+  salTourAssign(val,empId);
+}
+function salTourCell(e,c,ed){
+  const l=salLma(); if(!l||!l.tours) return "";
+  const mine=Array.isArray(c.rd.tours)?c.rd.tours:[];
+  const chips=mine.map(t=>`<span class="sal-tchip" title="Tura ${t}">T${t} · ${salInt(salTourPk(t))}${l.tours[t]?"":" ⚠"}${ed?`<b onclick="salTourAssign('${t}','')" title="Scoate tura">✕</b>`:""}</span>`).join("");
+  const free=Object.keys(l.tours).filter(t=>!salTourOwner(t)).sort((a,b)=>b-a);
+  const sel=ed?`<select onchange="salTourPick('${e.id}',this.value)" class="sal-tsel"><option value="">${mine.length?"＋ altă tură…":"fără tură"}</option>${mine.length?'<option value="__none">fără tură (scoate tot)</option>':""}${free.map(t=>`<option value="${t}">Tura ${t} · ${salInt(salTourPk(t))}</option>`).join("")}</select>`:"";
+  return `<div class="sal-tour">${chips}${sel}</div>`;
+}
+function salIsLma(rows){ const h=(rows[0]||[]).map(x=>normalizeForSearch(String(x))); return h.includes("tour")&&h.some(x=>x.indexOf("zustellungen")===0); }
+function salLmaImport(rows,fileName){
+  const h=rows[0].map(x=>normalizeForSearch(String(x)));
+  const ix=k=>h.findIndex(x=>x===k||x.indexOf(k)===0);
+  const iT=ix("tour"), iZ=ix("zustellungen"), iS=ix("standardleistungen"), iC=ix("coincident"), iR=ix("ruckl");
+  const tours={};
+  for(let i=1;i<rows.length;i++){
+    const t=parseInt(rows[i][iT]); if(!isFinite(t)) continue;
+    const o=tours[String(t)]||(tours[String(t)]={z:0,s:0,c:0,r:0});
+    o.z+=salNum(rows[i][iZ]); if(iS>=0) o.s+=salNum(rows[i][iS]); if(iC>=0) o.c+=salNum(rows[i][iC]); if(iR>=0) o.r+=salNum(rows[i][iR]);
+  }
+  const n=Object.keys(tours).length;
+  if(!n){ toast("Nu am găsit ture în fișier",true); return; }
+  const old=salLma(), lbl=MONTHS[salCur.getMonth()]+" "+salCur.getFullYear();
+  if(old&&!confirm("Există deja un fișier LMA încărcat pentru "+lbl+" ("+Object.keys(old.tours||{}).length+" ture).\nÎl înlocuiești cu „"+fileName+"” ("+n+" ture)?\nAtribuirile de ture rămân, iar pachetele persoanelor se recalculează (cele marcate plătite nu se ating).")) return;
+  salMonthData.lma={file:fileName,at:new Date().toISOString(),col:(old&&old.col)||"z",tours};
+  let skipped=0;
+  Object.keys(salMonthData.rows).forEach(id=>{ const r=salMonthData.rows[id]; if(r&&Array.isArray(r.tours)&&r.tours.length){ if(salRowPaid(id)) skipped++; else salApplyTours(id); } });
+  salSaveMonthSoon(); salShowView("pkg");
+  toast("✓ LMA încărcat: "+n+" ture pentru "+lbl+(skipped?" · "+skipped+" persoane plătite neatinse":""));
+}
+function salLmaSetCol(col){
+  const l=salLma(); if(!l) return; l.col=col;
+  Object.keys(salMonthData.rows).forEach(id=>{ const r=salMonthData.rows[id]; if(r&&(r.tours||[]).length&&!salRowPaid(id)) salApplyTours(id); });
+  salSaveMonthSoon(); renderSalarii();
+}
+async function salTourCopyPrev(){
+  const l=salLma(); if(!l) return;
+  const pm=new Date(salCur.getFullYear(),salCur.getMonth()-1,1), pk=pm.getFullYear()+"-"+String(pm.getMonth()+1).padStart(2,"0");
+  try{
+    const s=await db.collection("salarii").doc("m_"+pk).get();
+    if(!s.exists){ toast("Nu există date pentru luna anterioară",true); return; }
+    const rows=s.data().rows||{}; let n=0;
+    Object.keys(rows).forEach(id=>{
+      (rows[id].tours||[]).forEach(t=>{
+        if(!l.tours[t]||salTourOwner(t)||!salEmps.find(e=>e.id===id)||salRowPaid(id)) return;
+        const r=salMonthData.rows[id]||(salMonthData.rows[id]={}); r.tours=(r.tours||[]).concat([t]); n++;
+      });
+    });
+    Object.keys(salMonthData.rows).forEach(id=>{ const r=salMonthData.rows[id]; if(r&&(r.tours||[]).length&&!salRowPaid(id)) salApplyTours(id); });
+    salSaveMonthSoon(); renderSalarii(); toast(n?("✓ Preluate "+n+" ture din luna anterioară"):"Nicio tură de preluat (sunt deja atribuite sau nu există în fișier)");
+  }catch(e){ toast("❌ "+(e.message||e.code),true); }
+}
+// ---- fila „Pachete”: ture din luna aleasă + statistică anuală ----
+let _salPkgYear=null, _salPkgCache={}, _salPkgMode="pk", _salPkgLoading=false;
+function renderPkg(){
+  const el=document.getElementById("salPkgMonth"); if(!el) return;
+  document.getElementById("salMonthLabel3").textContent=MONTHS[salCur.getMonth()]+" "+salCur.getFullYear();
+  const l=salLma();
+  if(!l||!l.tours){
+    el.innerHTML=`<div style="padding:26px;text-align:center;border:1px dashed var(--border);border-radius:12px;color:var(--text-dim)">Nu ai încărcat încă fișierul LMA pentru <b>${MONTHS[salCur.getMonth()]} ${salCur.getFullYear()}</b>.<br>Apasă <b>📥 Încarcă fișier LMA (ture)</b>. Fișierul nu are dată: se leagă de luna afișată aici.</div>`;
+  } else {
+    const tl=Object.keys(l.tours).sort((a,b)=>b-a);
+    let tot=0,asg=0,nAsg=0; tl.forEach(t=>{ const p=salTourPk(t); tot+=p; if(salTourOwner(t)){ asg+=p; nAsg++; } });
+    const emps=salEmps.filter(e=>e.active!==false).sort((a,b)=>a.name.localeCompare(b.name,"ro"));
+    el.innerHTML=`<div class="vs-cards">
+      <div class="vs-card"><div class="l">Pachete în fișier</div><div class="v">${salInt(tot)}</div></div>
+      <div class="vs-card"><div class="l">Atribuite (${nAsg} ture)</div><div class="v" style="color:var(--sal-green)">${salInt(asg)}</div></div>
+      <div class="vs-card"><div class="l">Neatribuite (${tl.length-nAsg} ture)</div><div class="v" style="color:${tot-asg>0?"var(--sal-amber)":"var(--sal-green)"}">${salInt(tot-asg)}</div></div>
+      <div class="vs-card"><div class="l">Suma din pachetele atribuite</div><div class="v">${salFmt(asg*SAL_PKG_RATE)} €</div></div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:12px;color:var(--text-dim)">
+        <span>📄 ${escapeHtml(l.file||"")} · ${new Date(l.at).toLocaleDateString("ro-RO")}</span>
+        <label>Coloana de pachete: <select onchange="salLmaSetCol(this.value)" style="padding:4px 6px;font-size:12px">${Object.keys(SAL_LMA_COLS).map(k=>`<option value="${k}" ${k===(l.col||"z")?"selected":""}>${SAL_LMA_COLS[k]}</option>`).join("")}</select></label>
+        <button onclick="salTourCopyPrev()" style="padding:5px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elev-2);cursor:pointer;font-size:12px;color:var(--text)">↺ Preia turele din luna anterioară</button>
+      </div>
+      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:var(--bg-elev);max-height:60vh;overflow-y:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;color:var(--text-dim);position:sticky;top:0;background:var(--bg-elev)">Tura</th>
+        <th style="padding:8px 10px;text-align:right;font-size:11px;text-transform:uppercase;color:var(--text-dim);position:sticky;top:0;background:var(--bg-elev)">Pachete</th>
+        <th style="padding:8px 10px;text-align:right;font-size:11px;text-transform:uppercase;color:var(--text-dim);position:sticky;top:0;background:var(--bg-elev)">× ${SAL_PKG_RATE}</th>
+        <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;color:var(--text-dim);position:sticky;top:0;background:var(--bg-elev)">Atribuită la</th></tr></thead><tbody>
+        ${tl.map(t=>{ const o=salTourOwner(t), p=salTourPk(t), paid=o&&salRowPaid(o);
+          return `<tr style="border-top:1px solid var(--border);${o?"":"background:rgba(245,158,11,.07)"}"><td style="padding:6px 10px;font-weight:700">${t}</td><td style="padding:6px 10px;text-align:right">${salInt(p)}</td><td style="padding:6px 10px;text-align:right;color:var(--text-dim)">${salFmt(p*SAL_PKG_RATE)}</td>
+          <td style="padding:6px 10px"><select ${canSalarii()&&!paid?"":"disabled"} onchange="salTourAssign('${t}',this.value)" style="padding:4px 6px;font-size:12px;max-width:240px"><option value="">— neatribuită —</option>${emps.map(e=>`<option value="${e.id}" ${e.id===o?"selected":""}>${escapeHtml(e.name)}</option>`).join("")}${o&&!emps.find(e=>e.id===o)?`<option value="${o}" selected>${escapeHtml(salEmpName(o))}</option>`:""}</select>${paid?" 🔒":""}</td></tr>`; }).join("")}
+        </tbody></table></div>`;
+  }
+  renderPkgStats();
+}
+async function salPkgLoadYear(force){
+  const y=_salPkgYear||salCur.getFullYear(); _salPkgYear=y;
+  if(!_salUnlocked||_salPkgLoading) return;
+  if(!force&&_salPkgCache[y]) return;
+  _salPkgLoading=true; renderPkgStats();
+  try{
+    const mks=Array.from({length:12},(_,i)=>y+"-"+String(i+1).padStart(2,"0"));
+    const snaps=await Promise.all(mks.map(mk=>db.collection("salarii").doc("m_"+mk).get().catch(()=>null)));
+    const out={}; snaps.forEach((s,i)=>{ if(s&&s.exists){ const d=s.data(); out[mks[i]]={rows:d.rows||{},lma:d.lma||null}; } });
+    _salPkgCache[y]=out;
+  }catch(e){ toast("❌ Statistică: "+(e.message||e.code),true); }
+  _salPkgLoading=false; renderPkgStats();
+}
+function salPkgSetYear(d){ _salPkgYear=(_salPkgYear||salCur.getFullYear())+d; salPkgLoadYear(true); renderPkgStats(); }
+function salPkgSetMode(m){ _salPkgMode=m; renderPkgStats(); }
+function renderPkgStats(){
+  const el=document.getElementById("salPkgStats"); if(!el) return;
+  const y=_salPkgYear||(_salPkgYear=salCur.getFullYear());
+  const cache=_salPkgCache[y]||{};
+  const months=Array.from({length:12},(_,i)=>y+"-"+String(i+1).padStart(2,"0"));
+  const dataOf=mk=>(mk===salMk()?{rows:salMonthData.rows,lma:salMonthData.lma}:cache[mk])||null;
+  const per={}, unas={}, totM={}; const mult=_salPkgMode==="eur"?SAL_PKG_RATE:1;
+  months.forEach(mk=>{
+    const d=dataOf(mk); if(!d) return;
+    Object.keys(d.rows||{}).forEach(id=>{
+      const rd=d.rows[id]||{}, emp=salEmps.find(e=>e.id===id); const type=rd.type||(emp&&emp.type)||"fix";
+      if(type!=="pachete") return; const p=salNum(rd.salar); if(!p) return;
+      (per[id]||(per[id]={}))[mk]=p; totM[mk]=(totM[mk]||0)+p;
+    });
+    if(d.lma&&d.lma.tours){ const own=new Set(); Object.keys(d.rows||{}).forEach(id=>(d.rows[id].tours||[]).forEach(t=>own.add(t)));
+      let u=0; Object.keys(d.lma.tours).forEach(t=>{ if(!own.has(t)) u+=salNum(d.lma.tours[t][d.lma.col||"z"]); }); unas[mk]=u; }
+  });
+  const ids=Object.keys(per).sort((a,b)=>salEmpName(a).localeCompare(salEmpName(b),"ro"));
+  const f=v=>_salPkgMode==="eur"?salFmt(v*mult):salInt(v);
+  const th=(t,r)=>`<th style="padding:7px 8px;text-align:${r?"right":"left"};font-size:11px;text-transform:uppercase;color:var(--text-dim);position:sticky;top:0;background:var(--bg-elev);white-space:nowrap">${t}</th>`;
+  const MS=["Ian","Feb","Mar","Apr","Mai","Iun","Iul","Aug","Sep","Oct","Noi","Dec"];
+  const grand=Object.values(totM).reduce((a,b)=>a+b,0);
+  const head=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+    <button onclick="salPkgSetYear(-1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--text-dim)">◀</button><b style="min-width:50px;text-align:center">${y}</b>
+    <button onclick="salPkgSetYear(1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--text-dim)">▶</button>
+    <select onchange="salPkgSetMode(this.value)" style="padding:4px 6px;font-size:12px"><option value="pk" ${_salPkgMode==="pk"?"selected":""}>Număr de pachete</option><option value="eur" ${_salPkgMode==="eur"?"selected":""}>Suma din pachete (€ × ${SAL_PKG_RATE})</option></select>
+    <button onclick="salPkgLoadYear(true)" style="padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;font-size:12px;color:var(--text-dim)">↻</button>
+    <span style="font-size:12px;color:var(--text-dim)">${_salPkgLoading?"Se încarcă…":"Total an: <b>"+f(grand)+(_salPkgMode==="eur"?" €":" pachete")+"</b>"}</span></div>`;
+  el.innerHTML=head+`<div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:var(--bg-elev)"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr>${th("Persoană")}${MS.map(m=>th(m,1)).join("")}${th("Total",1)}${th("Medie/lună",1)}</tr></thead><tbody>
+    ${ids.map(id=>{ const v=per[id], ks=Object.keys(v), s=ks.reduce((t,k)=>t+v[k],0);
+      return `<tr style="border-top:1px solid var(--border)"><td style="padding:6px 8px;font-weight:700;white-space:nowrap">${escapeHtml(salEmpName(id))}</td>${months.map(mk=>`<td style="padding:6px 8px;text-align:right">${v[mk]?f(v[mk]):'<span style="color:var(--text-dim)">·</span>'}</td>`).join("")}<td style="padding:6px 8px;text-align:right;font-weight:800">${f(s)}</td><td style="padding:6px 8px;text-align:right;color:var(--text-dim)">${f(s/ks.length)}</td></tr>`; }).join("")||`<tr><td colspan="15" style="padding:22px;text-align:center;color:var(--text-dim)">${_salPkgLoading?"Se încarcă…":"Nicio persoană „Din pachete” în "+y+"."}</td></tr>`}
+    <tr style="border-top:2px solid var(--border);background:var(--bg-elev-2);font-weight:800"><td style="padding:7px 8px">Total luna</td>${months.map(mk=>`<td style="padding:7px 8px;text-align:right">${totM[mk]?f(totM[mk]):"·"}</td>`).join("")}<td style="padding:7px 8px;text-align:right">${f(grand)}</td><td></td></tr>
+    <tr style="color:var(--sal-amber)"><td style="padding:6px 8px">Ture neatribuite</td>${months.map(mk=>`<td style="padding:6px 8px;text-align:right">${unas[mk]?f(unas[mk]):"·"}</td>`).join("")}<td></td><td></td></tr>
+    </tbody></table></div><div style="font-size:11px;color:var(--text-dim);margin-top:6px">Se numără persoanele cu tipul „Din pachete” (pachetele atribuite din ture sau scrise manual). „Ture neatribuite” = pachete din LMA care nu au fost date nimănui.</div>`;
+}
+
+// ============================================================
+// REGISTRU BANI per persoană (dat / primit înapoi) — document salarii/bani (protejat de PIN-ul de Salarii)
+//   { entries:[{id, empId, kind:"dat"|"primit", amount, date, note, at, by}] }
+// ============================================================
+let salBani={entries:[]}, _salUnsubBani=null, _salBaniTimer=null, _salBaniSel="", _salBaniEdit=null;
+function loadBani(){
+  if(_salUnsubBani){ try{_salUnsubBani();}catch(e){} }
+  _salUnsubBani=db.collection("salarii").doc("bani").onSnapshot(snap=>{
+    if(_salBaniTimer) return;
+    salBani=snap.exists?{entries:snap.data().entries||[]}:{entries:[]};
+    if(appMode==="salarii") renderBani();
+  }, e=>{ console.warn("bani err",e); if(e&&e.code==="permission-denied") salLockNow(true); });
+}
+function salBaniSaveSoon(){
+  if(_salBaniTimer) clearTimeout(_salBaniTimer);
+  _salBaniTimer=setTimeout(async()=>{
+    _salBaniTimer=null;
+    try{ await db.collection("salarii").doc("bani").set(JSON.parse(JSON.stringify({entries:salBani.entries,updatedAt:new Date().toISOString()}))); }
+    catch(e){ toast("❌ Eroare salvare bani: "+(e.message||e.code),true); }
+  },500);
+}
+function salBaniCalc(id){
+  const l=salBani.entries.filter(x=>x.empId===id); let dat=0,pri=0;
+  l.forEach(x=>{ if(x.kind==="dat") dat+=salNum(x.amount); else pri+=salNum(x.amount); });
+  const dates=l.map(x=>x.date).filter(Boolean).sort();
+  return {n:l.length,dat,pri,sold:dat-pri,first:dates[0]||"",last:dates[dates.length-1]||""};
+}
+const salDateRo=d=>d?d.split("-").reverse().join("."):"—";
+function salBaniOpenAdd(empId,kind,editId){
+  _salBaniEdit=editId||null;
+  const emps=salEmps.slice().sort((a,b)=>a.name.localeCompare(b.name,"ro"));
+  const ent=editId?salBani.entries.find(x=>x.id===editId):null;
+  const pre=ent?ent.empId:empId;
+  document.getElementById("salBaniEmp").innerHTML=emps.map(e=>`<option value="${e.id}" ${e.id===pre?"selected":""}>${escapeHtml(e.name)}${e.active===false?" (inactiv)":""}</option>`).join("");
+  document.getElementById("salBaniKind").value=ent?ent.kind:(kind||"dat");
+  const t=new Date();
+  document.getElementById("salBaniDate").value=ent?ent.date:(t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0"));
+  document.getElementById("salBaniAmt").value=ent?String(ent.amount).replace(".",","):""; document.getElementById("salBaniNote").value=ent?(ent.note||""):"";
+  document.getElementById("salBaniErr").textContent=""; document.getElementById("salBaniTitle").textContent=editId?"✎ Modifică mișcarea":"💰 Mișcare bani";
+  openModal("salBaniModal");
+}
+function salBaniSave(){
+  const id=document.getElementById("salBaniEmp").value, kind=document.getElementById("salBaniKind").value, amt=salNum(document.getElementById("salBaniAmt").value);
+  const date=document.getElementById("salBaniDate").value, err=document.getElementById("salBaniErr");
+  if(!id){ err.textContent="Alege persoana"; return; }
+  if(!(amt>0)){ err.textContent="Introdu o sumă mai mare ca 0"; return; }
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){ err.textContent="Alege data"; return; }
+  const note=document.getElementById("salBaniNote").value.trim();
+  if(_salBaniEdit){ const x=salBani.entries.find(e=>e.id===_salBaniEdit); if(x){ Object.assign(x,{empId:id,kind,amount:amt,date,note}); } }
+  else salBani.entries.push({id:uid(),empId:id,kind,amount:amt,date,note,at:new Date().toISOString(),by:window.activeUserKey||""});
+  _salBaniSel=id; salBaniSaveSoon(); closeModal("salBaniModal"); renderBani();
+  try{ logActivity(kind==="dat"?"💸 Bani dați":"✅ Bani primiți",salFmt(amt)+" € · "+date,salEmpName(id),"salarii"); }catch(e){}
+  toast("✓ Salvat");
+}
+function salBaniDel(entryId){
+  const x=salBani.entries.find(e=>e.id===entryId); if(!x) return;
+  if(!confirm("Ștergi mișcarea din "+salDateRo(x.date)+" ("+(x.kind==="dat"?"dat":"primit")+" "+salFmt(salNum(x.amount))+" €) pentru "+salEmpName(x.empId)+"?")) return;
+  salBani.entries=salBani.entries.filter(e=>e.id!==entryId); salBaniSaveSoon(); renderBani();
+}
+function salBaniSelect(id){ _salBaniSel=(_salBaniSel===id?"":id); renderBani(); }
+function renderBani(){
+  const tb=document.getElementById("salBaniTable"); if(!tb) return;
+  const q=normalizeForSearch((document.getElementById("salBaniSearch")||{}).value||"");
+  const ids=[...new Set(salBani.entries.map(x=>x.empId))].map(id=>({id,name:salEmpName(id),c:salBaniCalc(id)})).filter(r=>!q||normalizeForSearch(r.name).includes(q)).sort((a,b)=>b.c.sold-a.c.sold||a.name.localeCompare(b.name,"ro"));
+  const all=[...new Set(salBani.entries.map(x=>x.empId))].map(id=>salBaniCalc(id));
+  const dat=all.reduce((t,c)=>t+c.dat,0), pri=all.reduce((t,c)=>t+c.pri,0), open=all.filter(c=>c.sold>0.005).length;
+  document.getElementById("salBaniCards").innerHTML=`<div class="vs-cards">
+    <div class="vs-card"><div class="l">💸 Total dat</div><div class="v">${salFmt(dat)} €</div></div>
+    <div class="vs-card"><div class="l">✅ Total primit înapoi</div><div class="v" style="color:var(--sal-green)">${salFmt(pri)} €</div></div>
+    <div class="vs-card"><div class="l">Sold de recuperat</div><div class="v" style="color:var(--sal-amber)">${salFmt(dat-pri)} €</div></div>
+    <div class="vs-card"><div class="l">Persoane cu sold deschis</div><div class="v">${open}</div></div></div>`;
+  const th=(t,r)=>`<th style="padding:9px 10px;text-align:${r?"right":"left"};font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim)">${t}</th>`;
+  tb.innerHTML=`<thead><tr>${th("Persoană")}${th("Dat",1)}${th("Primit",1)}${th("Sold",1)}${th("Mișcări",1)}${th("Ultima")}${th("")}</tr></thead><tbody>${
+    ids.map(r=>`<tr style="border-top:1px solid var(--border);${r.id===_salBaniSel?"background:rgba(16,185,129,.08)":""}"><td style="padding:8px 10px;font-weight:700;cursor:pointer" onclick="salBaniSelect('${r.id}')">${escapeHtml(r.name)}</td>
+      <td style="text-align:right;padding:8px">${salFmt(r.c.dat)} €</td><td style="text-align:right;padding:8px;color:var(--sal-green)">${salFmt(r.c.pri)} €</td>
+      <td style="text-align:right;padding:8px;font-weight:800;color:${r.c.sold>0.005?"var(--sal-amber)":"var(--sal-green)"}">${r.c.sold>0.005?salFmt(r.c.sold)+" €":(r.c.sold<-0.005?"− "+salFmt(-r.c.sold)+" € (ai primit mai mult)":"✓ achitat")}</td>
+      <td style="text-align:right;padding:8px">${r.c.n}</td><td style="padding:8px">${salDateRo(r.c.last)}</td>
+      <td style="text-align:right;padding:8px;white-space:nowrap"><button onclick="salBaniOpenAdd('${r.id}','dat')" title="Am dat" style="padding:4px 9px;border:1px solid var(--border);border-radius:6px;background:none;color:var(--text);cursor:pointer;font-size:12px">＋ dat</button> <button onclick="salBaniOpenAdd('${r.id}','primit')" title="Am primit" style="padding:4px 9px;border:1px solid var(--border);border-radius:6px;background:none;color:var(--text);cursor:pointer;font-size:12px">＋ primit</button> <button onclick="salBaniSelect('${r.id}')" style="padding:4px 9px;border:1px solid var(--border);border-radius:6px;background:none;color:var(--text);cursor:pointer;font-size:12px">${r.id===_salBaniSel?"▲":"Detalii"}</button></td></tr>`).join("")
+    ||`<tr><td colspan="7" style="padding:26px;text-align:center;color:var(--text-dim)">Nicio mișcare încă. Apasă <b>＋ Adaugă mișcare</b>.</td></tr>`}</tbody>`;
+  const dv=document.getElementById("salBaniDetail"); const sel=_salBaniSel;
+  if(!sel||!salBani.entries.some(x=>x.empId===sel)){ dv.innerHTML=""; return; }
+  const c=salBaniCalc(sel), list=salBani.entries.filter(x=>x.empId===sel).sort((a,b)=>(a.date||"").localeCompare(b.date||"")||(a.at||"").localeCompare(b.at||""));
+  let run=0; const withRun=list.map(x=>{ run+=(x.kind==="dat"?1:-1)*salNum(x.amount); return {x,run}; }).reverse();
+  const years={}; list.forEach(x=>{ const y=(x.date||"").slice(0,4); const o=years[y]||(years[y]={dat:0,pri:0}); if(x.kind==="dat") o.dat+=salNum(x.amount); else o.pri+=salNum(x.amount); });
+  dv.innerHTML=`<div style="border:1px solid var(--border);border-radius:14px;background:var(--bg-elev);padding:14px 16px">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><b style="font-size:15px">📒 ${escapeHtml(salEmpName(sel))}</b>
+      <span style="font-size:12px;color:var(--text-dim)">${c.n} mișcări · prima ${salDateRo(c.first)} · ultima ${salDateRo(c.last)}</span></div>
+    <div class="vs-cards"><div class="vs-card"><div class="l">Dat</div><div class="v">${salFmt(c.dat)} €</div></div><div class="vs-card"><div class="l">Primit</div><div class="v" style="color:var(--sal-green)">${salFmt(c.pri)} €</div></div><div class="vs-card"><div class="l">Sold</div><div class="v" style="color:${c.sold>0.005?"var(--sal-amber)":"var(--sal-green)"}">${salFmt(c.sold)} €</div></div></div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">Pe ani: ${Object.keys(years).sort().map(y=>`<b>${y||"—"}</b>: dat ${salFmt(years[y].dat)} €, primit ${salFmt(years[y].pri)} €`).join(" · ")}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>${th("Data")}${th("Tip")}${th("Sumă",1)}${th("Sold după",1)}${th("Notă")}${th("")}</tr></thead><tbody>
+    ${withRun.map(({x,run})=>`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${salDateRo(x.date)}</td><td style="padding:6px 10px">${x.kind==="dat"?"💸 dat":"✅ primit"}</td><td style="padding:6px 10px;text-align:right;font-weight:700;color:${x.kind==="dat"?"var(--text)":"var(--sal-green)"}">${x.kind==="dat"?"":"− "}${salFmt(salNum(x.amount))} €</td><td style="padding:6px 10px;text-align:right;color:var(--text-dim)">${salFmt(run)} €</td><td style="padding:6px 10px;color:var(--text-dim)">${escapeHtml(x.note||"")}</td>
+      <td style="padding:6px 10px;text-align:right;white-space:nowrap"><button onclick="salBaniOpenAdd('','','${x.id}')" style="border:none;background:none;cursor:pointer" title="Modifică">✎</button> <button onclick="salBaniDel('${x.id}')" style="border:none;background:none;cursor:pointer;color:#ef4444" title="Șterge">🗑</button></td></tr>`).join("")}
+    </tbody></table></div>`;
+}
+function salBaniExport(){
+  const head=["Persoană","Data","Tip","Sumă (€)","Notă"];
+  const rows=salBani.entries.slice().sort((a,b)=>salEmpName(a.empId).localeCompare(salEmpName(b.empId),"ro")||(a.date||"").localeCompare(b.date||"")).map(x=>[salEmpName(x.empId),salDateRo(x.date),x.kind==="dat"?"dat":"primit",(x.kind==="dat"?1:-1)*salNum(x.amount),x.note||""]);
+  const sum=[...new Set(salBani.entries.map(x=>x.empId))].map(id=>{ const c=salBaniCalc(id); return [salEmpName(id),c.dat,c.pri,c.sold]; }).sort((a,b)=>a[0].localeCompare(b[0],"ro"));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Persoană","Total dat","Total primit","Sold"],...sum]),"Sold per persoană");
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([head,...rows]),"Mișcări");
+  XLSX.writeFile(wb,"Bani_persoane_"+new Date().toISOString().slice(0,10)+".xlsx");
 }
 
 // ---- export / print ----
@@ -15244,7 +15569,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261030-113201';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261101-113107';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -15330,6 +15655,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 </body>
