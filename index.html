@@ -5618,7 +5618,7 @@ function showLockScreen(){
   const uk = window.activeUserKey;
   if(!uk) return;
   _lockScreenActive = true;
-  try{ if(_salUnlocked) salLockNow(false,true); }catch(e){}   // ecranul de blocare închide și Salarii
+  try{ if(_salUnlocked||appMode==="salarii") salLockNow(false); }catch(e){}   // ecranul de blocare închide Salarii și te scoate din ecranul lui (altfel rămânea deschis, gol și blocat)
 
   // Blur pe aplicație
   const appRoot = document.getElementById("appRoot");
@@ -9388,6 +9388,7 @@ function salSaveMonthSoon(){
   const mk=salMk();
   _salSaveTimer=setTimeout(async()=>{
     _salSaveTimer=null;
+    if(!_salUnlocked){ toast("🔒 Salarii e blocat — modificarea NU s-a salvat. Redeschide cu PIN-ul și repetă-o.",true); return; }
     try{ await db.collection("salarii").doc("m_"+mk).set(JSON.parse(JSON.stringify({rows:salMonthData.rows,lma:salMonthData.lma||null,updatedAt:new Date().toISOString()}))); }
     catch(e){ toast("❌ Eroare salvare salarii: "+(e.message||e.code),true); }
   },600);
@@ -9563,6 +9564,7 @@ function salVorsSaveSoon(){
   if(_salVorsTimer) clearTimeout(_salVorsTimer);
   _salVorsTimer=setTimeout(async()=>{
     _salVorsTimer=null;
+    if(!_salUnlocked){ toast("🔒 Salarii e blocat — modificarea NU s-a salvat. Redeschide cu PIN-ul și repetă-o.",true); return; }
     try{ await db.collection("salarii").doc("vorschuss").set(JSON.parse(JSON.stringify({emps:salVors.emps,updatedAt:new Date().toISOString()}))); }
     catch(e){ toast("❌ Eroare salvare vorschuss: "+(e.message||e.code),true); }
   },500);
@@ -10323,6 +10325,7 @@ function salBaniSaveSoon(){
   if(_salBaniTimer) clearTimeout(_salBaniTimer);
   _salBaniTimer=setTimeout(async()=>{
     _salBaniTimer=null;
+    if(!_salUnlocked){ toast("🔒 Salarii e blocat — modificarea NU s-a salvat. Redeschide cu PIN-ul și repetă-o.",true); return; }
     try{ await db.collection("salarii").doc("bani").set(JSON.parse(JSON.stringify({entries:salBani.entries,updatedAt:new Date().toISOString()}))); }
     catch(e){ toast("❌ Eroare salvare bani: "+(e.message||e.code),true); }
   },500);
@@ -15569,7 +15572,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261101-113107';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261101-131759';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -15655,6 +15658,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
