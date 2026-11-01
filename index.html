@@ -991,6 +991,9 @@
   .sal-lock{ padding:8px 12px; border-radius:999px; border:1px solid var(--border); background:#fff; color:var(--text-dim); font-size:12px; cursor:pointer }
   .sal-lock:hover{ color:#b91c1c; border-color:#ef4444 }
   #salariiModule.sal-theme .header{ background:none; border:none; padding:0 }
+  #salStick{ position:sticky; top:var(--sal-top-h,64px); z-index:4; background:#f2faf7; padding-top:2px; box-shadow:0 6px 8px -6px rgba(14,42,38,.25) }
+  #salTblWrap{ overflow-x:clip }
+  @media (max-width:900px){ #salStick{ position:static; box-shadow:none } #salTblWrap{ overflow-x:auto } }
   .sal-tour{ display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin-top:3px }
   .sal-tchip{ font-size:11px; padding:2px 7px; border-radius:999px; background:rgba(99,102,241,.14); color:#4f46e5; font-weight:700; white-space:nowrap }
   .sal-tchip b{ cursor:pointer; margin-left:5px; color:#ef4444 }
@@ -1510,6 +1513,7 @@
         <button class="sal-lock" onclick="salLockNow(false)" title="Blochează Salarii acum">🔒 Blochează</button>
       </div>
       <div id="salViewMain">
+      <div id="salStick">
       <div class="header" style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <button onclick="salChangeMonth(-1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--text-dim)">◀</button>
@@ -1528,8 +1532,9 @@
         </div>
       </div>
       <div id="salNotice" style="margin-bottom:8px"></div>
-      <div id="salSummary" style="margin-bottom:10px"></div>
-      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;background:var(--bg-elev)"><table id="salTable" style="width:100%;border-collapse:collapse;font-size:13px"></table></div>
+      <div id="salSummary" style="margin-bottom:8px"></div>
+      </div>
+      <div id="salTblWrap" style="border:1px solid var(--border);border-radius:10px;background:var(--bg-elev)"><table id="salTable" style="width:100%;border-collapse:collapse;font-size:13px"></table></div>
       <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5">
         <b>●</b> verde = sincronizat din Angajați, ○ = nelegat. <b>Formule:</b> Pachete = pachete×0,66 + sortat×22 + (zile concediu + Feiertag + Krank)×66 − chirie · Doar sortator și Salar fix = salar + sortat×22 + sumele lunare scrise de tine la Concediu/Feiertag/Krank − chirie. Zilele de concediu/Feiertag/Krank se calculează la toți cu 66 € / zi; la cei fără pachete poți suprascrie suma scriind-o în căsuța de sub zile. Zilele de sortat (din modulul Sortatori), concediu, Krank și Feiertag se preiau automat; poți suprascrie manual (apare ↺ pentru revenire).
       </div>
@@ -9543,13 +9548,26 @@ function renderSalarii(){
         c.paid?`<div style="font-size:10px;color:var(--sal-green)">🔒 Plătit ${new Date(c.paid.at).toLocaleDateString("ro-RO")}</div>${Math.abs(c.live-c.total)>0.005?`<div title="Datele sursă s-au schimbat după plată" style="font-size:10px;color:var(--sal-amber)">⚠ acum ar fi ${salFmt(c.live)} €</div>`:""}<button onclick="salReopen('${e.id}')" style="margin-top:2px;padding:2px 8px;font-size:11px;border:1px solid var(--border);border-radius:999px;background:none;color:var(--text-dim);cursor:pointer">🔓 Deschide cu PIN</button>`
         :(canSalarii()?`<button onclick="salMarkPaid('${e.id}')" style="margin-top:2px;padding:3px 10px;font-size:11px;font-weight:700;border:1px solid var(--sal-em);border-radius:999px;background:rgba(16,185,129,.12);color:var(--sal-green);cursor:pointer">✔ Marchează plătit</button>`:"")}</td></tr>`);
   });
-  const th=(t,r)=>`<th style="padding:7px 8px;text-align:${r?"right":"left"};font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim);position:sticky;top:0;background:var(--bg-elev)">${t}</th>`;
+  const th=(t,r)=>`<th style="padding:7px 8px;text-align:${r?"right":"left"};font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim);position:sticky;top:var(--sal-th-top,0px);z-index:3;background:var(--bg-elev)">${t}</th>`;
   document.getElementById("salTable").innerHTML=`<thead><tr>${th("Nume")}${th("Tip salar")}${th("Salar / Pachete",1)}${th("Sortat",1)}${th("Concediu (zile)",1)}${th("Feiertag (zile)",1)}${th("Krank (zile)",1)}${th("Chirie",1)}${th("Vorschuss",1)}${th("Total",1)}</tr></thead><tbody>${body.join("")||`<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--text-dim)">Nu există angajați. Apasă <b>👥 Angajați</b> pentru a încărca lista.</td></tr>`}</tbody><tfoot><tr style="border-top:2px solid var(--border);font-weight:800"><td style="padding:8px" colspan="9">TOTAL ${active.length} angajați</td><td style="padding:8px 10px;text-align:right;white-space:nowrap">${salFmt(tot)} €</td></tr></tfoot>`;
   document.getElementById("salSummary").innerHTML=`<div style="display:flex;gap:10px;flex-wrap:wrap">
     ${[["💶 Total de plată",salFmt(tot)+" €","var(--sal-em)"],["Bază (salar/pachete/sortat)",salFmt(totBase)+" €","var(--text)"],["Concediu+Feiertag+Krank",salFmt(totAbs)+" €","var(--text)"],["Chirie reținută","− "+salFmt(totChirie)+" €","#ef4444"],["Vorschuss tras luna aceasta","− "+salFmt(totVors)+" €","var(--sal-blue)"],["✔ Plătiți",nPaid+" / "+active.length+" · "+salFmt(totPaid)+" €","var(--sal-green)"],["Tipuri",cnt.fix+" fix · "+cnt.pachete+" pachete · "+cnt.sortat+" sortator","var(--text-dim)"]].map(x=>`<div style="padding:8px 14px;background:var(--bg-elev);border:1px solid var(--border);border-radius:10px"><div style="font-size:11px;color:var(--text-dim)">${x[0]}</div><div style="font-size:16px;font-weight:800;color:${x[2]}">${x[1]}</div></div>`).join("")}</div>`
     + (unlinked?`<div style="font-size:12px;color:#ef4444;margin-top:6px">⚠️ ${unlinked} angajați nu sunt în Concedii (zilele de concediu/krank nu se pot prelua). Vezi 👥 Angajați.</div>`:"");
   try{ window.scrollTo(0,_sy); }catch(e){}
 }
+// înghețare: bara de sus + luna/filtre/sumar rămân vizibile, iar antetul tabelului se lipește sub ele
+function salFreezeMeasure(){
+  try{
+    const m=document.getElementById("salariiModule"), top=m&&m.querySelector(".sal-top"), st=document.getElementById("salStick"); if(!top||!st) return;
+    const h1=Math.round(top.getBoundingClientRect().height), narrow=window.innerWidth<=900;
+    const h2=narrow?0:Math.round(st.getBoundingClientRect().height);
+    m.style.setProperty("--sal-top-h",h1+"px"); m.style.setProperty("--sal-th-top",(narrow?0:h1+h2)+"px");
+  }catch(e){}
+}
+(function(){ window.addEventListener("resize",salFreezeMeasure);
+  const t=()=>{ const st=document.getElementById("salStick"); if(st&&window.ResizeObserver){ const ro=new ResizeObserver(salFreezeMeasure); ro.observe(st); const tp=document.querySelector("#salariiModule .sal-top"); if(tp) ro.observe(tp); salFreezeMeasure(); } else setTimeout(t,500); };
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",t); else t();
+})();
 function salSet(id,field,val){
   if(!canSalarii()) return;
   if(salMonthData.rows[id]&&salMonthData.rows[id].paid){ toast('🔒 Persoană marcată plătită — deschide-o cu PIN ca s-o modifici',true); renderSalarii(); return; }
@@ -15755,7 +15773,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261101-135156';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261101-140728';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -15841,6 +15859,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
