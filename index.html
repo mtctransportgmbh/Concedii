@@ -748,6 +748,16 @@
     background: rgba(255,255,255,0.1) !important;
     font-style: italic;
   }
+  /* Cereri în așteptare (doar admin) — chenar întrerupt galben */
+  .cal-name.pend { background: rgba(245,158,11,0.10) !important; color: #fcd34d !important; border:1px dashed rgba(245,158,11,0.85); }
+  .cal-pend-badge { position:absolute; top:3px; right:4px; font-size:10px; font-weight:800; color:#fcd34d; background:rgba(245,158,11,0.16); border:1px dashed rgba(245,158,11,0.8); border-radius:8px; padding:0 5px; line-height:15px; }
+  .req-card { border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin:8px 0; background:var(--bg); }
+  .req-card h4 { margin:0 0 2px; font-size:14px; }
+  .req-days { display:flex; flex-wrap:wrap; gap:4px; margin:6px 0; }
+  .req-day { font-size:11px; padding:2px 6px; border-radius:6px; border:1px solid var(--border); cursor:default; }
+  .req-day.l1,.req-day.l2 { background:rgba(34,197,94,.14); } .req-day.l3 { background:rgba(245,158,11,.22); } .req-day.l4 { background:rgba(239,68,68,.28); }
+  .req-actions { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+  .req-actions input { flex:1; min-width:140px; padding:5px 8px; font-size:12px; border:1px solid var(--border); border-radius:6px; background:var(--bg-elev); color:inherit; }
   /* Krank names — blue tint */
   .cal-name.krank {
     background: rgba(30,64,175,0.6) !important;
@@ -1374,6 +1384,9 @@
       <button class="btn btn-big" id="quickKrankBtn" onclick="openQuickKrank()" style="flex:1; max-width:180px; background:rgba(59,130,246,0.2); color:rgba(147,197,253,0.95); border:1px solid rgba(59,130,246,0.4)">
         🤒 Krank rapid
       </button>
+      <button class="btn btn-big" id="cereriBtn" onclick="openCereri()" style="display:none; flex:1; max-width:240px; background:rgba(245,158,11,0.15); color:#fcd34d; border:1px dashed rgba(245,158,11,0.8)">
+        🕓 Cereri angajați (<span id="cereriCount">0</span>)
+      </button>
     </div>
 
     <!-- Group filter — only for Tania/Admin -->
@@ -1416,6 +1429,7 @@
       <div class="legend-item"><div class="legend-dot" style="background:repeating-linear-gradient(45deg,rgba(239,68,68,0.1),rgba(239,68,68,0.1) 3px,rgba(239,68,68,0.25) 3px,rgba(239,68,68,0.25) 6px)"></div>Duminică</div>
       <div class="legend-item"><div class="legend-dot" style="background:rgba(168,85,247,0.4);border:1px dashed rgba(168,85,247,0.7)"></div>Sărbătoare</div>
       <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div>Krank K</div>
+      <div id="legendPend" class="legend-item" style="display:none"><div class="legend-dot" style="background:rgba(245,158,11,0.12);border:1px dashed rgba(245,158,11,0.9)"></div>🕓 Cerere în așteptare</div>
       <div id="legendUnpaid" class="legend-item" style="display:none"><div class="legend-dot" style="background:rgba(96,165,250,0.7)"></div>Fără plată S</div>
     </div>
     
@@ -3987,6 +4001,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") toggleSecretDrawer
     <h3>⚙️ Panou Admin</h3>
     <div id="adminPanelGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:2px 10px;align-items:start">
     <button class="btn btn-secondary btn-small" id="pinMgrBtn" onclick="openPinAdmin()" style="width:100%; margin-bottom:6px; display:none">🔐 Coduri PIN</button>
+    <button class="btn btn-secondary btn-small" id="devMgrBtn" onclick="mtcOpenDevices()" style="width:100%; margin-bottom:6px; display:none; border-color:#60a5fa; color:#60a5fa">💻 Device-uri și profiluri</button>
     <button class="btn btn-secondary btn-small" id="loadBackupBtn" onclick="openBackupManager()" style="width:100%; margin-bottom:6px; display:none">🔄 Manager Backup / Restaurare</button>
     <button class="btn btn-secondary btn-small" id="archiveBtn" onclick="openArchive()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">📦 Arhivă persoane</button>
     <button class="btn btn-secondary btn-small" id="permissionsBtn" onclick="openPermissionsPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#0ea5e9; color:#0ea5e9">🔑 Permisiuni acces</button>
@@ -4326,6 +4341,15 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") toggleSecretDrawer
   </div>
 </div>
 
+<div class="modal-bg" id="modalCereri">
+  <div class="modal" style="max-width:640px;max-height:88vh;overflow:auto">
+    <h3>🕓 Cereri de concediu în așteptare</h3>
+    <div class="modal-sub">Vezi pentru fiecare zi câți colegi sunt deja în concediu (aprobați) și câți au alte cereri în așteptare.</div>
+    <div id="cereriList"></div>
+    <div style="margin-top:12px;text-align:right"><button class="btn btn-small" onclick="closeModal('modalCereri')">Închide</button></div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modalDay">
   <div class="modal">
     <h3 id="modalDayTitle">Ziua</h3>
@@ -4607,6 +4631,7 @@ const fns  = firebase.app().functions("europe-west1");
 const callFn = async (name,data)=>{
   const payload = Object.assign({}, data||{});
   try{ if(auth.currentUser) payload._t = await auth.currentUser.getIdToken(); }catch(e){}
+  try{ payload.deviceId = window.mtcDeviceId(); }catch(e){}
   const r = await fns.httpsCallable(name)(payload); return r.data;
 };
 // Pornim încărcarea permisiunilor cât mai devreme posibil — de regulă se
@@ -5946,6 +5971,7 @@ async function pinSubmit(){
     else if(i.reason==="rate-limited"){ errEl.textContent="Prea multe cereri. Încearcă din nou peste câteva minute."; }
     else if(i.reason==="not-set"){ pinState.mode="blocked"; errEl.textContent=""; subEl.textContent="PIN nesetat — cere-i lui Admin un PIN temporar."; }
     else if(typeof i.remaining==="number") errEl.textContent = i.remaining>0 ? "PIN greșit. Mai ai "+i.remaining+(i.remaining===1?" încercare.":" încercări.") : "Cont blocat.";
+    else if(/unavailable/.test(i.code||"")) errEl.textContent = "Conectarea nu este disponibilă momentan. Încearcă din nou mai târziu.";
     else errEl.textContent = "Eroare: "+(i.msg||"conexiune")+(i.code?" ["+i.code+"]":"");
     if(i.remaining===0){ pinState.mode="blocked"; subEl.textContent=lockText(i.retry); }
   }
@@ -6107,6 +6133,8 @@ function enterApp(userKey){
   av.textContent = user.initial; av.style.background = user.color;
   document.getElementById("userName").textContent = user.name+(userKey==="admin"?" 👑":"");
   const isAdm = userKey==="admin";
+  if(isAdm) startCereriListener(); else stopCereriListener();
+  if(isAdm){ try{ callFn("deviceTouch",{}).catch(()=>{}); }catch(e){} }
 
   // Pornim timer-ul de auto-lock corespunzător (10s pentru Admin, 1 min pentru ceilalți)
   if(isAdm) resetAdminAutoLock();
@@ -6176,6 +6204,7 @@ function enterApp(userKey){
 
   // „+ Persoană nouă” eliminat: persoanele se adaugă DOAR din Angajați (sincronizare automată)
   document.getElementById("pinMgrBtn").style.display   = isAdm?"block":"none";
+  { const _dm=document.getElementById("devMgrBtn"); if(_dm) _dm.style.display = isAdm?"block":"none"; }
 
   document.getElementById("authScreen").style.display = "none";
   document.getElementById("appRoot").style.display    = "grid";
@@ -6274,7 +6303,8 @@ function enterApp(userKey){
     });
     setSaveStatus("ok","Bine ai venit, "+user.name+"!");
     // Ascultăm toate doc-urile de concedii, ca să avem datele U pentru Sortatori
-    const docKeys = ["raluca","madalina","corina","tania"];
+    // Regulile Firestore dau lui Mihaela acces doar la documentul Ruhstorf („raluca”) — vede exact ce vede Raluca
+    const docKeys = userKey==="mihaela" ? ["raluca"] : ["raluca","madalina","corina","tania"];
     const cache = {}; let loaded = 0;
     const rebuild = () => {
       const byName = {};
@@ -6296,7 +6326,12 @@ function enterApp(userKey){
         cache[dk] = snap.exists ? snap.data() : {drivers:[],thresholds:{warn:3,crit:5}};
         loaded = Math.min(loaded+1, docKeys.length);
         if(loaded>=docKeys.length) rebuild();
-      }, err=>console.error("merged concedii snap",dk,err));
+      }, err=>{
+        // Regulile permit unor useri (ex: Mihaela) doar o parte din documente: ce nu se poate citi se tratează ca gol,
+        // iar calendarul se construiește din ce se poate citi (altfel rămânea gol pentru totdeauna).
+        console.warn("merged concedii snap (fără acces)",dk,err&&err.code);
+        if(!(dk in cache)){ cache[dk]={drivers:[],thresholds:{warn:3,crit:5}}; loaded=Math.min(loaded+1,docKeys.length); if(loaded>=docKeys.length) rebuild(); }
+      });
       unsubListeners.push(unsub);
     });
   }
@@ -8093,6 +8128,87 @@ function renderCalendar(){
   setStatLevel("statPeakBox",peak);
 }
 
+
+/* ============================================================
+   CERERI DE CONCEDIU ALE ANGAJAȚILOR — vizibile doar Adminului, direct în calendar
+   (colecția `cereri_concediu`; regula Firestore permite citirea doar Adminului;
+   decizia se ia prin funcția `adminDecideLeaveRequest`, care scrie și în evidența reală)
+   ============================================================ */
+let _cereri=[], _cereriUnsub=null;
+function startCereriListener(){
+  if(_cereriUnsub||!isAdmin()) return;
+  try{
+    _cereriUnsub=db.collection("cereri_concediu").where("status","==","in_asteptare").onSnapshot(snap=>{
+      _cereri=snap.docs.map(x=>Object.assign({id:x.id},x.data())).filter(r=>r.start&&r.end);
+      refreshCereriUi();
+    },err=>{ console.warn("cereri_concediu:",err&&err.message); _cereri=[]; refreshCereriUi(); });
+  }catch(e){ console.warn(e); }
+}
+function stopCereriListener(){ if(_cereriUnsub){ try{_cereriUnsub();}catch(e){} _cereriUnsub=null; } _cereri=[]; refreshCereriUi(); }
+function pendingOnDate(d){
+  if(!_cereri.length||!isAdmin()) return [];
+  const ds=fmtDate(d);
+  return _cereri.filter(r=>r.start<=ds&&ds<=r.end);
+}
+function refreshCereriUi(){
+  const b=document.getElementById("cereriBtn"), c=document.getElementById("cereriCount"), lg=document.getElementById("legendPend");
+  const on=isAdmin();
+  if(b) b.style.display=on?"":"none";
+  if(c) c.textContent=_cereri.length;
+  if(lg) lg.style.display=(on&&_cereri.length)?"":"none";
+  try{ if(typeof renderMain==="function") renderMain(); }catch(e){}
+  const m=document.getElementById("modalCereri"); if(m&&m.classList.contains("show")) renderCereriList();
+}
+function openCereri(){ if(!isAdmin()) return; renderCereriList(); openModal("modalCereri"); }
+function renderCereriList(){
+  const box=document.getElementById("cereriList"); if(!box) return;
+  if(!_cereri.length){ box.innerHTML='<div class="empty">Nicio cerere în așteptare 🎉</div>'; return; }
+  const list=[..._cereri].sort((a,b)=>a.start.localeCompare(b.start));
+  box.innerHTML=list.map(r=>{
+    const days=[]; const s=parseDate(r.start), e=parseDate(r.end);
+    for(const d=new Date(s); d<=e && days.length<120; d.setDate(d.getDate()+1)){
+      if(isSunday(d)||getHoliday(d)) continue;
+      const ap=driversOnDate(d);
+      const others=_cereri.filter(x=>x.id!==r.id&&x.start<=fmtDate(d)&&fmtDate(d)<=x.end);
+      days.push({d:new Date(d),ap,others,total:ap.length+others.length+1});
+    }
+    const worst=days.reduce((m,x)=>x.total>m.total?x:m,{total:0});
+    const lvl=getLevel(worst.total);
+    const chips=days.map(x=>{
+      const names=x.ap.map(a=>a.name).concat(x.others.map(o=>(o.numeAngajat||"?")+" (cerere)"));
+      return `<span class="req-day l${getLevel(x.total)}" title="${escapeHtml(names.join(", ")||"nimeni altcineva")}">${x.d.getDate()}.${x.d.getMonth()+1} · <b>${x.ap.length}</b>${x.others.length?` +${x.others.length}🕓`:""}</span>`;
+    }).join("");
+    const warn=lvl>=4?"🔴 Prag critic depășit":lvl===3?"🟠 Aproape de prag":"🟢 În limite";
+    const worstNames=worst.d?worst.ap.map(a=>a.name).concat(worst.others.map(o=>(o.numeAngajat||"?")+" (cerere)")):[];
+    return `<div class="req-card" data-id="${escapeHtml(r.id)}">
+      <h4>${escapeHtml(r.numeAngajat||"?")} <span style="font-weight:400;color:var(--text-dim);font-size:12px">· ${escapeHtml(formatDateRO(r.start)+" → "+formatDateRO(r.end))} · ${days.length} zile lucrătoare</span></h4>
+      ${r.motiv?`<div style="font-size:12px;color:var(--text-dim)">Motiv: ${escapeHtml(r.motiv)}</div>`:""}
+      <div style="font-size:12px;margin-top:4px">${warn} — cel mai aglomerat: <b>${worst.d?worst.d.getDate()+"."+(worst.d.getMonth()+1):"-"}</b> cu <b>${worst.total}</b> persoane (incl. acesta)</div>
+      ${worstNames.length?`<div style="font-size:11px;color:var(--text-dim)">Deja absenți atunci: ${escapeHtml(worstNames.join(", "))}</div>`:""}
+      <div class="req-days">${chips||"<i style='font-size:12px'>Nicio zi lucrătoare</i>"}</div>
+      <div style="font-size:10px;color:var(--text-dim)">Fiecare zi: număr aprobați/planificați · +N🕓 = alte cereri în așteptare</div>
+      <div class="req-actions">
+        <input type="text" id="reqMotiv_${escapeHtml(r.id)}" placeholder="Motiv respingere (opțional)" maxlength="300">
+        <button class="btn btn-small" style="background:#16a34a;border-color:#16a34a;color:#fff" onclick="decideCerere('${escapeHtml(r.id)}','aprobat')">✓ Aprobă</button>
+        <button class="btn btn-small" style="background:#dc2626;border-color:#dc2626;color:#fff" onclick="decideCerere('${escapeHtml(r.id)}','respins')">✕ Respinge</button>
+      </div></div>`;
+  }).join("");
+}
+let _cereriBusy=false;
+async function decideCerere(id,decision){
+  if(_cereriBusy||!isAdmin()) return;
+  const r=_cereri.find(x=>x.id===id); if(!r) return;
+  const txt=decision==="aprobat"?"Aprobi":"Respingi";
+  if(!confirm(txt+" cererea lui "+(r.numeAngajat||"?")+" ("+formatDateRO(r.start)+" → "+formatDateRO(r.end)+")?"+(decision==="aprobat"?"\nConcediul va fi adăugat în calendar și angajatul va fi notificat.":"\nAngajatul va fi notificat."))) return;
+  const inp=document.getElementById("reqMotiv_"+id);
+  _cereriBusy=true;
+  try{
+    await callFn("adminDecideLeaveRequest",{requestId:id,decision,motivRespingere:inp?inp.value:""});
+    toast(decision==="aprobat"?"Cerere aprobată ✓":"Cerere respinsă");
+  }catch(e){ toast("Eroare: "+(e&&e.message||e),true); }
+  _cereriBusy=false;
+}
+
 function renderCalDay(d,otherMonth,today){
   const dnum=d.getDate(),isSun=isSunday(d),holiday=getHoliday(d),isToday=sameDay(d,today);
   const drivers=(otherMonth||isSun||!!holiday)?[]:driversOnDate(d);
@@ -8118,6 +8234,7 @@ function renderCalDay(d,otherMonth,today){
     uDriversCal.forEach(dr=>{ if(!combined.find(x=>x.dr.id===dr.id)) combined.push({dr,type:"unpaid"}); });
     sDriversCal.forEach(dr=>{ if(!combined.find(x=>x.dr.id===dr.id)) combined.push({dr,type:"special"}); });
     drivers.forEach(dr=>{ if(!combined.find(x=>x.dr.id===dr.id)) combined.push({dr,type:"leave"}); });
+    pendingOnDate(d).forEach(r=>combined.push({dr:{id:"p"+r.id,name:r.numeAngajat||"?"},type:"pend"}));
     const visible=combined.slice(0,MAX_SHOW);
     const rest=combined.length-visible.length;
     if(visible.length>0){
@@ -8125,8 +8242,8 @@ function renderCalDay(d,otherMonth,today){
       const left=visible.slice(0,COL);
       const right=visible.slice(COL,COL*2);
       const makeCell=({dr,type})=>{
-        const cls=type==="krank"?" krank":type==="unpaid"?" unpaid":type==="special"?" special":"";
-        const suffix=type==="krank"?" K":type==="unpaid"?" U":type==="special"?" E":"";
+        const cls=type==="krank"?" krank":type==="unpaid"?" unpaid":type==="special"?" special":type==="pend"?" pend":"";
+        const suffix=type==="krank"?" K":type==="unpaid"?" U":type==="special"?" E":type==="pend"?" 🕓":"";
         const parts=dr.name.trim().split(/\s+/);
         // Afișăm: NumeFamilie + inițiala prenumelui (dacă există)
         const familyName=parts[0];
@@ -8154,6 +8271,9 @@ function renderCalDay(d,otherMonth,today){
   else if(holiday)inner=`<div class="cal-day-num">${dnum}</div>`+(drivers.length>0?`<div class="cal-day-count">${drivers.length}</div>`:"")+`<div class="holiday-name">${escapeHtml(holiday.split("(")[0].trim())}</div>`+namesHtml;
   else inner=`<div class="cal-day-num">${dnum}</div>`+(drivers.length>0?`<div class="cal-day-count">${drivers.length}</div>`:"")+namesHtml;
   const tipLines=[];
+  const pendHere=(!otherMonth&&!isSun&&!holiday)?pendingOnDate(d):[];
+  if(pendHere.length) inner+=`<div class="cal-pend-badge">🕓${pendHere.length}</div>`;
+  pendHere.forEach(r=>tipLines.push((r.numeAngajat||"?")+" (cerere în așteptare)"));
   drivers.forEach(dr=>tipLines.push(dr.name));
   kDriversCal.forEach(dr=>tipLines.push(dr.name+" (Krank)"));
   uDriversCal.forEach(dr=>tipLines.push(dr.name+" (Fără plată)"));
@@ -8379,7 +8499,10 @@ function openDayDetail(dateStr){
   if(holiday)sub+=" • 🎉 "+holiday;
   document.getElementById("modalDaySub").textContent=sub;
   const list=document.getElementById("dayDriversList");
-  if(!total){list.innerHTML="<div class=\"empty\">Nicio persoană absentă</div>";}
+  const pendDay=pendingOnDate(d);
+  if(pendDay.length) sub+=" • 🕓 "+pendDay.length+" cereri în așteptare";
+  document.getElementById("modalDaySub").textContent=sub;
+  if(!total&&!pendDay.length){list.innerHTML="<div class=\"empty\">Nicio persoană absentă</div>";}
   else{
     list.innerHTML=TYPES.filter(t=>t.list.length).map(t=>{
       const rows=[...t.list].sort((a,b)=>a.name.localeCompare(b.name,"ro")).map(dr=>{
@@ -8395,6 +8518,11 @@ function openDayDetail(dateStr){
       }).join("");
       return `<div style="margin:8px 0 2px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:${t.color}">${t.label} (${t.list.length})</div>${rows}`;
     }).join("");
+  }
+  if(pendDay.length){
+    list.innerHTML+=`<div style="margin:10px 0 2px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#fcd34d">🕓 Cereri în așteptare (${pendDay.length})</div>`+
+      pendDay.map(r=>`<div class="day-driver" style="border:1px dashed rgba(245,158,11,.7)"><span>${escapeHtml(r.numeAngajat||"?")}</span><span style="color:var(--text-dim);font-size:11px">${escapeHtml(formatDateRO(r.start)+" → "+formatDateRO(r.end))}</span></div>`).join("")+
+      `<div style="text-align:right;margin-top:6px"><button class="btn btn-small" onclick="closeModal('modalDay');openCereri()">Decide cererile</button></div>`;
   }
   renderDayReminders(dateStr);
   openModal("modalDay");
@@ -10001,9 +10129,12 @@ function openAdminPanel(){ try{ salUpdatePendingBtn(); }catch(e){} document.getE
 function updateAdminPanelBtn(){
   const g=document.getElementById("adminPanelGrid"), pb=document.getElementById("adminPanelBtn"); if(!g||!pb) return;
   const any=[...g.querySelectorAll("button")].some(b=>b.style.display!=="none");
+  // Panoul Admin e doar pentru Admin. Cine are doar vizualizare Concedii vede un singur buton direct: Zile împrumutate (raport).
+  const adm=isAdmin();
   pb.style.display=any?"block":"none";
+  pb.onclick=adm?openAdminPanel:openBorrowedDaysManager;
   const n=(typeof salPending!=="undefined"?salPending.length:0);
-  pb.textContent="⚙️ Panou Admin"+(n?" — "+n+" de aprobat":"");
+  pb.textContent=adm?("⚙️ Panou Admin"+(n?" — "+n+" de aprobat":"")):"📅 Zile împrumutate";
   pb.style.borderColor=n?"#f59e0b":"#6366f1"; pb.style.color=n?"#f59e0b":"#6366f1";
 }
 (function(){
@@ -15773,7 +15904,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261101-140728';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261103-100512';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -15872,5 +16003,103 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 
 
+
+
+
+
+<script>
+window.MTC_DEV_CALL = (n,d)=>callFn(n,d);
+/* ===== MTC Device-uri (client) — același cod în Concedii și Angajați =====
+   Aplicația definește window.MTC_DEV_CALL(name, data) -> Promise (apelează funcția cu autentificarea ei). */
+(function(){
+  function rnd(){ try{ const a=new Uint8Array(24); crypto.getRandomValues(a); return Array.from(a,b=>b.toString(16).padStart(2,"0")).join(""); }catch(e){ return (Date.now().toString(16)+Math.random().toString(16).slice(2)+Math.random().toString(16).slice(2)).padEnd(32,"0"); } }
+  function readCookie(){ try{ const m=document.cookie.match(/(?:^|; )mtc_did=([A-Za-z0-9_-]{16,80})/); return m?m[1]:""; }catch(e){ return ""; } }
+  window.mtcDeviceId = function(){
+    let id="";
+    try{ id=localStorage.getItem("mtc_did")||""; }catch(e){}
+    if(!/^[A-Za-z0-9_-]{16,80}$/.test(id)) id=readCookie();
+    if(!/^[A-Za-z0-9_-]{16,80}$/.test(id)) id=rnd();
+    try{ localStorage.setItem("mtc_did",id); }catch(e){}
+    try{ document.cookie="mtc_did="+id+"; max-age=63072000; path=/; SameSite=Lax; Secure"; }catch(e){}
+    return id;
+  };
+  const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const fd=t=>{ if(!t) return "—"; const d=new Date(t); return d.toLocaleDateString("ro-RO",{day:"2-digit",month:"short"})+" "+d.toLocaleTimeString("ro-RO",{hour:"2-digit",minute:"2-digit"}); };
+  let st={devices:[],cfg:{},view:"profil"};
+  const call=(n,d)=>window.MTC_DEV_CALL(n,d);
+
+  function ensureModal(){
+    if(document.getElementById("mtcDevModal")) return;
+    const m=document.createElement("div");
+    m.id="mtcDevModal";
+    m.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:flex-start;justify-content:center;z-index:100000;overflow:auto;padding:20px 10px";
+    m.innerHTML='<div style="background:#14171f;color:#e5e7eb;border:1px solid #2a2f3a;border-radius:12px;max-width:860px;width:100%;padding:16px 18px;font:14px system-ui,sans-serif">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h3 style="margin:0;font-size:17px">💻📱 Device-uri și profiluri</h3><button id="mtcDevX" style="background:none;border:0;color:#9ca3af;font-size:22px;cursor:pointer">×</button></div>'+
+      '<div id="mtcDevBody" style="margin-top:10px">Se încarcă…</div></div>';
+    document.body.appendChild(m);
+    m.addEventListener("click",e=>{ if(e.target===m) m.style.display="none"; });
+    m.querySelector("#mtcDevX").onclick=()=>{ m.style.display="none"; };
+  }
+  window.mtcOpenDevices=async function(){
+    ensureModal(); document.getElementById("mtcDevModal").style.display="flex";
+    document.getElementById("mtcDevBody").textContent="Se încarcă…";
+    await load();
+  };
+  async function load(){
+    try{ const r=await call("deviceAdminList",{}); st.devices=r.devices||[]; st.cfg=r.cfg||{}; render(); }
+    catch(e){ document.getElementById("mtcDevBody").innerHTML='<div style="color:#f87171">Eroare: '+esc(e&&e.message||e)+'</div>'; }
+  }
+  async function act(d){ try{ await call("deviceAdminAct",d); await load(); }catch(e){ alert("Eroare: "+(e&&e.message||e)); } }
+  window.mtcDevAct=act;
+  const btn="background:#1f2937;color:#e5e7eb;border:1px solid #374151;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer";
+  function chip(dv,p){
+    const ok=p.approved;
+    return '<span style="display:inline-flex;align-items:center;gap:5px;margin:2px 4px 2px 0;padding:2px 8px;border-radius:12px;font-size:12px;border:1px '+(ok?'solid #15803d;background:rgba(34,197,94,.14)':'dashed #b45309;background:rgba(245,158,11,.12)')+'">'+
+      esc(p.name)+' <span style="color:#9ca3af">· '+p.count+'×</span>'+(p.blockedCount?' <b style="color:#f87171" title="Încercări blocate">⛔'+p.blockedCount+'</b>':'')+
+      ' <a href="#" data-dv="'+dv.id+'" data-pk="'+esc(p.key)+'" data-op="'+(ok?'unapprove':'approve')+'" style="color:'+(ok?'#fca5a5':'#86efac')+';text-decoration:none">'+(ok?'retrage':'✓ aprobă')+'</a></span>';
+  }
+  function dvLine(d){
+    return (d.type==="telefon"?"📱":"💻")+' <b>'+esc(d.label||"(fără nume)")+'</b> <span style="color:#9ca3af;font-size:12px">'+esc(d.os)+' · '+esc(d.browser)+(d.noCode?' · fără cod':'')+' · văzut '+fd(d.lastSeen)+'</span>';
+  }
+  function render(){
+    const c=st.cfg||{}, ds=st.devices;
+    let h='<div style="padding:10px;border-radius:8px;background:'+(c.enforcedNow?'rgba(239,68,68,.12);border:1px solid #b91c1c':'rgba(59,130,246,.10);border:1px solid #1d4ed8')+'">'+
+      '<b>'+(c.enforcedNow?'ETAPA 2 ACTIVĂ — device-urile neaprobate sunt blocate în liniște':'ETAPA 1 — doar învață (nu blochează pe nimeni)')+'</b>'+
+      '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px">Blocare automată de la data: <input type="date" id="mtcDevFrom" value="'+esc(c.enforceFrom||"")+'" style="background:#0b0e14;color:#e5e7eb;border:1px solid #374151;border-radius:6px;padding:3px 6px">'+
+      '<label><input type="checkbox" id="mtcDevNow" '+(c.enforce?'checked':'')+'> activ ACUM</label><button id="mtcDevSave" style="'+btn+'">Salvează</button>'+
+      '<button id="mtcDevAll" style="'+btn+'" title="Aprobă toate profilurile văzute până acum, pe toate device-urile">✓ Aprobă tot ce e în listă</button></div></div>';
+    h+='<div style="margin:12px 0 6px;display:flex;gap:6px"><button data-view="profil" style="'+btn+(st.view==="profil"?';border-color:#60a5fa':'')+'">După profil</button><button data-view="device" style="'+btn+(st.view==="device"?';border-color:#60a5fa':'')+'">După device</button></div>';
+    if(!ds.length) h+='<div style="color:#9ca3af;padding:12px">Încă nu s-a înregistrat nimic. Apare după următoarele conectări.</div>';
+    else if(st.view==="device"){
+      h+=ds.map(d=>'<div style="border:1px solid #2a2f3a;border-radius:8px;padding:8px 10px;margin:6px 0">'+dvLine(d)+
+        '<div style="margin-top:4px">'+d.profiles.map(p=>chip(d,p)).join("")+'</div>'+
+        '<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap"><input data-lab="'+d.id+'" value="'+esc(d.label)+'" placeholder="Nume device (ex: PC birou)" maxlength="60" style="flex:1;min-width:160px;background:#0b0e14;color:#e5e7eb;border:1px solid #374151;border-radius:6px;padding:3px 7px;font-size:12px"><button data-del="'+d.id+'" style="'+btn+'">Șterge device</button></div></div>').join("");
+    } else {
+      const by={};
+      ds.forEach(d=>d.profiles.forEach(p=>{ (by[p.key]=by[p.key]||{name:p.name,list:[]}).list.push({d,p}); }));
+      h+=Object.keys(by).sort().map(k=>{
+        const g=by[k], tel=g.list.filter(x=>x.d.type==="telefon").length, pc=g.list.length-tel;
+        const warn=(k!=="admin"&&(tel>1||pc>1))?'<span style="color:#fbbf24;font-size:12px"> ⚠ '+pc+' PC / '+tel+' telefon</span>':(k==="admin"&&tel>1?'<span style="color:#fbbf24;font-size:12px"> ⚠ '+tel+' telefoane</span>':'<span style="color:#9ca3af;font-size:12px"> '+pc+' PC / '+tel+' telefon</span>');
+        return '<div style="border:1px solid #2a2f3a;border-radius:8px;padding:8px 10px;margin:6px 0"><b style="font-size:15px">👤 '+esc(g.name)+'</b>'+warn+
+          g.list.sort((a,b)=>b.d.lastSeen-a.d.lastSeen).map(x=>'<div style="margin-top:5px;padding-top:5px;border-top:1px solid #1f2430">'+dvLine(x.d)+'<div>'+chip(x.d,x.p)+
+            '<a href="#" data-dv="'+x.d.id+'" data-pk="'+esc(x.p.key)+'" data-op="rmprof" style="color:#9ca3af;font-size:12px">scoate profil</a></div></div>').join("")+'</div>';
+      }).join("");
+    }
+    const b=document.getElementById("mtcDevBody"); b.innerHTML=h;
+    b.querySelectorAll("[data-view]").forEach(x=>x.onclick=()=>{ st.view=x.dataset.view; render(); });
+    b.querySelectorAll("a[data-op]").forEach(a=>a.onclick=e=>{ e.preventDefault();
+      const op=a.dataset.op; if(op==="rmprof"){ if(confirm("Scoți acest profil de pe device?")) act({op:"removeProfile",id:a.dataset.dv,profile:a.dataset.pk}); }
+      else act({op:"approve",id:a.dataset.dv,profile:a.dataset.pk,value:op==="approve"}); });
+    b.querySelectorAll("input[data-lab]").forEach(i=>i.onchange=()=>act({op:"label",id:i.dataset.lab,label:i.value}));
+    b.querySelectorAll("button[data-del]").forEach(x=>x.onclick=()=>{ if(confirm("Ștergi device-ul și tot ce știm despre el?")) act({op:"remove",id:x.dataset.del}); });
+    const sv=document.getElementById("mtcDevSave"); if(sv) sv.onclick=()=>{
+      const now=document.getElementById("mtcDevNow").checked;
+      if(now&&!confirm("Activezi blocarea ACUM? Orice profil pe device neaprobat nu va mai putea intra.")) return;
+      act({op:"cfg",enforce:now,enforceFrom:document.getElementById("mtcDevFrom").value}); };
+    const al=document.getElementById("mtcDevAll"); if(al) al.onclick=()=>{ if(confirm("Aprobi TOATE profilurile și device-urile din listă? Verifică mai întâi lista.")) act({op:"approveAll"}); };
+  }
+})();
+
+</script>
 </body>
 </html>
