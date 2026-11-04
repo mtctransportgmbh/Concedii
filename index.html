@@ -1349,6 +1349,7 @@
   </aside>
   
   <main class="main">
+    <div id="ruhBar"></div>
     <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
       <button id="sidebarCollapseBtn" onclick="toggleSidebarCollapse()" title="Ascunde meniul" style="display:none;padding:6px 12px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:15px;color:var(--text-dim);line-height:1;flex-shrink:0">◀</button>
       <div class="mod-tabs-bar">
@@ -3997,6 +3998,20 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") toggleSecretDrawer
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init); else init();
 })();
 </script>
+<style>
+#ruhBar{display:none;margin-bottom:12px}
+#ruhBar .rb-box{border:1.5px solid var(--accent);background:var(--bg-elev);border-radius:12px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.25)}
+#ruhBar .rb-head{display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:12px;font-weight:800;letter-spacing:.3px;background:rgba(245,158,11,.14);color:var(--accent)}
+#ruhBar .rb-head button{background:none;border:none;color:var(--text-dim);font:inherit;font-size:11.5px;font-weight:600;cursor:pointer;padding:2px 8px;border-radius:6px}
+#ruhBar .rb-head button:hover{background:var(--bg-elev-2);color:var(--text)}
+#ruhBar .rb-head .rb-sp{margin-left:auto}
+#ruhBar .rb-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid var(--border);border-left:4px solid var(--accent-2);font-size:13px;color:var(--text)}
+#ruhBar .rb-item.krank{border-left-color:#ef4444}#ruhBar .rb-item.unpaid{border-left-color:#f59e0b}#ruhBar .rb-item.sters{border-left-color:#64748b}#ruhBar .rb-item.reminder{border-left-color:#a855f7}
+#ruhBar .rb-msg{flex:1;min-width:0;line-height:1.4}#ruhBar .rb-msg b{font-weight:800}
+#ruhBar .rb-time{font-size:11px;color:var(--text-dim);white-space:nowrap}
+#ruhBar .rb-x{background:none;border:none;color:var(--text-dim);font-size:17px;line-height:1;cursor:pointer;padding:2px 7px;border-radius:6px}
+#ruhBar .rb-x:hover{background:var(--bg-elev-2);color:var(--text)}
+</style>
 <div id="mcb-overlay" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.55);align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto;" onclick="if(event.target===this)mcbClose()">
     <style>
       #mcb-overlay .mcb-box{background:var(--bg-elev);border-radius:12px;max-width:720px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.3);}
@@ -5717,7 +5732,7 @@ function loadBackupInfoFromStorage(){
 // PIN SYSTEM — stored in Firestore doc "pins"
 // ============================================================
 const PIN_SESSION_MINS = 1; // 1 minut inactivitate = deconectare automată (useri normali)
-const ADMIN_LOCK_SECONDS = 10; // 10 secunde inactivitate = lock screen pentru Admin
+const ADMIN_LOCK_SECONDS = 60; // 1 minut inactivitate = lock screen pentru Admin (era 10 secunde)
 let pinState = {userKey:null, mode:"enter", entered:"", firstPin:"", oldPin:"", busy:false};
 // curățăm orice rest de PIN-uri/hash-uri din versiunile vechi
 try{ Object.keys(localStorage).filter(k=>k.startsWith("mtc_pin_")).forEach(k=>localStorage.removeItem(k)); }catch(e){}
@@ -6295,9 +6310,10 @@ function enterApp(userKey){
   document.getElementById("userName").textContent = user.name+(userKey==="admin"?" 👑":"");
   const isAdm = userKey==="admin";
   if(isAdm) startCereriListener(); else stopCereriListener();
+  stopRuhListener(); if(RUH_VIEWERS.includes(userKey)) startRuhListener();
   if(isAdm){ try{ callFn("deviceTouch",{}).catch(()=>{}); }catch(e){} }
 
-  // Pornim timer-ul de auto-lock corespunzător (10s pentru Admin, 1 min pentru ceilalți)
+  // Pornim timer-ul de auto-lock corespunzător (1 min pentru Admin și pentru ceilalți)
   if(isAdm) resetAdminAutoLock();
   else resetAutoLogout();
 
@@ -7730,6 +7746,7 @@ function addLeave(){
   renderMain();scheduleSave();
   const _typeLabel=leaveType==="krank"?"Krank":leaveType==="unpaid"?"Fără plată":leaveType==="special"?"Zi specială":"Concediu";
   logActivity("➕ "+_typeLabel+" adăugat"+(leaveType==="special"?" ("+specialReason+")":""),dr.name,start+" → "+end+" ("+newDays+"z)","concedii");
+  ruhNotify(leaveType==="krank"?"krank":leaveType==="unpaid"?"unpaid":leaveType==="special"?"special":"concediu",dr,start,end,newDays,leaveType==="special"?specialReason:"");
   toast("✓ "+newDays+" zile adăugate ("+
     (leaveType==="krank"?"krank":leaveType==="unpaid"?"fără plată":leaveType==="special"?"zi specială — nu se scade din concediu":"concediu")+")");
 }
@@ -7866,6 +7883,7 @@ function saveQuickLeave(){
 
   const _qLabel=_qType==="krank"?"Krank adăugat rapid":_qType==="unpaid"?"S adăugat rapid":"Concediu adăugat rapid";
   logActivity("➕ "+_qLabel,dr.name,start+" → "+end+" ("+newDays+"z)","concedii");
+  ruhNotify(_qType==="krank"?"krank":_qType==="unpaid"?"unpaid":"concediu",dr,start,end,newDays,"");
   closeModal("modalQuick");renderAll();scheduleSave();
   toast("✓ "+dr.name+": "+newDays+" zile lucrătoare");
 }
@@ -8297,6 +8315,65 @@ function renderCalendar(){
    decizia se ia prin funcția `adminDecideLeaveRequest`, care scrie și în evidența reală)
    ============================================================ */
 let _cereri=[], _cereriUnsub=null;
+
+// ============================================================
+// NOTIFICĂRI RUHSTORF — Admin, Raluca, Mihaela văd ce au adăugat/șters ceilalți (concediu, fără plată, krank, zi specială, reminder)
+//   colecția notif_ruhstorf (doar acești 3 o citesc); rămân în bară până le închizi; nu vezi ce ai făcut tu
+// ============================================================
+const RUH_VIEWERS=["admin","raluca","mihaela"];
+let _ruhUnsub=null, _ruhItems=[], _ruhOpen=false;
+const ruhAckKey=()=>"mtc_ruh_ack_"+(window.activeUserKey||"");
+function ruhAckGet(){ try{ return new Set(JSON.parse(localStorage.getItem(ruhAckKey())||"[]")); }catch(e){ return new Set(); } }
+function ruhAckAdd(ids){ try{ const a=ruhAckGet(); ids.forEach(i=>a.add(i)); localStorage.setItem(ruhAckKey(),JSON.stringify(Array.from(a).slice(-300))); }catch(e){} }
+function ruhIsPerson(dr){
+  if(!dr) return false; const vis=dr.visibleTo||[];
+  return (dr.group||(vis.includes("raluca")?"ruhstorf":vis.includes("madalina")?"eiselfing":vis.includes("corina")?"camion":""))==="ruhstorf";
+}
+// kind: concediu | unpaid | krank | special | reminder | sters
+async function ruhNotify(kind,dr,start,end,days,note){
+  try{
+    if(kind!=="reminder"&&!ruhIsPerson(dr)) return;
+    const by=window.activeUserKey||""; if(!by) return;
+    await db.collection("notif_ruhstorf").add({ts:new Date().toISOString(),by,kind,person:dr?String(dr.name||""):"",start:start||"",end:end||"",days:Number(days)||0,note:String(note||"").slice(0,140)});
+  }catch(e){ console.warn("ruhNotify",e&&e.message); }
+}
+function startRuhListener(){
+  if(_ruhUnsub||!RUH_VIEWERS.includes(window.activeUserKey)) return;
+  try{
+    _ruhUnsub=db.collection("notif_ruhstorf").orderBy("ts","desc").limit(40).onSnapshot(snap=>{
+      _ruhItems=snap.docs.map(x=>Object.assign({id:x.id},x.data())); renderRuhBar();
+    },err=>{ console.warn("notif_ruhstorf:",err&&err.message); _ruhItems=[]; renderRuhBar(); });
+  }catch(e){ console.warn(e); }
+}
+function stopRuhListener(){ if(_ruhUnsub){ try{_ruhUnsub();}catch(e){} _ruhUnsub=null; } _ruhItems=[]; renderRuhBar(); }
+function ruhVisible(){
+  const me=window.activeUserKey, ack=ruhAckGet(), lim=Date.now()-30*86400000;
+  return _ruhItems.filter(x=>x.by!==me&&!ack.has(x.id)&&new Date(x.ts).getTime()>lim);
+}
+function ruhAgo(ts){ const m=Math.round((Date.now()-new Date(ts).getTime())/60000); if(m<1) return "acum"; if(m<60) return m+" min"; const h=Math.round(m/60); if(h<24) return h+" h"; return Math.round(h/24)+" z"; }
+function ruhDismiss(id){ ruhAckAdd([id]); renderRuhBar(); }
+function ruhDismissAll(){ ruhAckAdd(ruhVisible().map(x=>x.id)); renderRuhBar(); }
+function ruhToggle(){ _ruhOpen=!_ruhOpen; renderRuhBar(); }
+function renderRuhBar(){
+  const el=document.getElementById("ruhBar"); if(!el) return;
+  const list=RUH_VIEWERS.includes(window.activeUserKey)?ruhVisible():[];
+  if(!list.length){ el.style.display="none"; el.innerHTML=""; return; }
+  const esc=v=>String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const fd=d=>d?d.split("-").reverse().slice(0,2).join("."):"";
+  const lab={concediu:"➕ Concediu",unpaid:"➕ Fără plată",krank:"➕ Krank",special:"➕ Zi specială",reminder:"📌 Reminder",sters:"🗑 Șters"};
+  const SHOW=4, shown=_ruhOpen?list:list.slice(0,SHOW);
+  const rows=shown.map(x=>{
+    const who=(USERS[x.by]&&USERS[x.by].name)||x.by;
+    const per=x.start?(x.start===x.end?fd(x.start):fd(x.start)+" → "+fd(x.end))+(x.days?" ("+x.days+"z)":""):"";
+    const body=x.kind==="reminder"?"<b>"+esc(lab.reminder)+"</b>: "+esc(x.note):"<b>"+esc(lab[x.kind]||x.kind)+"</b> · "+esc(x.person)+(per?" · "+esc(per):"")+(x.note?" · "+esc(x.note):"");
+    return '<div class="rb-item '+esc(x.kind)+'"><div class="rb-msg"><b>'+esc(who)+'</b> a adăugat/modificat: '+body+'</div><span class="rb-time">'+ruhAgo(x.ts)+'</span><button class="rb-x" title="Am văzut" onclick="ruhDismiss(\''+esc(x.id)+'\')">✕</button></div>';
+  }).join("");
+  const more=list.length>SHOW?'<button onclick="ruhToggle()">'+(_ruhOpen?"Arată mai puține ▴":"Încă "+(list.length-SHOW)+" ▾")+'</button>':"";
+  el.innerHTML='<div class="rb-box"><div class="rb-head">🔔 Ruhstorf — ce au schimbat colegii ('+list.length+')'+more+'<button class="rb-sp" onclick="ruhDismissAll()">✓ Am văzut tot</button></div>'+rows+'</div>';
+  el.style.display="block";
+}
+setInterval(()=>{ try{ if(_ruhUnsub) renderRuhBar(); }catch(e){} },60000);
+
 function startCereriListener(){
   if(_cereriUnsub||!isAdmin()) return;
   try{
@@ -8367,6 +8444,7 @@ async function decideCerere(id,decision){
   try{
     await callFn("adminDecideLeaveRequest",{requestId:id,decision,motivRespingere:inp?inp.value:""});
     toast(decision==="aprobat"?"Cerere aprobată ✓":"Cerere respinsă");
+    if(decision==="aprobat"){ const _d=state.drivers.find(d=>d.name===r.numeAngajat); if(_d) ruhNotify("concediu",_d,r.start,r.end,0,"cerere aprobată"); }
   }catch(e){ toast("Eroare: "+(e&&e.message||e),true); }
   _cereriBusy=false;
 }
@@ -8605,6 +8683,7 @@ async function submitDayReminder(){
     await mutateCalendarReminders(cur=>cur.concat([_newRem]));
     input.value="";
     logActivity("📌 Reminder adăugat", uk, _currentDayDetailDate+": "+text, "concedii");
+    if(["admin","tania","raluca","mihaela"].includes(uk)) ruhNotify("reminder",null,_currentDayDetailDate,_currentDayDetailDate,0,formatDateRO(_currentDayDetailDate)+" — "+text);
   }catch(e){
     toast("⚠️ Reminderul nu s-a putut salva: "+e.message,true);
   }
@@ -8813,6 +8892,7 @@ function tlDragEnd(){
       dr[arrName]=newLeaves;
       if(rt==="leaves") reconcileBorrowedDays(dr, parseDate(startStr).getFullYear());
       logActivity("🗑 "+label+" șters",dr.name,startStr+" → "+endStr,"concedii");
+      ruhNotify("sters",dr,startStr,endStr,0,label);
       renderAll();scheduleSave();toast("🗑 "+label+" șters pentru "+dr.name+" ("+startStr.slice(8)+"."+startStr.slice(5,7)+" – "+endStr.slice(8)+"."+endStr.slice(5,7)+")");
     } else toast("Nicio perioadă de șters",true);
   } else {
@@ -8847,6 +8927,7 @@ function tlDragEnd(){
     dr.leaves = splitLeavesFromHolidaysOnly(dr.leaves);
     clearPlanificareForLeave(dr.name,startStr2,endStr2);
     logActivity("➕ Concediu adăugat",dr.name,startStr2+" → "+endStr2+" ("+newDays+"z)","concedii");
+    ruhNotify("concediu",dr,startStr2,endStr2,newDays,"");
     renderAll();scheduleSave();toast("✓ "+dr.name+": "+newDays+" zile lucrătoare");
   }
   tlDrag={active:false,driverId:null,startDay:null,endDay:null,removing:false};
@@ -16083,7 +16164,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261104-121709';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261104-123245';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -16169,6 +16250,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
