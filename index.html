@@ -1526,7 +1526,7 @@
         <div class="sal-title">🕘 Stundenzettel</div>
         <button class="sal-lock" onclick="salLockNow(false)" title="Blochează acum">🔒 Blochează</button>
       </div>
-      <input type="file" id="zetFile" accept=".xlsx,.xls" style="display:none" onchange="zetImportFile(this)">
+      <input type="file" id="zetFile" accept=".xlsx,.xls,.ods,.xlsm" style="display:none" onchange="zetImportFile(this)">
       <div id="zetBody"></div>
     </div>
 
@@ -8406,7 +8406,8 @@ function ruhVisible(){
   const me=window.activeUserKey, ack=ruhAckGet(), lim=Date.now()-30*86400000, mine=ruhMine();
   // intrările din Istoric se adaugă doar dacă nu există deja o notificare nouă pentru aceeași acțiune (același autor, aceeași persoană, la mai puțin de 2 minute)
   const acts=_ruhActRaw.map(ruhFromActivity).filter(Boolean).filter(a=>!_ruhItems.some(n=>n.by===a.by&&n.person===a.person&&n.kind===a.kind&&Math.abs(new Date(n.ts)-new Date(a.ts))<120000));
-  return _ruhItems.concat(acts).filter(x=>(mine||x.by!==me)&&!ack.has(x.id)&&new Date(x.ts).getTime()>lim).sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
+  const today=fmtDateStr(new Date());   // doar ce privește azi sau viitorul (perioade care nu s-au terminat încă); ce e din trecut nu se mai arată
+  return _ruhItems.concat(acts).filter(x=>(mine||x.by!==me)&&!ack.has(x.id)&&new Date(x.ts).getTime()>lim&&(!(x.end||x.start)||String(x.end||x.start)>=today)).sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
 }
 function ruhAgo(ts){ const m=Math.round((Date.now()-new Date(ts).getTime())/60000); if(m<1) return "acum"; if(m<60) return m+" min"; const h=Math.round(m/60); if(h<24) return h+" h"; return Math.round(h/24)+" z"; }
 function ruhDismiss(id){ ruhAckAdd([id]); renderRuhBar(); }
@@ -10964,7 +10965,7 @@ function zetGoToday(){ const n=new Date(); _zetCur=new Date(n.getFullYear(),n.ge
 // ---- timp ----
 function zetTm(s){ const m=/^(\d{1,2}):(\d{2})$/.exec(String(s||"").trim()); return m?(+m[1])*60+(+m[2]):null; }
 function zetFm(min,signed){ if(min==null) return ""; const neg=min<0; const a=Math.abs(Math.round(min)); return (neg?"-":"")+Math.floor(a/60)+":"+String(a%60).padStart(2,"0"); }
-function zetParseHM(v){ const s=String(v==null?"":v).trim(); if(s==="") return null; const m=/^(-?)(\d{1,3})\s*[:.,hH]\s*(\d{1,2})$/.exec(s); if(m) return (m[1]?-1:1)*((+m[2])*60+(+m[3])); const d=/^(-?)(\d{1,3})$/.exec(s); if(d) return (d[1]?-1:1)*(+d[2])*60; return NaN; }
+function zetParseHM(v){ const s=String(v==null?"":v).trim(); if(s==="") return null; { const iso=/^(-?)PT(?:(\d+)H)?(?:(\d+)M)?(?:[\d.]+S)?$/i.exec(s); if(iso) return (iso[1]?-1:1)*((+(iso[2]||0))*60+(+(iso[3]||0))); } const m=/^(-?)(\d{1,3})\s*[:.,hH]\s*(\d{1,2})$/.exec(s); if(m) return (m[1]?-1:1)*((+m[2])*60+(+m[3])); const d=/^(-?)(\d{1,3})$/.exec(s); if(d) return (d[1]?-1:1)*(+d[2])*60; return NaN; }
 function zetNormT(v,isPause){   // „9”→09:00, „930”→09:30, „9.30”→09:30; la Pausen o valoare de 1-2 cifre = minute
   let s=String(v==null?"":v).trim(); if(!s) return "";
   let m=/^(\d{1,2})\s*[:.,hH]\s*(\d{1,2})$/.exec(s);
@@ -11155,21 +11156,23 @@ function zetPrint(kind){
   if(!ps.length){ toast(blank?"Nicio persoană":"Nicio persoană cu ore completate în luna asta",true); return; }
   const w=window.open("","_blank"); if(!w){ toast("Permite pop-up pentru tipărire",true); return; }
   const pages=ps.map(p=>`<section class="pg">${zetSheet(p,_zetData.emps[p.id],y,m,blank?"blank":"print")}</section>`).join("");
-  w.document.write(`<html><head><meta charset="utf-8"><title>Zeiterfassung ${ZET_DE_MONTHS[m]} ${y}</title><style>${ZET_CSS}@page{size:A4;margin:10mm}body{margin:0}.pg{page-break-after:always;padding:2mm 0}.pg:last-child{page-break-after:auto}.zs{font-size:10.5px}.zs td{padding:0 4px;line-height:1.15}.zs-wd{display:none}.zs-title{font-size:18px;padding:5px!important}.zs-line{height:20px}.zs-hol td{background:#fff}</style></head><body>${pages}</body></html>`);
+  w.document.write(`<html><head><meta charset="utf-8"><title>Zeiterfassung ${ZET_DE_MONTHS[m]} ${y}</title><style>${ZET_CSS}@page{size:A4;margin:10mm}body{margin:0}.pg{page-break-after:always;padding:2mm 0}.pg:last-child{page-break-after:auto}.pg{padding:6mm 0 0}.zs-wrap{width:172mm;max-width:172mm;margin:0 auto}.zs{font-size:11px}.zs td{padding:1.9px 5px;line-height:1.2}.zs-wd{display:none}.zs-title{font-size:20px;padding:7px!important}.zs-hd td{padding:2.5px 5px}.zs-line{height:24px}.zs-hol td{background:#fff}.zs-ftw{padding:6px 10px 8px}.zs-note{font-size:9.5px}.zs-sig{font-size:9.5px}.zs-s td{font-size:11.5px}</style></head><body>${pages}</body></html>`);
   w.document.close(); w.focus(); setTimeout(()=>w.print(),400);
 }
 // ---- import Excel (un fișier, câte o foaie per persoană) ----
 function zetCellV(ws,a){ const c=ws[a]; return c?c.v:undefined; }
-function zetXlTime(v){ if(v===undefined||v===null||v==="") return ""; if(typeof v==="number"){ const mi=Math.round(v*1440); if(mi<0) return ""; return String(Math.floor(mi/60)).padStart(2,"0")+":"+String(mi%60).padStart(2,"0"); } const n=zetNormT(String(v).trim(),false); return n||""; }
+function zetXlTime(v){ if(v===undefined||v===null||v==="") return ""; if(v instanceof Date) return String(v.getUTCHours()).padStart(2,"0")+":"+String(v.getUTCMinutes()).padStart(2,"0"); if(typeof v==="number"){ const mi=Math.round(v*1440); if(mi<0) return ""; return String(Math.floor(mi/60)).padStart(2,"0")+":"+String(mi%60).padStart(2,"0"); } const t0=zetParseHM(v); if(t0!==null&&!isNaN(t0)&&t0>=0){ return String(Math.floor(t0/60)).padStart(2,"0")+":"+String(t0%60).padStart(2,"0"); } const n=zetNormT(String(v).trim(),false); return n||""; }
 function zetXlMin(v){ if(v===undefined||v===null||v==="") return null; if(typeof v==="number") return Math.round(v*1440); const t=zetParseHM(v); return (t===null||isNaN(t))?null:t; }
 function zetParseWorkbook(wb){
   const sheets=[];
   wb.SheetNames.forEach(sn=>{
     const ws=wb.Sheets[sn]; if(!ws) return;
-    const b2=String(zetCellV(ws,"B2")||""); const name=String(zetCellV(ws,"F3")||"").trim()||sn;
+    const rowVals=r=>["B","C","D","E","F","G","H","I","J","K"].map(c=>zetCellV(ws,c+r)).filter(v=>v!==undefined&&v!=="");
+    const isMonName=v=>typeof v==="string"&&ZET_DE_MONTHS.some(x=>normalizeForSearch(x)===normalizeForSearch(v.trim()));
+    const b2=String(zetCellV(ws,"B2")||""); let name=String(zetCellV(ws,"F3")||"").trim(); if(!name){ name=String(rowVals(3).find(v=>typeof v==="string"&&!/^(name|monat)/i.test(v.trim())&&!isMonName(v)&&v.trim().length>2)||"").trim(); } if(!name) name=sn;
     if(!/zeit/i.test(b2)&&!String(zetCellV(ws,"B5")||"").match(/tag/i)) return;
-    const mo=zetCellV(ws,"I3"); let mi=-1; if(typeof mo==="number") mi=mo-1; else { const t=normalizeForSearch(String(mo||"")); mi=ZET_DE_MONTHS.findIndex(x=>normalizeForSearch(x)===t||normalizeForSearch(x).slice(0,3)===t.slice(0,3)&&t.length>=3); }
-    const yr=parseInt(zetCellV(ws,"I4"))||null; const days={};
+    let mo=zetCellV(ws,"I3"); if(mo===undefined||mo==="") mo=zetCellV(ws,"J3"); if(mo===undefined||mo==="") mo=rowVals(3).find(isMonName); let mi=-1; if(typeof mo==="number") mi=mo-1; else { const t=normalizeForSearch(String(mo||"")); mi=ZET_DE_MONTHS.findIndex(x=>normalizeForSearch(x)===t||normalizeForSearch(x).slice(0,3)===t.slice(0,3)&&t.length>=3); }
+    let yv=zetCellV(ws,"I4"); if(yv===undefined||yv==="") yv=zetCellV(ws,"J4"); if(yv===undefined||yv==="") yv=rowVals(4).concat(rowVals(3)).find(v=>typeof v==="number"&&v>=2000&&v<=2100); const yr=parseInt(yv)||null; const days={};
     for(let r=6;r<=36;r++){ const d=parseInt(zetCellV(ws,"B"+r)); if(!isFinite(d)) continue;
       const k=zetXlTime(zetCellV(ws,"D"+r)), g=zetXlTime(zetCellV(ws,"E"+r)), p=zetXlTime(zetCellV(ws,"F"+r));
       let a=String(zetCellV(ws,"H"+r)||"").trim(); if(/^x$/i.test(a)) a=""; a=zetAbsNorm(a);
@@ -11186,15 +11189,71 @@ function zetMatchEmp(name){
   const k=salNameKey(name); const act=salEmps;
   return act.find(e=>salNameKey(e.name)===k)||act.find(e=>salFuzzyEq(e.name,name))||null;
 }
+// ---- citire proprie .ods (SheetJS încurcă coloanele la celulele îmbinate) ----
+async function zetOdsContent(buf){
+  const u8=new Uint8Array(buf), dv=new DataView(buf); let eocd=-1;
+  for(let i=u8.length-22;i>=Math.max(0,u8.length-70000);i--){ if(dv.getUint32(i,true)===0x06054b50){ eocd=i; break; } }
+  if(eocd<0) throw new Error("fișier .ods invalid");
+  let n=dv.getUint16(eocd+10,true), p=dv.getUint32(eocd+16,true);
+  for(let i=0;i<n;i++){
+    if(dv.getUint32(p,true)!==0x02014b50) break;
+    const method=dv.getUint16(p+10,true), csize=dv.getUint32(p+20,true), nl=dv.getUint16(p+28,true), el=dv.getUint16(p+30,true), cl=dv.getUint16(p+32,true), off=dv.getUint32(p+42,true);
+    const name=new TextDecoder().decode(u8.subarray(p+46,p+46+nl));
+    if(name==="content.xml"){
+      const lnl=dv.getUint16(off+26,true), lel=dv.getUint16(off+28,true), ds=off+30+lnl+lel; const data=u8.subarray(ds,ds+csize);
+      if(method===0) return new TextDecoder().decode(data);
+      const st=new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      return new TextDecoder().decode(await new Response(st).arrayBuffer());
+    }
+    p+=46+nl+el+cl;
+  }
+  throw new Error("content.xml lipsește din .ods");
+}
+function zetColName(i){ let s=""; i++; while(i>0){ const m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-1)/26); } return s; }
+async function zetReadOds(buf){
+  const xml=await zetOdsContent(buf); const doc=new DOMParser().parseFromString(xml,"application/xml");
+  const NS={office:"urn:oasis:names:tc:opendocument:xmlns:office:1.0",table:"urn:oasis:names:tc:opendocument:xmlns:table:1.0",text:"urn:oasis:names:tc:opendocument:xmlns:text:1.0"};
+  const wb={SheetNames:[],Sheets:{}};
+  const tabs=doc.getElementsByTagNameNS(NS.table,"table");
+  const isoMin=s=>{ const m=/^PT(?:(\d+)H)?(?:(\d+)M)?(?:([\d.]+)S)?$/i.exec(s||""); return m?((+(m[1]||0))*3600+(+(m[2]||0))*60+(+(m[3]||0)))/86400:null; };
+  const cellText=c=>{ const ps=c.getElementsByTagNameNS(NS.text,"p"); const out=[]; for(const p of ps){ let t=""; const walk=nd=>{ for(const ch of nd.childNodes){ if(ch.nodeType===3) t+=ch.nodeValue; else if(ch.localName==="s") t+=" ".repeat(+(ch.getAttributeNS(NS.text,"c")||1)); else if(ch.localName==="tab") t+="\t"; else if(ch.localName==="line-break") t+="\n"; else walk(ch); } }; walk(p); out.push(t); } return out.join("\n"); };
+  for(const tb of tabs){
+    if(tb.parentNode&&tb.parentNode.localName==="table-cell") continue;
+    const name=tb.getAttributeNS(NS.table,"name")||("Sheet"+(wb.SheetNames.length+1)); const ws={}; let r=0;
+    for(const row of Array.from(tb.getElementsByTagNameNS(NS.table,"table-row"))){
+      if(row.parentNode!==tb&&!(row.parentNode.localName==="table-row-group"||row.parentNode.localName==="table-header-rows"||row.parentNode.localName==="table-rows")) continue;
+      const rr=Math.min(+(row.getAttributeNS(NS.table,"number-rows-repeated")||1),200); let c=0; const cells=[];
+      for(const cell of row.childNodes){
+        if(cell.nodeType!==1||(cell.localName!=="table-cell"&&cell.localName!=="covered-table-cell")) continue;
+        const rep=Math.min(+(cell.getAttributeNS(NS.table,"number-columns-repeated")||1),60);
+        if(cell.localName==="table-cell"){
+          const vt=cell.getAttributeNS(NS.office,"value-type"); let v;
+          if(vt==="float"||vt==="percentage"||vt==="currency") v=parseFloat(cell.getAttributeNS(NS.office,"value"));
+          else if(vt==="time"){ v=isoMin(cell.getAttributeNS(NS.office,"time-value")); }
+          else if(vt==="date") v=cell.getAttributeNS(NS.office,"date-value");
+          else if(vt==="boolean") v=cell.getAttributeNS(NS.office,"boolean-value")==="true";
+          else { const t=cellText(cell); if(t!=="") v=t; }
+          if(v!==undefined&&v!==null&&!(typeof v==="number"&&isNaN(v))) for(let k=0;k<rep;k++) cells.push([c+k,v]);
+        }
+        c+=rep;
+      }
+      if(cells.length) for(let k=0;k<rr&&k<3;k++) cells.forEach(([ci,v])=>{ ws[zetColName(ci)+(r+k+1)]={v}; });
+      r+=rr;
+    }
+    wb.SheetNames.push(name); wb.Sheets[name]=ws;
+  }
+  return wb;
+}
+
 function zetImportFile(input){
   const f=input.files&&input.files[0]; input.value=""; if(!f) return;
   const rd=new FileReader();
-  rd.onload=ev=>{ try{
-      const wb=XLSX.read(ev.target.result,{type:"array"}); const sh=zetParseWorkbook(wb);
+  rd.onload=async ev=>{ try{
+      const wb=/\.ods$/i.test(f.name)?await zetReadOds(ev.target.result):XLSX.read(ev.target.result,{type:"array"}); const sh=zetParseWorkbook(wb);
       if(!sh.length){ toast("Nu am găsit foi Zeiterfassung în fișier",true); return; }
       const cnt={}; sh.forEach(s=>{ if(s.month>=0&&s.year){ const k=s.year+"-"+String(s.month+1).padStart(2,"0"); cnt[k]=(cnt[k]||0)+1; } });
       const mk=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0]||zetMk();
-      _zetPendingImport={file:f.name,sheets:sh.map(s=>{ const e=zetMatchEmp(s.name); return Object.assign({},s,{empId:e?e.id:""}); }),mk};
+      _zetPendingImport={file:f.name,sheets:sh.map(s=>{ const e=zetMatchEmp(s.name); return Object.assign({},s,{empId:e?e.id:""}); }),mk,auto:Object.keys(cnt).length>0,months:cnt};
       zetImportOpen();
     }catch(e){ toast("Fișier invalid: "+(e.message||e),true); } };
   rd.readAsArrayBuffer(f);
@@ -11206,13 +11265,16 @@ function zetImportOpen(){
   let el=document.getElementById("zetImpModal");
   if(!el){ el=document.createElement("div"); el.className="modal-bg"; el.id="zetImpModal"; document.body.appendChild(el); }
   el.innerHTML=`<div class="modal" style="max-width:640px"><h3>📥 Încarcă Stundenzettel — verifică</h3><div style="font-size:13px;margin:6px 0">📄 <b>${zetEsc(pd.file)}</b> · ${pd.sheets.length} foi</div>
-    <label style="font-size:12px;color:var(--text-dim)">Pentru ce lună sunt fișele?<input id="zetImpMonth" type="month" value="${pd.mk}" style="width:100%;padding:8px;margin-top:3px"></label>
+    <div style="font-size:12px;color:var(--text-dim)">Luna ${pd.auto?"(preluată automat din celula Monat/Jahr, I3–I4, a foilor)":"(nu am găsit-o în fișier — alege-o)"}</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:3px"><input id="zetImpMonth" type="month" value="${pd.mk}" ${pd.auto?"disabled":""} onchange="zetImpMonthChanged()" style="flex:1;padding:8px"><button type="button" onclick="document.getElementById('zetImpMonth').disabled=false" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-size:12px;color:var(--text-dim);${pd.auto?"":"display:none"}">schimbă manual</button></div>
+    ${pd.auto&&Object.keys(pd.months).length>1?`<div style="margin-top:6px;font-size:12px;color:#b45309">⚠ Foile au luni diferite (${Object.keys(pd.months).map(k=>k+": "+pd.months[k]+" foi").join(", ")}). Se încarcă doar foile din luna de mai sus; celelalte sunt sărite.</div>`:""}
     <div style="max-height:40vh;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="text-align:left;padding:6px 8px">Foaie (nume)</th><th style="text-align:left;padding:6px 8px">Persoană din Salarii</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     <div id="zetImpErr" style="color:#ef4444;font-size:12px;min-height:16px;margin-top:6px"></div>
     <div class="modal-actions"><button class="btn btn-secondary" onclick="_zetPendingImport=null;closeModal('zetImpModal')">Anulează</button><button class="btn btn-primary" onclick="zetImportConfirm()">Încarcă</button></div></div>`;
-  pd.sheets.forEach((s,i)=>{ const se=document.getElementById("zetImpSel"+i); if(se) se.value=s.empId||""; });
+  pd.sheets.forEach((s,i)=>{ const se=document.getElementById("zetImpSel"+i); const mism=pd.auto&&s.month>=0&&s.year&&(s.year+"-"+String(s.month+1).padStart(2,"0"))!==pd.mk; if(se) se.value=mism?"":(s.empId||""); });
   openModal("zetImpModal");
 }
+function zetImpMonthChanged(){ const pd=_zetPendingImport; if(!pd) return; pd.mk=document.getElementById("zetImpMonth").value||pd.mk; pd.auto=false; pd.months={}; zetImportOpen(); }
 function zetPeopleAll(){ return salEmps.slice().sort((a,b)=>a.name.localeCompare(b.name,"ro")); }
 async function zetImportConfirm(){
   const pd=_zetPendingImport; if(!pd) return; const err=document.getElementById("zetImpErr");
@@ -16661,7 +16723,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261104-144316';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261104-170935';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -16747,6 +16809,10 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
+
+
 
 
 
