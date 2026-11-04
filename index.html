@@ -8391,6 +8391,7 @@ function ruhVisible(){
 }
 function ruhAgo(ts){ const m=Math.round((Date.now()-new Date(ts).getTime())/60000); if(m<1) return "acum"; if(m<60) return m+" min"; const h=Math.round(m/60); if(h<24) return h+" h"; return Math.round(h/24)+" z"; }
 function ruhDismiss(id){ ruhAckAdd([id]); renderRuhBar(); }
+function ruhDismissG(i){ const g=(window._ruhGroups||[])[i]; if(g){ ruhAckAdd(g.ids); renderRuhBar(); } }
 function ruhDismissAll(){ ruhAckAdd(ruhVisible().map(x=>x.id)); renderRuhBar(); }
 function ruhToggle(){ _ruhOpen=!_ruhOpen; renderRuhBar(); }
 function renderRuhBar(){
@@ -8407,15 +8408,31 @@ function renderRuhBar(){
   const esc=v=>String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const fd=d=>d?d.split("-").reverse().slice(0,2).join("."):"";
   const lab={concediu:"➕ Concediu",unpaid:"➕ Fără plată",krank:"➕ Krank",special:"➕ Zi specială",reminder:"📌 Reminder",sters:"🗑 Șters"};
-  const SHOW=4, shown=_ruhOpen?list:list.slice(0,SHOW);
-  const rows=shown.map(x=>{
-    const who=x.by===window.activeUserKey?"Tu":((USERS[x.by]&&USERS[x.by].name)||x.by);
-    const per=x.start?(x.start===x.end?fd(x.start):fd(x.start)+" → "+fd(x.end))+(x.days?" ("+x.days+"z)":""):"";
-    const body=x.kind==="reminder"?"<b>"+esc(lab.reminder)+"</b>: "+esc(x.note):"<b>"+esc(lab[x.kind]||x.kind)+"</b> · "+esc(x.person)+(per?" · "+esc(per):"")+(x.note?" · "+esc(x.note):"");
-    return '<div class="rb-item '+esc(x.kind)+'"><div class="rb-msg"><b>'+esc(who)+'</b> a adăugat/modificat: '+body+'</div><span class="rb-time">'+ruhAgo(x.ts)+'</span><button class="rb-x" title="Am văzut" onclick="ruhDismiss(\''+esc(x.id)+'\')">✕</button></div>';
+  // grupare: aceeași persoană, același tip, același autor, adăugate la mai puțin de 15 min distanță → un singur rând cu toate zilele
+  const groups=[];
+  list.forEach(x=>{
+    const g=x.kind==="reminder"?null:groups.find(h=>h.kind===x.kind&&h.by===x.by&&h.person===x.person&&(h.note||"")===(x.note||"")&&Math.abs(new Date(h.ts)-new Date(x.ts))<900000);
+    if(g){ g.ids.push(x.id); g.items.push(x); if(String(x.ts)>String(g.ts)) g.ts=x.ts; } else groups.push({kind:x.kind,by:x.by,person:x.person,note:x.note,ts:x.ts,ids:[x.id],items:[x]});
+  });
+  const WD=["Dum","Lun","Mar","Mie","Joi","Vin","Sâm"];
+  const fdm=d=>d.slice(8,10)+"."+d.slice(5,7);
+  const daysOf=g=>{ const set=new Set(); g.items.forEach(x=>{ if(!x.start) return; let c=new Date(x.start+"T12:00:00"); const e=new Date((x.end||x.start)+"T12:00:00"); let n=0; while(c<=e&&n<62){ set.add(c.toISOString().slice(0,10)); c=new Date(c.getTime()+86400000); n++; } }); return Array.from(set).sort(); };
+  const whoName=k=>k==="admin"?"Paul":((USERS[k]&&USERS[k].name)||k);
+  const SHOW=4, shown=_ruhOpen?groups:groups.slice(0,SHOW);
+  window._ruhGroups=groups;
+  const rows=shown.map(g=>{ const gi=groups.indexOf(g);
+    const who=whoName(g.by);
+    let body;
+    if(g.kind==="reminder"){ body="<b>"+esc(lab.reminder)+"</b>: "+esc(g.note); }
+    else{
+      const ds=daysOf(g);
+      const chips=ds.length?'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">'+ds.map(d=>{ const dt=new Date(d+"T12:00:00"); const we=dt.getDay()===0||dt.getDay()===6; return '<span style="text-align:center;line-height:1.25;padding:3px 9px;border-radius:8px;background:var(--bg-elev-2,rgba(128,128,128,.12));'+(we?'outline:1px solid #f59e0b55;':'')+'"><b style="font-size:12px">'+WD[dt.getDay()]+'</b><br><span style="font-size:11px;color:var(--text-dim)">'+fdm(d)+'</span></span>'; }).join("")+'</div>':"";
+      body="<b>"+esc(lab[g.kind]||g.kind)+"</b> · "+esc(g.person)+(ds.length?" · "+ds.length+(ds.length===1?" zi":" zile"):"")+(g.note?" · "+esc(g.note):"")+chips;
+    }
+    return '<div class="rb-item '+esc(g.kind)+'" style="align-items:flex-start"><div class="rb-msg"><b>'+esc(who)+'</b> a adăugat/modificat: '+body+'</div><span class="rb-time">'+ruhAgo(g.ts)+'</span><button class="rb-x" title="Am văzut" onclick="ruhDismissG('+gi+')">✕</button></div>';
   }).join("");
-  const more=list.length>SHOW?'<button onclick="ruhToggle()">'+(_ruhOpen?"Arată mai puține ▴":"Încă "+(list.length-SHOW)+" ▾")+'</button>':"";
-  el.innerHTML='<div class="rb-box"><div class="rb-head">🔔 Ruhstorf — ce au schimbat colegii ('+list.length+')'+more+'<button onclick="ruhMineToggle()" title="Arată/ascunde ce ai adăugat tu">'+(ruhMine()?"☑":"☐")+' și ale mele</button><button class="rb-sp" onclick="ruhDismissAll()">✓ Am văzut tot</button></div>'+rows+'</div>';
+  const more=groups.length>SHOW?'<button onclick="ruhToggle()">'+(_ruhOpen?"Arată mai puține ▴":"Încă "+(groups.length-SHOW)+" ▾")+'</button>':"";
+  el.innerHTML='<div class="rb-box"><div class="rb-head">🔔 Ruhstorf — ce au schimbat colegii ('+groups.length+')'+more+'<button onclick="ruhMineToggle()" title="Arată/ascunde ce ai adăugat tu">'+(ruhMine()?"☑":"☐")+' și ale mele</button><button class="rb-sp" onclick="ruhDismissAll()">✓ Am văzut tot</button></div>'+rows+'</div>';
   el.style.display="block";
 }
 setInterval(()=>{ try{ if(_ruhUnsub) renderRuhBar(); }catch(e){} },60000);
@@ -16284,7 +16301,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261104-130727';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261104-133714';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -16370,6 +16387,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
