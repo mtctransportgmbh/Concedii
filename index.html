@@ -1591,7 +1591,7 @@
         </div>
         <div id="salVorsCards"></div>
         <div style="overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--bg-elev)"><table id="salVorsTable" style="width:100%;border-collapse:collapse;font-size:13px"></table></div>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5">Rata lunară se scade automat din salariu începând cu luna avansului, până ajunge la zero. În tabelul Salarii poți suprascrie manual suma trasă într-o lună (↺ revine la rata automată). „Rest” = ce mai are de plătit după luna afișată.</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5">Rata lunară se scade automat din salariu începând cu luna de salariu a avansului (un avans dat până pe 15 ale lunii se scade din salariul lunii dinainte; poți schimba luna la adăugare). Cine și-a achitat tot dispare din lunile următoare, până ajunge la zero. În tabelul Salarii poți suprascrie manual suma trasă într-o lună (↺ revine la rata automată). „Rest” = ce mai are de plătit după luna afișată.</div>
       </div>
     </div>
 
@@ -3924,6 +3924,7 @@ var qrcode = function() {
       <label style="font-size:12px;color:var(--text-dim)">Persoană<select id="salVorsEmp" style="width:100%;padding:8px;margin-top:3px"></select></label>
       <label style="font-size:12px;color:var(--text-dim)">Sumă acordată (€)<input id="salVorsAmt" type="text" inputmode="decimal" style="width:100%;padding:8px;margin-top:3px"></label>
       <label style="font-size:12px;color:var(--text-dim)">Data<input id="salVorsDate" type="date" style="width:100%;padding:8px;margin-top:3px"></label>
+      <label style="font-size:12px;color:var(--text-dim)">Se scade din salariul lunii<input id="salVorsSm" type="month" style="width:100%;padding:8px;margin-top:3px"><span id="salVorsSmHint" style="display:block;font-size:11px;margin-top:3px"></span></label>
       <label style="font-size:12px;color:var(--text-dim)">Rată lunară de tras din salariu (€) — 0 = manual<input id="salVorsMonthly" type="text" inputmode="decimal" style="width:100%;padding:8px;margin-top:3px"></label>
       <label style="font-size:12px;color:var(--text-dim)">Notă (opțional)<input id="salVorsNote" type="text" style="width:100%;padding:8px;margin-top:3px"></label>
     </div>
@@ -8321,7 +8322,7 @@ let _cereri=[], _cereriUnsub=null;
 //   colecția notif_ruhstorf (doar acești 3 o citesc); rămân în bară până le închizi; nu vezi ce ai făcut tu
 // ============================================================
 const RUH_VIEWERS=["admin","raluca","mihaela"];
-let _ruhUnsub=null, _ruhItems=[], _ruhOpen=false, _ruhErr="";
+let _ruhUnsub=null, _ruhActUnsub=null, _ruhItems=[], _ruhActRaw=[], _ruhOpen=false, _ruhErr="";
 const ruhAckKey=()=>"mtc_ruh_ack_"+(window.activeUserKey||"");
 function ruhAckGet(){ try{ return new Set(JSON.parse(localStorage.getItem(ruhAckKey())||"[]")); }catch(e){ return new Set(); } }
 function ruhAckAdd(ids){ try{ const a=ruhAckGet(); ids.forEach(i=>a.add(i)); localStorage.setItem(ruhAckKey(),JSON.stringify(Array.from(a).slice(-300))); }catch(e){} }
@@ -8339,16 +8340,46 @@ async function ruhNotify(kind,dr,start,end,days,note){
 }
 function startRuhListener(){
   if(_ruhUnsub||!RUH_VIEWERS.includes(window.activeUserKey)) return;
+  startRuhBackfill();
   try{
     _ruhUnsub=db.collection("notif_ruhstorf").orderBy("ts","desc").limit(40).onSnapshot(snap=>{
       _ruhErr=""; _ruhItems=snap.docs.map(x=>Object.assign({id:x.id},x.data())); renderRuhBar();
     },err=>{ console.warn("notif_ruhstorf:",err&&err.message); _ruhErr=(err&&err.code)||"eroare"; _ruhItems=[]; renderRuhBar(); });
   }catch(e){ console.warn(e); }
 }
-function stopRuhListener(){ if(_ruhUnsub){ try{_ruhUnsub();}catch(e){} _ruhUnsub=null; } _ruhItems=[]; _ruhErr=""; renderRuhBar(); }
+// Completare retroactivă (o singură dată): modificările din Istoricul de activitate de la 4 nov. 2026, ora 00:00, până apare colecția nouă
+const RUH_BACKFILL_FROM = new Date(2026,10,4,0,0,0).toISOString(), RUH_BACKFILL_UNTIL = new Date(2026,10,14).getTime();
+function startRuhBackfill(){
+  if(_ruhActUnsub||Date.now()>RUH_BACKFILL_UNTIL||!RUH_VIEWERS.includes(window.activeUserKey)) return;
+  try{
+    _ruhActUnsub=db.collection(activityColl()).where("timestamp",">=",RUH_BACKFILL_FROM).orderBy("timestamp","desc").limit(120).onSnapshot(snap=>{
+      _ruhActRaw=snap.docs.map(x=>Object.assign({id:x.id},x.data())); renderRuhBar();
+    },err=>{ console.warn("ruh backfill:",err&&err.message); _ruhActRaw=[]; });
+  }catch(e){ console.warn(e); }
+}
+function ruhFromActivity(a){
+  const by=a.user, act=String(a.action||""), det=String(a.details||""), ts=a.timestamp;
+  if(!by||!ts) return null;
+  if(act.indexOf("Reminder adăugat")>=0){
+    if(!["admin","tania","raluca","mihaela"].includes(by)) return null;
+    const m=/^(\d{4}-\d{2}-\d{2}):\s*(.*)$/.exec(det); return {id:"act_"+a.id,ts,by,kind:"reminder",person:"",start:m?m[1]:"",end:m?m[1]:"",days:0,note:m?m[2]:det};
+  }
+  let kind=null;
+  if(act.indexOf("➕")===0){
+    kind=/Krank/.test(act)?"krank":(/Fără plată|S adăugat rapid/.test(act)?"unpaid":(/Zi specială/.test(act)?"special":(/Concediu/.test(act)?"concediu":null)));
+  } else if(act.indexOf("🗑")===0&&/ șters$/.test(act)&&!/Persoană/.test(act)) kind="sters";
+  if(!kind) return null;
+  const dr=(state.drivers||[]).find(d=>d.name===a.person); if(!ruhIsPerson(dr)) return null;
+  const m=/(\d{4}-\d{2}-\d{2}) → (\d{4}-\d{2}-\d{2})(?: \((\d+)z\))?/.exec(det);
+  return {id:"act_"+a.id,ts,by,kind,person:a.person,start:m?m[1]:"",end:m?m[2]:"",days:m&&m[3]?+m[3]:0,note:kind==="sters"?act.replace(/^🗑\s*/,"").replace(/ șters$/,""):""};
+}
+function stopRuhListener(){ if(_ruhActUnsub){ try{_ruhActUnsub();}catch(e){} _ruhActUnsub=null; } _ruhActRaw=[];
+  if(_ruhUnsub){ try{_ruhUnsub();}catch(e){} _ruhUnsub=null; } _ruhItems=[]; _ruhErr=""; renderRuhBar(); }
 function ruhVisible(){
   const me=window.activeUserKey, ack=ruhAckGet(), lim=Date.now()-30*86400000;
-  return _ruhItems.filter(x=>x.by!==me&&!ack.has(x.id)&&new Date(x.ts).getTime()>lim);
+  // intrările din Istoric se adaugă doar dacă nu există deja o notificare nouă pentru aceeași acțiune (același autor, aceeași persoană, la mai puțin de 2 minute)
+  const acts=_ruhActRaw.map(ruhFromActivity).filter(Boolean).filter(a=>!_ruhItems.some(n=>n.by===a.by&&n.person===a.person&&n.kind===a.kind&&Math.abs(new Date(n.ts)-new Date(a.ts))<120000));
+  return _ruhItems.concat(acts).filter(x=>x.by!==me&&!ack.has(x.id)&&new Date(x.ts).getTime()>lim).sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
 }
 function ruhAgo(ts){ const m=Math.round((Date.now()-new Date(ts).getTime())/60000); if(m<1) return "acum"; if(m<60) return m+" min"; const h=Math.round(m/60); if(h<24) return h+" h"; return Math.round(h/24)+" z"; }
 function ruhDismiss(id){ ruhAckAdd([id]); renderRuhBar(); }
@@ -9924,7 +9955,7 @@ function renderSalarii(){
       ${dayCell("c","ovC",c.dC,c.aC,c.a.c)}${dayCell("f","ovF",c.dF,c.aF,c.a.f)}${dayCell("k","ovK",c.dK,c.aK,c.a.k)}
       <td style="padding:4px 6px;text-align:right">${inp("chirie",c.rd.chirie,70)}</td>
       <td style="padding:4px 6px;text-align:right">${inp("alte",c.rd.alte,70)}<div><input type="text" value="${escapeHtml(c.alteObs).replace(/"/g,"&quot;")}" placeholder="observație (ex: reclamație x, Rechnung x)" ${ed?"":"disabled"} onchange="salSet('${e.id}','alteObs',this.value)" style="width:170px;margin-top:3px;padding:3px 5px;text-align:left;border:1px solid var(--border);border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:11px"></div></td>
-      <td style="padding:4px 6px;text-align:right">${c.vors.hasAny?`<input type="text" inputmode="decimal" value="${c.vors.manual?c.vors.ded:""}" placeholder="${salFmt(c.vors.auto)}" ${ed?"":"disabled"} onchange="salVorsSetDed('${e.id}',this.value)" style="width:70px;padding:3px 5px;text-align:right;border:1px solid ${c.vors.manual?'var(--sal-amber)':'var(--sal-blue)'};border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:12px">${c.vors.manual?`<span title="Manual — click pentru rata automată" onclick="salVorsSetDed('${e.id}','')" style="cursor:pointer;color:var(--sal-amber)"> ↺</span>`:""}<div style="font-size:10px;color:var(--text-dim)">rest: ${salFmt(c.vors.after)} €</div>`:'<span style="color:var(--text-dim)">—</span>'}</td>
+      <td style="padding:4px 6px;text-align:right">${c.vors.active?`<input type="text" inputmode="decimal" value="${c.vors.manual?c.vors.ded:""}" placeholder="${salFmt(c.vors.auto)}" ${ed?"":"disabled"} onchange="salVorsSetDed('${e.id}',this.value)" style="width:70px;padding:3px 5px;text-align:right;border:1px solid ${c.vors.manual?'var(--sal-amber)':'var(--sal-blue)'};border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:12px">${c.vors.manual?`<span title="Manual — click pentru rata automată" onclick="salVorsSetDed('${e.id}','')" style="cursor:pointer;color:var(--sal-amber)"> ↺</span>`:""}<div style="font-size:10px;color:var(--text-dim)">rest: ${salFmt(c.vors.after)} €</div>`:'<span style="color:var(--text-dim)">—</span>'}</td>
       <td style="padding:4px 10px;text-align:right;white-space:nowrap"><div style="font-weight:800">${salFmt(c.total)} €</div>${
         c.paid?`<div style="font-size:10px;color:var(--sal-green)">🔒 Plătit ${new Date(c.paid.at).toLocaleDateString("ro-RO")}</div>${Math.abs(c.live-c.total)>0.005?`<div title="Datele sursă s-au schimbat după plată" style="font-size:10px;color:var(--sal-amber)">⚠ acum ar fi ${salFmt(c.live)} €</div>`:""}<button onclick="salReopen('${e.id}')" style="margin-top:2px;padding:2px 8px;font-size:11px;border:1px solid var(--border);border-radius:999px;background:none;color:var(--text-dim);cursor:pointer">🔓 Deschide cu PIN</button>`
         :(canSalarii()?`<button onclick="salMarkPaid('${e.id}')" style="margin-top:2px;padding:3px 10px;font-size:11px;font-weight:700;border:1px solid var(--sal-em);border-radius:999px;background:rgba(16,185,129,.12);color:var(--sal-green);cursor:pointer">✔ Marchează plătit</button>`:"")}</td></tr>`);
@@ -9977,24 +10008,35 @@ function salSet(id,field,val){
 let salVors={emps:{}}, _salUnsubVors=null, _salVorsTimer=null, _salView="main";
 function salVEmp(id){ return salVors.emps[id]||{adv:[],monthly:0,ded:{}}; }
 function salMonthNext(mk){ let [y,m]=mk.split("-").map(Number); m++; if(m>12){m=1;y++;} return y+"-"+String(m).padStart(2,"0"); }
+// Luna de SALARIU din care se scade un avans. Salariul se plătește în luna următoare, până pe 15: un avans dat până pe 15 ale lunii M
+// se scade din salariul lunii M-1 (cel care se plătește acum), unul dat după 15 din salariul lunii M. Valabil pentru avansurile din 01.11.2026 încolo;
+// cele mai vechi rămân pe luna datei. Luna se poate alege și manual la adăugare (a.sm).
+const SAL_VORS_RULE_FROM="2026-11-01", SAL_VORS_CUTOFF_DAY=15;
+function salMonthPrev(mk){ let [y,m]=mk.split("-").map(Number); m--; if(m<1){m=12;y--;} return y+"-"+String(m).padStart(2,"0"); }
+function salVorsSalMonth(date){
+  const d=String(date||""); if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) return d.slice(0,7);
+  if(d<SAL_VORS_RULE_FROM) return d.slice(0,7);
+  return +d.slice(8,10)<=SAL_VORS_CUTOFF_DAY?salMonthPrev(d.slice(0,7)):d.slice(0,7);
+}
+const salVorsAdvMonth=a=>(a&&/^\d{4}-\d{2}$/.test(a.sm||""))?a.sm:salVorsSalMonth(a&&a.date);
 // Calcul pas cu pas, lună cu lună, de la primul avans până la luna cerută
 function salVorsCalc(id,mk){
   const e=salVEmp(id); const adv=(e.adv||[]).filter(a=>a&&a.date&&salNum(a.amount)>0);
-  const out={given:0,givenToDate:0,ded:0,auto:0,manual:false,before:0,after:0,totalDed:0,hasAny:adv.length>0,monthly:salNum(e.monthly)};
+  const out={given:0,givenToDate:0,ded:0,auto:0,manual:false,before:0,after:0,totalDed:0,hasAny:adv.length>0,active:false,addedNow:0,monthly:salNum(e.monthly)};
   if(!adv.length) return out;
   out.given=adv.reduce((t,a)=>t+salNum(a.amount),0);
-  const first=adv.map(a=>a.date.slice(0,7)).sort()[0];
+  const first=adv.map(salVorsAdvMonth).sort()[0];
   if(mk<first) return out;
   let m=first, bal=0;
   for(let guard=0; guard<600; guard++){
-    const addM=adv.filter(a=>a.date.slice(0,7)===m).reduce((t,a)=>t+salNum(a.amount),0);
+    const addM=adv.filter(a=>salVorsAdvMonth(a)===m).reduce((t,a)=>t+salNum(a.amount),0);
     bal+=addM; out.givenToDate+=addM;
     const before=bal;
     const auto=Math.min(out.monthly,bal);
     const hasMan=e.ded&&e.ded[m]!=null&&e.ded[m]!=="";
     const eff=hasMan?Math.min(Math.max(0,salNum(e.ded[m])),bal):auto;
     bal-=eff; out.totalDed+=eff;
-    if(m===mk){ out.before=before; out.ded=eff; out.auto=auto; out.manual=hasMan; out.after=bal; break; }
+    if(m===mk){ out.before=before; out.addedNow=addM; out.ded=eff; out.auto=auto; out.manual=hasMan; out.after=bal; out.active=addM>0||eff>0||(before-addM)>0.005; break; }
     m=salMonthNext(m);
   }
   return out;
@@ -10043,6 +10085,10 @@ function salVorsOpenAdd(preId){
   document.getElementById("salVorsAmt").value=""; document.getElementById("salVorsNote").value=""; document.getElementById("salVorsErr").textContent="";
   const sync=()=>{ const id=document.getElementById("salVorsEmp").value; const m=salNum(salVEmp(id).monthly); document.getElementById("salVorsMonthly").value=m||""; };
   document.getElementById("salVorsEmp").onchange=sync; sync();
+  const hint=()=>{ const d=document.getElementById("salVorsDate").value, sm=document.getElementById("salVorsSm").value;
+    const h=document.getElementById("salVorsSmHint"); if(h) h.textContent=sm?("Avansul se scade din salariul de "+MONTHS[+sm.slice(5)-1]+" "+sm.slice(0,4)+" (se plătește în luna următoare, până pe 15)."):""; };
+  const auto=()=>{ document.getElementById("salVorsSm").value=salVorsSalMonth(document.getElementById("salVorsDate").value); hint(); };
+  document.getElementById("salVorsDate").onchange=auto; document.getElementById("salVorsSm").onchange=hint; auto();
   openModal("salVorsModal");
 }
 function salVorsAdd(){
@@ -10052,7 +10098,8 @@ function salVorsAdd(){
   if(!(amt>0)){ err.textContent="Introdu o sumă mai mare ca 0"; return; }
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){ err.textContent="Alege data"; return; }
   const e=salVors.emps[id]||(salVors.emps[id]={adv:[],monthly:0,ded:{}});
-  e.adv=e.adv||[]; e.adv.push({id:uid(),date,amount:amt,note:document.getElementById("salVorsNote").value.trim()});
+  const sm=document.getElementById("salVorsSm").value;
+  e.adv=e.adv||[]; e.adv.push({id:uid(),date,amount:amt,sm:/^\d{4}-\d{2}$/.test(sm)?sm:salVorsSalMonth(date),note:document.getElementById("salVorsNote").value.trim()});
   e.monthly=salNum(document.getElementById("salVorsMonthly").value);
   salVorsSaveSoon(); closeModal("salVorsModal"); renderSalarii();
   try{ logActivity("🧾 Vorschuss adăugat","—",(salEmps.find(x=>x.id===id)||{}).name||"","salarii"); }catch(e){}
@@ -10082,9 +10129,11 @@ function renderVors(){
   const nameOf=id=>{ const e=salEmps.find(x=>x.id===id); return e?e.name:"(șters din listă)"; };
   const ids=Object.keys(salVors.emps).filter(id=>(salVors.emps[id].adv||[]).length);
   const vq=normalizeForSearch((document.getElementById("salVorsSearch")||{}).value||"");
-  const rows=ids.map(id=>({id,name:nameOf(id),c:salVorsCalc(id,mk)})).filter(r=>!vq||normalizeForSearch(r.name).includes(vq)).sort((a,b)=>a.name.localeCompare(b.name,"ro"));
-  const totGiven=rows.reduce((t,r)=>t+r.c.given,0), totDed=rows.reduce((t,r)=>t+r.c.totalDed,0), totMonth=rows.reduce((t,r)=>t+r.c.ded,0);
-  const totLeft=rows.reduce((t,r)=>t+Math.max(0,r.c.given-r.c.totalDed),0);
+  const allRows=ids.map(id=>({id,name:nameOf(id),c:salVorsCalc(id,mk)})).sort((a,b)=>a.name.localeCompare(b.name,"ro"));
+  // în tabel apar doar persoanele „active” în luna aleasă: avans scăzut din salariul lunii, tragere în lună sau rest rămas de la lunile dinainte; cine și-a achitat tot dispare din lunile următoare
+  const rows=allRows.filter(r=>r.c.active&&(!vq||normalizeForSearch(r.name).includes(vq)));
+  const totGiven=allRows.reduce((t,r)=>t+r.c.given,0), totDed=allRows.reduce((t,r)=>t+r.c.totalDed,0), totMonth=allRows.reduce((t,r)=>t+r.c.ded,0);
+  const totLeft=allRows.reduce((t,r)=>t+Math.max(0,r.c.given-r.c.totalDed),0);
   document.getElementById("salVorsCards").innerHTML=`<div class="vs-cards">
     <div class="vs-card"><div class="l">💸 Rest de recuperat</div><div class="v" style="color:var(--sal-amber)">${salFmt(totLeft)} €</div></div>
     <div class="vs-card"><div class="l">Total acordat (în timp)</div><div class="v">${salFmt(totGiven)} €</div></div>
@@ -10100,7 +10149,7 @@ function renderVors(){
       <td style="text-align:right;padding:8px"><input type="text" inputmode="decimal" value="${c.monthly||""}" placeholder="0" onchange="salVorsSetMonthly('${r.id}',this.value)" style="width:70px;padding:3px 5px;text-align:right;border:1px solid var(--border);border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:12px"></td>
       <td style="text-align:right;padding:8px">${salFmt(c.ded)} €${c.manual?' <span style="color:var(--sal-amber)" title="manual">✎</span>':""}</td>
       <td style="text-align:right;padding:8px;white-space:nowrap"><button onclick="salVorsOpenAdd('${r.id}')" style="padding:4px 9px;border:1px solid var(--border);border-radius:6px;background:none;color:var(--text);cursor:pointer;font-size:12px">＋</button> <button onclick="salVorsHist('${r.id}')" style="padding:4px 9px;border:1px solid var(--border);border-radius:6px;background:none;color:var(--text);cursor:pointer;font-size:12px">Istoric</button></td></tr>`; }).join("")
-    ||`<tr><td colspan="8" style="padding:26px;text-align:center;color:var(--text-dim)">Niciun vorschuss încă. Apasă <b>＋ Adaugă vorschuss</b>.</td></tr>`}</tbody>`;
+    ||`<tr><td colspan="8" style="padding:26px;text-align:center;color:var(--text-dim)">Nicio persoană cu vorschuss de tras în luna aceasta. Apasă <b>＋ Adaugă vorschuss</b>.</td></tr>`}</tbody>`;
 }
 
 // ---- Plătit: blochează persoana pentru luna curentă; redeschidere doar cu PIN-ul de Salarii ----
@@ -16171,7 +16220,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261104-124457';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261104-125402';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -16257,6 +16306,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
