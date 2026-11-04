@@ -4179,6 +4179,7 @@ function mcbToast(msg,isErr){
     <button class="btn btn-secondary btn-small" id="pinMgrBtn" onclick="openPinAdmin()" style="width:100%; margin-bottom:6px; display:none">🔐 Coduri PIN</button>
     <button class="btn btn-secondary btn-small" id="devMgrBtn" onclick="mtcOpenDevices()" style="width:100%; margin-bottom:6px; display:none; border-color:#60a5fa; color:#60a5fa">💻 Device-uri și profiluri</button>
     <button class="btn btn-secondary btn-small" id="loadBackupBtn" onclick="openBackupManager()" style="width:100%; margin-bottom:6px; display:none">🔄 Manager Backup / Restaurare</button>
+    <button class="btn btn-secondary btn-small" id="simBtn" onclick="openSimPicker()" style="width:100%; margin-bottom:6px; display:none; border-color:#a855f7; color:#a855f7">👁 Vezi ca un coleg (simulare)</button>
     <button class="btn btn-secondary btn-small" id="mcbBtn" onclick="mcbOpen()" style="width:100%; margin-bottom:6px; display:none; border-color:#10b981; color:#10b981">☁️ Backup pe module (Cloud)</button>
     <button class="btn btn-secondary btn-small" id="archiveBtn" onclick="openArchive()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">📦 Arhivă persoane</button>
     <button class="btn btn-secondary btn-small" id="permissionsBtn" onclick="openPermissionsPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#0ea5e9; color:#0ea5e9">🔑 Permisiuni acces</button>
@@ -4806,6 +4807,7 @@ auth.signOut().catch(()=>{}).then(()=>auth.setPersistence(firebase.auth.Auth.Per
 const db   = firebase.firestore();
 const fns  = firebase.app().functions("europe-west1");
 const callFn = async (name,data)=>{
+  if(window._simUser) throw new Error("Simulare: doar vizualizare");
   const payload = Object.assign({}, data||{});
   try{ if(auth.currentUser) payload._t = await auth.currentUser.getIdToken(); }catch(e){}
   try{ payload.deviceId = window.mtcDeviceId(); }catch(e){}
@@ -6006,6 +6008,7 @@ function switchUserFromLock(){
 }
 
 function resetAutoLogout(){
+  if(window._simUser) return;
   if(autoLogoutTimer) clearTimeout(autoLogoutTimer);
   autoLogoutTimer = setTimeout(()=>{
     const uk = window.activeUserKey;
@@ -6014,6 +6017,7 @@ function resetAutoLogout(){
 }
 
 function resetAdminAutoLock(){
+  if(window._simUser) return;
   if(adminLockTimer) clearTimeout(adminLockTimer);
   adminLockTimer = setTimeout(()=>{
     if(window.activeUserKey==="admin") showLockScreen();
@@ -6384,6 +6388,7 @@ function enterApp(userKey){
   document.getElementById("pinMgrBtn").style.display   = isAdm?"block":"none";
   { const _dm=document.getElementById("devMgrBtn"); if(_dm) _dm.style.display = isAdm?"block":"none"; }
   { const _mb=document.getElementById("mcbBtn"); if(_mb) _mb.style.display = isAdm?"block":"none"; }
+  { const _sb=document.getElementById("simBtn"); if(_sb) _sb.style.display = (isAdm&&!window._simUser)?"block":"none"; }
 
   document.getElementById("authScreen").style.display = "none";
   document.getElementById("appRoot").style.display    = "grid";
@@ -6520,6 +6525,7 @@ function enterApp(userKey){
 // LOCAL BACKUP
 // ============================================================
 function saveLocalBackup(){
+  if(window._simUser) return;
   try{ localStorage.setItem("mtc_backup_"+(window.activeUserKey||"x"), JSON.stringify({data:JSON.parse(JSON.stringify(state)),savedAt:new Date().toISOString()})); }catch(e){}
 }
 function loadLocalBackup(){
@@ -8325,7 +8331,7 @@ const RUH_VIEWERS=["admin","raluca","mihaela"];
 let _ruhUnsub=null, _ruhActUnsub=null, _ruhItems=[], _ruhActRaw=[], _ruhOpen=false, _ruhErr="";
 const ruhAckKey=()=>"mtc_ruh_ack_"+(window.activeUserKey||"");
 function ruhAckGet(){ try{ return new Set(JSON.parse(localStorage.getItem(ruhAckKey())||"[]")); }catch(e){ return new Set(); } }
-function ruhAckAdd(ids){ try{ const a=ruhAckGet(); ids.forEach(i=>a.add(i)); localStorage.setItem(ruhAckKey(),JSON.stringify(Array.from(a).slice(-300))); }catch(e){} }
+function ruhAckAdd(ids){ if(window._simUser) return; try{ const a=ruhAckGet(); ids.forEach(i=>a.add(i)); localStorage.setItem(ruhAckKey(),JSON.stringify(Array.from(a).slice(-300))); }catch(e){} }
 function ruhIsPerson(dr){
   if(!dr) return false; const vis=dr.visibleTo||[];
   return (dr.group||(vis.includes("raluca")?"ruhstorf":vis.includes("madalina")?"eiselfing":vis.includes("corina")?"camion":""))==="ruhstorf";
@@ -8411,6 +8417,57 @@ function renderRuhBar(){
   el.style.display="block";
 }
 setInterval(()=>{ try{ if(_ruhUnsub) renderRuhBar(); }catch(e){} },60000);
+
+
+// ============================================================
+// SIMULARE PROFIL (doar Admin): vezi aplicația exact cum o vede un coleg. DOAR VIZUALIZARE — orice scriere (Firestore, funcții) e blocată.
+// ============================================================
+window._simUser=null;
+let _simGuardOn=false, _simToastAt=0;
+function simToastOnce(){ if(Date.now()-_simToastAt>4000){ _simToastAt=Date.now(); try{ toast("👁 Simulare: doar vizualizare — nimic nu se salvează"); }catch(e){} } }
+function simInstallGuard(){
+  if(_simGuardOn) return; _simGuardOn=true;
+  const ref=Object.getPrototypeOf(db.collection("_sim").doc("_sim")), col=Object.getPrototypeOf(db.collection("_sim")), bat=Object.getPrototypeOf(db.batch());
+  ["set","update","delete"].forEach(m=>{ const o=ref[m]; ref[m]=function(){ if(window._simUser){ simToastOnce(); return Promise.resolve(); } return o.apply(this,arguments); }; });
+  { const o=col.add; col.add=function(){ if(window._simUser){ simToastOnce(); return Promise.resolve({id:"sim"}); } return o.apply(this,arguments); }; }
+  { const o=bat.commit; bat.commit=function(){ if(window._simUser){ simToastOnce(); return Promise.resolve(); } return o.apply(this,arguments); }; }
+  { const o=db.runTransaction.bind(db); db.runTransaction=function(){ if(window._simUser){ simToastOnce(); return Promise.resolve(); } return o.apply(null,arguments); }; }
+}
+async function simStart(uk){
+  if(window.activeUserKey!=="admin"&&!window._simUser) return;
+  if(!USERS[uk]||uk==="admin") return;
+  simInstallGuard();
+  closeModal("modalSim"); try{ closeModal("adminPanelModal"); }catch(e){}
+  window._simUser=uk;
+  fullReset();
+  await enterAppSafe(uk);
+  simShowBar();
+}
+async function simStop(){
+  window._simUser=null;
+  const b=document.getElementById("simBar"); if(b) b.remove(); document.body.style.paddingTop="";
+  fullReset();
+  await enterAppSafe("admin");
+}
+function simShowBar(){
+  let b=document.getElementById("simBar");
+  if(!b){ b=document.createElement("div"); b.id="simBar"; b.style.cssText="position:fixed;top:0;left:0;right:0;z-index:100500;background:linear-gradient(90deg,#7c3aed,#2563eb);color:#fff;padding:8px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;font-weight:600;box-shadow:0 2px 12px rgba(0,0,0,.4)"; document.body.appendChild(b); }
+  const others=Object.keys(USERS).filter(k=>k!=="admin"&&k!==window._simUser);
+  b.innerHTML='<span>👁 SIMULARE — vezi ca <b>'+USERS[window._simUser].name+'</b> · doar vizualizare, nimic nu se salvează</span>'+
+    '<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">'+others.map(k=>'<button onclick="simStart(\''+k+'\')" style="padding:4px 10px;border:1px solid rgba(255,255,255,.5);border-radius:7px;background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12px;cursor:pointer">'+USERS[k].name+'</button>').join("")+
+    '<button onclick="simStop()" style="padding:4px 12px;border:none;border-radius:7px;background:#fff;color:#4c1d95;font:inherit;font-size:12px;font-weight:800;cursor:pointer">✕ Ieși din simulare</button></span>';
+  document.body.style.paddingTop="44px";
+}
+function openSimPicker(){
+  let m=document.getElementById("modalSim");
+  if(!m){
+    m=document.createElement("div"); m.className="modal-bg"; m.id="modalSim";
+    m.innerHTML='<div class="modal" style="max-width:420px"><h3>👁 Vezi ca un coleg</h3><div style="font-size:12px;color:var(--text-dim);margin:6px 0 12px;line-height:1.5">Aplicația se deschide exact cum o vede persoana aleasă (module, grupuri, permisiuni). Este doar vizualizare: nu se salvează nimic și nu se trimite nimic. Ieși oricând din bara de sus.</div><div id="simPickList" style="display:grid;gap:8px"></div><div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal(\'modalSim\')">Închide</button></div></div>';
+    document.body.appendChild(m);
+  }
+  document.getElementById("simPickList").innerHTML=Object.keys(USERS).filter(k=>k!=="admin").map(k=>'<button class="btn btn-secondary" style="text-align:left;padding:10px 14px" onclick="simStart(\''+k+'\')"><b>'+USERS[k].name+'</b></button>').join("");
+  openModal("modalSim");
+}
 
 function startCereriListener(){
   if(_cereriUnsub||!isAdmin()) return;
@@ -9903,7 +9960,10 @@ function salRowCalc(emp){
   const dK=isFix?0:(rd.ovK!=null&&rd.ovK!==""?salNum(rd.ovK):a.k);
   const aS=salAutoSortat(emp);
   const sortOv=rd.sortat!=null&&rd.sortat!=="";
-  const salar=salNum(rd.salar), chirie=salNum(rd.chirie), alte=salNum(rd.alte), alteObs=String(rd.alteObs||"");
+  const hasSal=rd.salar!=null&&rd.salar!=="";
+  // salar fix implicit (setat o dată în Angajați — Salarii): se aplică singur în fiecare lună de la luna setării, cât timp nu scrii altă sumă în lună
+  const fromDef=type==="fix"&&!hasSal&&salNum(emp.fixSalar)>0&&(!emp.fixFrom||salMk()>=emp.fixFrom);
+  const salar=hasSal?salNum(rd.salar):(fromDef?salNum(emp.fixSalar):0), chirie=salNum(rd.chirie), alte=salNum(rd.alte), alteObs=String(rd.alteObs||"");
   const sortat=sortOv?salNum(rd.sortat):aS.n;
   let base;
   if(type==="pachete") base=salar*SAL_PKG_RATE+sortat*SAL_SORT_RATE;
@@ -9913,7 +9973,7 @@ function salRowCalc(emp){
   const vors=salVorsCalc(emp.id,salMk());
   const live=base+aC+aF+aK-chirie-alte-vors.ded;
   const paid=rd.paid&&rd.paid.at?rd.paid:null;
-  return {rd,type,isFix,rate,a,aS,sortOv,dC,dF,dK,aC,aF,aK,salar,sortat,chirie,alte,alteObs,base,vors,vDed:vors.ded,live,paid,total:paid&&paid.total!=null?salNum(paid.total):live};
+  return {rd,type,isFix,fromDef,rate,a,aS,sortOv,dC,dF,dK,aC,aF,aK,salar,sortat,chirie,alte,alteObs,base,vors,vDed:vors.ded,live,paid,total:paid&&paid.total!=null?salNum(paid.total):live};
 }
 
 // ---- randare ----
@@ -9950,7 +10010,7 @@ function renderSalarii(){
     body.push(`<tr style="border-top:1px solid var(--border)">
       <td style="padding:4px 8px;font-weight:600;${salLma()?"":"white-space:nowrap"}">${salDot(!!e.angajatiId)}${escapeHtml(e.name)}${c.a.linked?"":` <span title="Nu există în Concedii — zilele de concediu/krank nu pot fi preluate automat. Folosește 👥 Angajați → Creează în Concedii." style="color:#ef4444;cursor:help">⚠️</span>`}${salTourCell(e,c,ed)}</td>
       <td style="padding:4px 6px"><select ${ed?"":"disabled"} onchange="salSet('${e.id}','type',this.value)" style="padding:3px 4px;font-size:12px;border:1px solid ${tcol};border-radius:5px;background:var(--bg-elev-2);color:var(--text)">${Object.keys(SAL_TYPES).map(t=>`<option value="${t}" ${t===c.type?"selected":""}>${SAL_TYPES[t]}</option>`).join("")}</select></td>
-      <td style="padding:4px 6px;text-align:right">${inp("salar",c.rd.salar,80)}${c.rd.salManual&&ed?` <button onclick="salRevertAuto('${e.id}')" title="Revino la valoarea calculată automat" style="padding:2px 6px;font-size:11px;border:1px solid var(--sal-amber);border-radius:5px;background:transparent;color:var(--sal-amber);cursor:pointer">↺ automat</button>`:""}<div style="font-size:10px;color:var(--text-dim)">${c.rd.salManual?"✎ scris de mână · ":""}${c.type==="pachete"?(c.rd.tourAuto?"din ture · ":"")+"pachete → "+salFmt(c.salar*SAL_PKG_RATE):(c.type==="sortat"?"sumă":"sumă fixă")}</div></td>
+      <td style="padding:4px 6px;text-align:right">${inp("salar",(c.rd.salar!=null&&c.rd.salar!=="")?c.rd.salar:(c.fromDef?c.salar:""),80)}${c.rd.salManual&&ed?` <button onclick="salRevertAuto('${e.id}')" title="Revino la valoarea calculată automat" style="padding:2px 6px;font-size:11px;border:1px solid var(--sal-amber);border-radius:5px;background:transparent;color:var(--sal-amber);cursor:pointer">↺ automat</button>`:""}<div style="font-size:10px;color:var(--text-dim)">${c.fromDef?"⚙ implicit · ":""}${c.rd.salManual?"✎ scris de mână · ":""}${c.type==="pachete"?(c.rd.tourAuto?"din ture · ":"")+"pachete → "+salFmt(c.salar*SAL_PKG_RATE):(c.type==="sortat"?"sumă":"sumă fixă")}</div></td>
       <td style="padding:4px 6px;text-align:right"><input type="text" inputmode="decimal" value="${c.sortat||""}" placeholder="0" ${ed?"":"disabled"} onchange="salSet('${e.id}','sortat',this.value)" style="width:50px;padding:3px 5px;text-align:right;border:1px solid ${c.sortOv?'var(--sal-amber)':'var(--border)'};border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:12px">${c.sortOv?`<span title="Suprascris manual (automat din Sortatori: ${c.aS.n}) — click pentru revenire" onclick="salSet('${e.id}','sortat','')" style="cursor:pointer;color:var(--sal-amber)"> ↺</span>`:""}<div style="font-size:10px;color:var(--text-dim)">${c.aS.found||c.sortOv?"zile → "+salFmt(c.sortat*SAL_SORT_RATE):"nu e în Sortatori"}</div></td>
       ${dayCell("c","ovC",c.dC,c.aC,c.a.c)}${dayCell("f","ovF",c.dF,c.aF,c.a.f)}${dayCell("k","ovK",c.dK,c.aK,c.a.k)}
       <td style="padding:4px 6px;text-align:right">${inp("chirie",c.rd.chirie,70)}</td>
@@ -10204,9 +10264,10 @@ function salRenderEmployees(){
   const unl=list.filter(e=>!salFindDriver(e)&&e.active!==false);
   document.getElementById("salEmpBody").innerHTML=`
     <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px">🔄 Angajații se preiau <b>automat din Angajați</b> (adăugare, ștergere, redenumire, activ/inactiv). Aici setezi tipul de salarizare și <b>turele implicite</b> (se atribuie singure la fiecare fișier LMA încărcat).</div>
-    <div style="max-height:50vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:4px">Nume</th><th>Tip implicit</th><th>Ture implicite</th><th>În Concedii</th><th>Status</th></tr></thead><tbody>
+    <div style="max-height:50vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:4px">Nume</th><th>Tip implicit</th><th>Salar fix (€/lună)</th><th>Ture implicite</th><th>În Concedii</th><th>Status</th></tr></thead><tbody>
     ${list.map(e=>`<tr style="border-top:1px solid var(--border);${e.active===false?"opacity:.5":""}"><td style="padding:3px 4px">${escapeHtml(e.name)}</td>
       <td><select onchange="salEmpSet('${e.id}','type',this.value)" style="font-size:12px">${Object.keys(SAL_TYPES).map(t=>`<option value="${t}" ${t===(e.type||"fix")?"selected":""}>${SAL_TYPES[t]}</option>`).join("")}</select></td>
+      <td style="text-align:center">${(e.type||"fix")==="fix"?`<input type="text" inputmode="decimal" value="${e.fixSalar||""}" placeholder="ex: 1800" onchange="salEmpSet('${e.id}','fixSalar',this.value)" title="Salariul fix lunar: se aplică singur în fiecare lună (de la luna afișată când îl setezi). Îl poți schimba într-o lună anume direct în tabel." style="width:90px;font-size:12px;padding:2px 5px;text-align:right;border:1px solid var(--border);border-radius:5px">${e.fixSalar&&e.fixFrom?`<div style="font-size:10px;color:var(--text-dim)">din ${e.fixFrom}</div>`:""}`:`<span style="color:var(--text-dim)">—</span>`}</td>
       <td style="text-align:center"><input type="text" value="${escapeHtml((e.tours||[]).join(", "))}" placeholder="ex: 557, 556" onchange="salEmpSet('${e.id}','tours',this.value)" style="width:110px;font-size:12px;padding:2px 5px;border:1px solid var(--border);border-radius:5px"></td>
       <td style="text-align:center">${salFindDriver(e)?"✅":"⚠️"}</td>
       <td style="text-align:center;font-size:11px">${e.active===false?"Inactiv":"Activ"}</td></tr>`).join("")}
@@ -10223,6 +10284,7 @@ function salEmpSet(id,f,v){
     if(_salUnlocked&&salLma()){ const n=salApplyDefaultTours(salMk()); if(n){ salSaveMonthSoon(); toast("✓ "+n+" ture atribuite în luna afișată"); } }
     salRenderEmployees(); renderSalarii(); return;
   }
+  if(f==="fixSalar"){ const n=salNum(v); if(n>0){ e.fixSalar=n; e.fixFrom=salMk(); } else { delete e.fixSalar; delete e.fixFrom; } salSaveEmps(); salRenderEmployees(); renderSalarii(); toast(n>0?"✓ Salar fix implicit salvat: "+salFmt(n)+" € / lună (de la "+salMk()+")":"Salar fix implicit șters"); return; }
   if(f==="rate") e.rate=v===""?null:salNum(v); else e[f]=v;
   salSaveEmps(); renderSalarii();
   if(f==="active") salRenderEmployees();
@@ -16220,7 +16282,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261104-125402';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261104-125929';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -16306,6 +16368,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
