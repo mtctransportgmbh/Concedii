@@ -8381,11 +8381,13 @@ function ruhFromActivity(a){
 }
 function stopRuhListener(){ if(_ruhActUnsub){ try{_ruhActUnsub();}catch(e){} _ruhActUnsub=null; } _ruhActRaw=[];
   if(_ruhUnsub){ try{_ruhUnsub();}catch(e){} _ruhUnsub=null; } _ruhItems=[]; _ruhErr=""; renderRuhBar(); }
+function ruhMine(){ try{ const v=localStorage.getItem("mtc_ruh_mine_"+(window.activeUserKey||"")); if(v!==null) return v==="1"; }catch(e){} return window.activeUserKey==="admin"; }
+function ruhMineToggle(){ try{ localStorage.setItem("mtc_ruh_mine_"+(window.activeUserKey||""),ruhMine()?"0":"1"); }catch(e){} renderRuhBar(); }
 function ruhVisible(){
-  const me=window.activeUserKey, ack=ruhAckGet(), lim=Date.now()-30*86400000;
+  const me=window.activeUserKey, ack=ruhAckGet(), lim=Date.now()-30*86400000, mine=ruhMine();
   // intrările din Istoric se adaugă doar dacă nu există deja o notificare nouă pentru aceeași acțiune (același autor, aceeași persoană, la mai puțin de 2 minute)
   const acts=_ruhActRaw.map(ruhFromActivity).filter(Boolean).filter(a=>!_ruhItems.some(n=>n.by===a.by&&n.person===a.person&&n.kind===a.kind&&Math.abs(new Date(n.ts)-new Date(a.ts))<120000));
-  return _ruhItems.concat(acts).filter(x=>x.by!==me&&!ack.has(x.id)&&new Date(x.ts).getTime()>lim).sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
+  return _ruhItems.concat(acts).filter(x=>(mine||x.by!==me)&&!ack.has(x.id)&&new Date(x.ts).getTime()>lim).sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
 }
 function ruhAgo(ts){ const m=Math.round((Date.now()-new Date(ts).getTime())/60000); if(m<1) return "acum"; if(m<60) return m+" min"; const h=Math.round(m/60); if(h<24) return h+" h"; return Math.round(h/24)+" z"; }
 function ruhDismiss(id){ ruhAckAdd([id]); renderRuhBar(); }
@@ -8399,7 +8401,7 @@ function renderRuhBar(){
   if(!list.length){   // bara rămâne mereu vizibilă, discret, ca să știi că funcționează
     el.innerHTML=_ruhErr
       ?'<div style="padding:7px 12px;border:1px dashed #ef4444;border-radius:10px;font-size:12px;color:#ef4444">🔔 Notificări Ruhstorf: nu pot fi citite ('+_ruhErr+') — regula Firestore pentru notif_ruhstorf nu e publicată încă.</div>'
-      :'<div style="padding:7px 12px;border:1px dashed var(--border);border-radius:10px;font-size:12px;color:var(--text-dim)">🔔 Ruhstorf: nicio modificare nouă de la colegi</div>';
+      :'<div style="padding:7px 12px;border:1px dashed var(--border);border-radius:10px;font-size:12px;color:var(--text-dim)">🔔 Ruhstorf: nicio modificare nouă de la colegi <button onclick="ruhMineToggle()" style="background:none;border:none;color:var(--text-dim);font:inherit;cursor:pointer;margin-left:8px">'+(ruhMine()?"☑":"☐")+' și ale mele</button></div>';
     el.style.display="block"; return;
   }
   const esc=v=>String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -8407,13 +8409,13 @@ function renderRuhBar(){
   const lab={concediu:"➕ Concediu",unpaid:"➕ Fără plată",krank:"➕ Krank",special:"➕ Zi specială",reminder:"📌 Reminder",sters:"🗑 Șters"};
   const SHOW=4, shown=_ruhOpen?list:list.slice(0,SHOW);
   const rows=shown.map(x=>{
-    const who=(USERS[x.by]&&USERS[x.by].name)||x.by;
+    const who=x.by===window.activeUserKey?"Tu":((USERS[x.by]&&USERS[x.by].name)||x.by);
     const per=x.start?(x.start===x.end?fd(x.start):fd(x.start)+" → "+fd(x.end))+(x.days?" ("+x.days+"z)":""):"";
     const body=x.kind==="reminder"?"<b>"+esc(lab.reminder)+"</b>: "+esc(x.note):"<b>"+esc(lab[x.kind]||x.kind)+"</b> · "+esc(x.person)+(per?" · "+esc(per):"")+(x.note?" · "+esc(x.note):"");
     return '<div class="rb-item '+esc(x.kind)+'"><div class="rb-msg"><b>'+esc(who)+'</b> a adăugat/modificat: '+body+'</div><span class="rb-time">'+ruhAgo(x.ts)+'</span><button class="rb-x" title="Am văzut" onclick="ruhDismiss(\''+esc(x.id)+'\')">✕</button></div>';
   }).join("");
   const more=list.length>SHOW?'<button onclick="ruhToggle()">'+(_ruhOpen?"Arată mai puține ▴":"Încă "+(list.length-SHOW)+" ▾")+'</button>':"";
-  el.innerHTML='<div class="rb-box"><div class="rb-head">🔔 Ruhstorf — ce au schimbat colegii ('+list.length+')'+more+'<button class="rb-sp" onclick="ruhDismissAll()">✓ Am văzut tot</button></div>'+rows+'</div>';
+  el.innerHTML='<div class="rb-box"><div class="rb-head">🔔 Ruhstorf — ce au schimbat colegii ('+list.length+')'+more+'<button onclick="ruhMineToggle()" title="Arată/ascunde ce ai adăugat tu">'+(ruhMine()?"☑":"☐")+' și ale mele</button><button class="rb-sp" onclick="ruhDismissAll()">✓ Am văzut tot</button></div>'+rows+'</div>';
   el.style.display="block";
 }
 setInterval(()=>{ try{ if(_ruhUnsub) renderRuhBar(); }catch(e){} },60000);
@@ -16282,7 +16284,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261104-125929';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261104-130727';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -16368,6 +16370,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
