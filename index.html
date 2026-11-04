@@ -8321,7 +8321,7 @@ let _cereri=[], _cereriUnsub=null;
 //   colecția notif_ruhstorf (doar acești 3 o citesc); rămân în bară până le închizi; nu vezi ce ai făcut tu
 // ============================================================
 const RUH_VIEWERS=["admin","raluca","mihaela"];
-let _ruhUnsub=null, _ruhItems=[], _ruhOpen=false;
+let _ruhUnsub=null, _ruhItems=[], _ruhOpen=false, _ruhErr="";
 const ruhAckKey=()=>"mtc_ruh_ack_"+(window.activeUserKey||"");
 function ruhAckGet(){ try{ return new Set(JSON.parse(localStorage.getItem(ruhAckKey())||"[]")); }catch(e){ return new Set(); } }
 function ruhAckAdd(ids){ try{ const a=ruhAckGet(); ids.forEach(i=>a.add(i)); localStorage.setItem(ruhAckKey(),JSON.stringify(Array.from(a).slice(-300))); }catch(e){} }
@@ -8341,11 +8341,11 @@ function startRuhListener(){
   if(_ruhUnsub||!RUH_VIEWERS.includes(window.activeUserKey)) return;
   try{
     _ruhUnsub=db.collection("notif_ruhstorf").orderBy("ts","desc").limit(40).onSnapshot(snap=>{
-      _ruhItems=snap.docs.map(x=>Object.assign({id:x.id},x.data())); renderRuhBar();
-    },err=>{ console.warn("notif_ruhstorf:",err&&err.message); _ruhItems=[]; renderRuhBar(); });
+      _ruhErr=""; _ruhItems=snap.docs.map(x=>Object.assign({id:x.id},x.data())); renderRuhBar();
+    },err=>{ console.warn("notif_ruhstorf:",err&&err.message); _ruhErr=(err&&err.code)||"eroare"; _ruhItems=[]; renderRuhBar(); });
   }catch(e){ console.warn(e); }
 }
-function stopRuhListener(){ if(_ruhUnsub){ try{_ruhUnsub();}catch(e){} _ruhUnsub=null; } _ruhItems=[]; renderRuhBar(); }
+function stopRuhListener(){ if(_ruhUnsub){ try{_ruhUnsub();}catch(e){} _ruhUnsub=null; } _ruhItems=[]; _ruhErr=""; renderRuhBar(); }
 function ruhVisible(){
   const me=window.activeUserKey, ack=ruhAckGet(), lim=Date.now()-30*86400000;
   return _ruhItems.filter(x=>x.by!==me&&!ack.has(x.id)&&new Date(x.ts).getTime()>lim);
@@ -8356,8 +8356,15 @@ function ruhDismissAll(){ ruhAckAdd(ruhVisible().map(x=>x.id)); renderRuhBar(); 
 function ruhToggle(){ _ruhOpen=!_ruhOpen; renderRuhBar(); }
 function renderRuhBar(){
   const el=document.getElementById("ruhBar"); if(!el) return;
-  const list=RUH_VIEWERS.includes(window.activeUserKey)?ruhVisible():[];
-  if(!list.length){ el.style.display="none"; el.innerHTML=""; return; }
+  const viewer=RUH_VIEWERS.includes(window.activeUserKey);
+  const list=viewer?ruhVisible():[];
+  if(!viewer){ el.style.display="none"; el.innerHTML=""; return; }
+  if(!list.length){   // bara rămâne mereu vizibilă, discret, ca să știi că funcționează
+    el.innerHTML=_ruhErr
+      ?'<div style="padding:7px 12px;border:1px dashed #ef4444;border-radius:10px;font-size:12px;color:#ef4444">🔔 Notificări Ruhstorf: nu pot fi citite ('+_ruhErr+') — regula Firestore pentru notif_ruhstorf nu e publicată încă.</div>'
+      :'<div style="padding:7px 12px;border:1px dashed var(--border);border-radius:10px;font-size:12px;color:var(--text-dim)">🔔 Ruhstorf: nicio modificare nouă de la colegi</div>';
+    el.style.display="block"; return;
+  }
   const esc=v=>String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const fd=d=>d?d.split("-").reverse().slice(0,2).join("."):"";
   const lab={concediu:"➕ Concediu",unpaid:"➕ Fără plată",krank:"➕ Krank",special:"➕ Zi specială",reminder:"📌 Reminder",sters:"🗑 Șters"};
@@ -16164,7 +16171,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261104-123245';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261104-124457';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -16250,6 +16257,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
