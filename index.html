@@ -1536,7 +1536,7 @@
           <button onclick="salGoToday()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;color:var(--text-dim)">Azi</button>
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <input id="salSearch" type="text" placeholder="🔍 Caută…" oninput="renderSalarii()" style="padding:5px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-elev-2);color:var(--text);width:130px">
+          <input id="salSearch" type="text" placeholder="🔍 Caută persoană…" oninput="renderSalarii()" style="padding:6px 10px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elev-2);color:var(--text);width:210px">
           <select id="salTypeFilter" onchange="renderSalarii()" style="padding:5px 6px;font-size:12px"><option value="">Toate tipurile</option><option value="fix">Salar fix</option><option value="pachete">Din pachete</option><option value="sortat">Doar sortator</option></select>
           <button onclick="salOpenEmployees()" style="padding:5px 12px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text)">👥 Angajați</button>
           <button onclick="document.getElementById('salPkgFile').click()" style="padding:5px 12px;background:var(--bg-elev-2);border:1px solid #6366f1;border-radius:6px;cursor:pointer;font-size:12px;color:#6366f1">📦 Încarcă pachete (Excel)</button>
@@ -1550,7 +1550,7 @@
       </div>
       <div id="salTblWrap" style="border:1px solid var(--border);border-radius:10px;background:var(--bg-elev)"><table id="salTable" style="width:100%;border-collapse:collapse;font-size:13px"></table></div>
       <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5">
-        <b>●</b> verde = sincronizat din Angajați, ○ = nelegat. <b>Formule:</b> Pachete = pachete×0,66 + sortat×22 + (zile concediu + Feiertag + Krank)×66 − chirie · Doar sortator și Salar fix = salar + sortat×22 + sumele lunare scrise de tine la Concediu/Feiertag/Krank − chirie. <b>Alte rețineri</b> (sumă + observație, ex. „reclamație x, Rechnung x”) se scad din total la toți. Zilele de concediu/Feiertag/Krank se calculează la toți cu 66 € / zi; la cei fără pachete poți suprascrie suma scriind-o în căsuța de sub zile. Zilele de sortat (din modulul Sortatori), concediu, Krank și Feiertag se preiau automat; poți suprascrie manual (apare ↺ pentru revenire).
+        <b>●</b> verde = sincronizat din Angajați, ○ = nelegat. <b>Formule:</b> Pachete = pachete×0,66 + sortat×22 + (zile concediu + Feiertag + Krank)×66 − chirie · Doar sortator și Salar fix = salar + sortat×22 + sumele lunare scrise de tine la Concediu/Feiertag/Krank − chirie. <b>Salar fix</b>: nu preia concediu / Feiertag / Krank (salariul rămâne mereu cel scris de tine). <b>Alte rețineri</b> (sumă + observație, ex. „reclamație x, Rechnung x”) se scad din total la toți. Zilele de concediu/Feiertag/Krank se calculează la toți cu 66 € / zi; la cei fără pachete poți suprascrie suma scriind-o în căsuța de sub zile. Zilele de sortat (din modulul Sortatori), concediu, Krank și Feiertag se preiau automat; poți suprascrie manual (apare ↺ pentru revenire).
       </div>
       </div>
       <div id="salViewPkg" style="display:none">
@@ -1577,7 +1577,7 @@
         <div id="salBaniCards"></div>
         <div style="overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--bg-elev)"><table id="salBaniTable" style="width:100%;border-collapse:collapse;font-size:13px"></table></div>
         <div id="salBaniDetail" style="margin-top:16px"></div>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5">Registru separat de Vorschuss: aici notezi banii dați și banii primiți înapoi (și din urmă, cu data). Nu se scad automat din salariu. <b>Sold</b> = dat − primit; pozitiv = persoana îți mai datorează.</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5">Evidență pe persoană, separată de salarii (nu se scade nicăieri din salariu). <b>Sold dinainte</b> = sumele mai vechi, cu sau fără dată (apasă 📂). <b>Vorschuss</b> se adaugă singur de aici, iar ce s-a reținut deja din salariu se scade singur. <b>Total</b> = dinainte + Vorschuss + dat − primit − reținut; pozitiv = persoana îți mai datorează.</div>
       </div>
       <div id="salViewVors" style="display:none">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
@@ -1585,6 +1585,7 @@
           <span id="salMonthLabel2" style="font-size:16px;font-weight:800;min-width:150px;text-align:center"></span>
           <button onclick="salChangeMonth(1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--text-dim)">▶</button>
           <button onclick="salGoToday()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;color:var(--text-dim)">Azi</button>
+          <input id="salVorsSearch" type="text" placeholder="🔍 Caută persoană…" oninput="renderVors()" style="padding:6px 10px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elev-2);color:var(--text);width:190px">
           <button onclick="salVorsOpenAdd()" style="margin-left:auto;padding:8px 16px;border:none;border-radius:999px;background:linear-gradient(135deg,var(--sal-em),#0ea5a4);color:#fff;font-weight:800;cursor:pointer">＋ Adaugă vorschuss</button>
         </div>
         <div id="salVorsCards"></div>
@@ -3934,9 +3935,9 @@ var qrcode = function() {
     <h3 id="salBaniTitle">💰 Mișcare bani</h3>
     <div style="display:grid;gap:8px;margin-top:10px">
       <label style="font-size:12px;color:var(--text-dim)">Persoană<select id="salBaniEmp" style="width:100%;padding:8px;margin-top:3px"></select></label>
-      <label style="font-size:12px;color:var(--text-dim)">Tip<select id="salBaniKind" style="width:100%;padding:8px;margin-top:3px"><option value="dat">💸 Am dat bani</option><option value="primit">✅ Am primit înapoi</option></select></label>
+      <label style="font-size:12px;color:var(--text-dim)">Tip<select id="salBaniKind" style="width:100%;padding:8px;margin-top:3px"><option value="inainte">📂 Sold dinainte (sumă mai veche, data poate lipsi)</option><option value="dat">💸 Am dat bani</option><option value="primit">✅ Am primit înapoi</option></select></label>
       <label style="font-size:12px;color:var(--text-dim)">Sumă (€)<input id="salBaniAmt" type="text" inputmode="decimal" style="width:100%;padding:8px;margin-top:3px"></label>
-      <label style="font-size:12px;color:var(--text-dim)">Data<input id="salBaniDate" type="date" style="width:100%;padding:8px;margin-top:3px"></label>
+      <label style="font-size:12px;color:var(--text-dim)">Data (la „Sold dinainte” poate rămâne goală)<input id="salBaniDate" type="date" style="width:100%;padding:8px;margin-top:3px"></label>
       <label style="font-size:12px;color:var(--text-dim)">Notă (opțional)<input id="salBaniNote" type="text" style="width:100%;padding:8px;margin-top:3px"></label>
     </div>
     <div id="salBaniErr" style="color:#ef4444;font-size:12px;min-height:16px;margin-top:6px"></div>
@@ -3996,6 +3997,165 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") toggleSecretDrawer
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init); else init();
 })();
 </script>
+<div id="mcb-overlay" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.55);align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto;" onclick="if(event.target===this)mcbClose()">
+    <style>
+      #mcb-overlay .mcb-box{background:var(--bg-elev);border-radius:12px;max-width:720px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.3);}
+      #mcb-overlay .mcb-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);font-weight:700;font-size:15px;}
+      #mcb-overlay .mcb-x{background:none;border:0;font-size:18px;cursor:pointer;color:var(--text-dim);}
+      #mcb-overlay #mcb-body{padding:16px 18px;font-size:14px;color:var(--text);}
+      #mcb-overlay button{cursor:pointer;border:0;border-radius:8px;font:inherit;font-weight:600;padding:8px 14px;}
+      #mcb-overlay button:disabled{opacity:.55;cursor:default;}
+      #mcb-overlay .btn-secondary{background:var(--bg-elev-2);color:var(--text);}
+      #mcb-overlay .btn-action{background:var(--accent-2);color:#fff;}
+      #mcb-overlay .btn-danger{background:var(--red);color:#fff;}
+    </style>
+    <div class="mcb-box"><div class="mcb-head"><span>💾 MANAGER BACKUP (pe module)</span><button class="mcb-x" onclick="mcbClose()">✕</button></div><div id="mcb-body"></div></div>
+  </div>
+<script>
+const MCB = { runs:[], cfg:null, runId:null, scope:null, list:[], plan:null };
+const mcbLabels = { auto:"automat", manual:"manual", "pre-restore":"înainte de restaurare" };
+const mcbEsc = v => String(v==null?"":v).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const mcbWhen = iso => new Date(iso).toLocaleString("ro-RO",{timeZone:"Europe/Berlin",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+const mcbDay = iso => new Date(iso).toLocaleDateString("ro-RO",{timeZone:"Europe/Berlin",weekday:"long",day:"2-digit",month:"long",year:"numeric"});
+const mcbTime = iso => new Date(iso).toLocaleTimeString("ro-RO",{timeZone:"Europe/Berlin",hour:"2-digit",minute:"2-digit"});
+const MCB_BTN = 'style="text-align:left;padding:12px;width:100%"';
+function mcbShow(html){ document.getElementById("mcb-body").innerHTML = html; document.getElementById("mcb-overlay").style.display='flex'; }
+function mcbClose(){ document.getElementById("mcb-overlay").style.display='none'; }
+const mcbCall = (name, data) => callFn(name, data);
+function mcbErr(e){ return '<div style="padding:10px;background:#cc33331a;border:1px solid var(--red);border-radius:4px;font-size:13px;color:var(--red)">'+mcbEsc(e && e.message || e)+'</div>'; }
+const mcbBack = (to) => '<button class="btn-secondary" onclick="'+to+'">← Înapoi</button>';
+window.mcbOpen = async function(){
+  mcbShow('<div style="color:var(--text-dim);font-size:13px">Se încarcă lista de backup-uri...</div>');
+  try{
+    const r = await mcbCall("backupList", {});
+    MCB.runs = r.runs||[]; MCB.cfg = r.config; mcbRenderRuns();
+  }catch(e){
+    mcbShow(mcbErr(e)+'<div style="font-size:12.5px;color:var(--text-dim);margin-top:10px">Dacă e prima dată: funcțiile de backup trebuie publicate, iar bucket-ul creat (vezi instrucțiunile primite).</div><div style="margin-top:14px"><button class="btn-secondary" onclick="mcbClose()">Închide</button></div>');
+  }
+};
+function mcbRenderRuns(){
+  const days = new Map();
+  MCB.runs.forEach(r=>{ const d=mcbDay(r.createdAt); if(!days.has(d)) days.set(d,[]); days.get(d).push(r); });
+  const sumCounts = c => Object.entries(c||{}).map(([k,v])=>v+" "+((MCB.cfg.modules.find(m=>m.id===k)||{}).label||k)).join(" · ");
+  const body = MCB.runs.length ? Array.from(days.entries()).map(([d,list])=>
+    '<div style="font-size:12px;font-weight:700;color:var(--text-dim);margin:12px 0 4px;text-transform:capitalize">'+mcbEsc(d)+'</div>'+
+    list.map(r=>'<div style="display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--border);border-radius:4px;margin-bottom:5px">'+
+      '<div style="min-width:48px;font-weight:700">'+mcbEsc(mcbTime(r.createdAt))+'</div>'+
+      '<div style="flex:1;min-width:0;font-size:12px;color:var(--text-dim)"><span style="font-weight:600;color:var(--text)">'+mcbEsc(mcbLabels[r.label]||r.label)+'</span>'+
+        (r.skipped&&Object.keys(r.skipped).length?' <span style="color:var(--red)">⚠ module sărite (prea multe documente)</span>':'')+'<br>'+mcbEsc(sumCounts(r.counts))+'</div>'+
+      '<button class="btn-action" style="padding:6px 14px;font-size:14px" onclick="mcbPick(\''+mcbEsc(r.id)+'\')">Alege</button></div>').join("")
+  ).join("") : '<div style="font-size:13px;color:var(--text-dim);padding:12px 0">Încă nu există backup-uri. Apasă „Fă backup acum”.</div>';
+  mcbShow('<div style="font-size:12.5px;color:var(--text-dim);margin-bottom:10px">Se face automat la 06:00, 14:00 și 22:00. Se păstrează toate copiile 14 zile, apoi câte una pe zi până la '+MCB.cfg.retention.dailyDays+' de zile. Înainte de orice restaurare se face automat o copie a stării de acum.</div>'+
+    '<button class="btn-action" id="mcb-now" onclick="mcbNow()">Fă backup acum</button> <button class="btn-secondary" id="mcb-mail" onclick="mcbTestMail()">✉ Trimite email de test</button>'+
+    '<div style="max-height:46vh;overflow-y:auto;margin-top:6px">'+body+'</div>'+
+    '<div style="margin-top:14px"><button class="btn-secondary" onclick="mcbClose()">Închide</button></div>');
+}
+window.mcbTestMail = async function(){
+  const b=document.getElementById("mcb-mail"); if(b){ b.disabled=true; b.textContent="Se trimite..."; }
+  try{ await mcbCall("backupTestAlert",{}); mcbToast("Email de test trimis. Verifică inbox-ul."); }
+  catch(e){ mcbToast("Eroare: "+(e.message||e), true); }
+  if(b){ b.disabled=false; b.textContent="✉ Trimite email de test"; }
+};
+window.mcbNow = async function(){
+  const b=document.getElementById("mcb-now"); if(b){ b.disabled=true; b.textContent="Se face backup..."; }
+  try{ await mcbCall("backupRunNow",{}); mcbToast("Backup făcut"); mcbOpen(); }
+  catch(e){ if(b){ b.disabled=false; b.textContent="Fă backup acum"; } mcbToast("Eroare: "+(e.message||e), true); }
+};
+window.mcbPick = function(id){
+  MCB.runId = id;
+  const r = MCB.runs.find(x=>x.id===id);
+  const quick = (MCB.cfg.quick||[]);
+  mcbShow('<div style="font-size:13px;margin-bottom:12px">Backup din <b>'+mcbEsc(mcbWhen(r.createdAt))+'</b> ('+mcbEsc(mcbLabels[r.label]||r.label)+'). Ce vrei să restaurezi?</div>'+
+    '<div style="display:grid;gap:8px">'+
+      '<button class="btn-secondary" '+MCB_BTN+' onclick="mcbStartModule()"><b>📦 Un modul</b><br><span style="font-size:12px;color:var(--text-dim)">Concedii pe grupuri sau pe persoană, Sortatori, Prezențe, Libere, Planificări, Salarii etc.: tot modulul sau doar anumite elemente (o persoană, o lună de salarii, un grup).</span></button>'+
+      quick.map((q,i)=>'<button class="btn-secondary" '+MCB_BTN+' onclick="mcbQuick('+i+')"><b>🔗 '+mcbEsc(q.label)+'</b><br><span style="font-size:12px;color:var(--text-dim)">'+mcbEsc(q.hint)+'</span></button>').join("")+
+    '</div><div style="margin-top:14px">'+mcbBack('mcbRenderRuns()')+'</div>');
+};
+window.mcbQuick = function(i){ mcbPreview({multi:MCB.cfg.quick[i].multi}); };
+window.mcbRenderRuns = mcbRenderRuns;
+window.mcbFilterList = function(){
+  const q=(document.getElementById("mcb-q").value||"").toLowerCase();
+  document.querySelectorAll("#mcb-list [data-l]").forEach(el=>{ el.style.display = el.dataset.l.includes(q)?"flex":"none"; });
+};
+function mcbListHtml(){
+  return '<input id="mcb-q" placeholder="Caută..." oninput="mcbFilterList()" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text);margin-bottom:8px">'+
+    '<div id="mcb-list" style="max-height:36vh;overflow-y:auto;border:1px solid var(--border);border-radius:4px">'+
+    MCB.list.map((x,i)=>'<label data-l="'+mcbEsc((x.label||"").toLowerCase())+'" style="display:flex;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px">'+
+      '<input type="checkbox" name="mcb-sel" value="'+i+'"> <span>'+mcbEsc(x.label)+'</span></label>').join("")+'</div>';
+}
+const mcbField = (label, inner) => '<div style="margin-bottom:12px"><label style="display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px">'+label+'</label>'+inner+'</div>';
+const mcbSel = 'style="width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text);font-size:14px"';
+window.mcbStartModule = function(){
+  mcbShow(mcbField('Modul','<select id="mcb-mod" '+mcbSel+' onchange="mcbModChanged()">'+MCB.cfg.modules.map(m=>'<option value="'+mcbEsc(m.id)+'">'+mcbEsc(m.label)+'</option>').join("")+'</select><div id="mcb-hint" style="font-size:12px;color:var(--text-dim);margin-top:4px"></div>')+
+    mcbField('Ce restaurezi din el','<select id="mcb-mode" '+mcbSel+' onchange="mcbModeChanged()"></select>')+
+    '<div id="mcb-items"></div>'+
+    '<div style="display:flex;gap:8px;margin-top:14px">'+mcbBack('mcbPick(MCB.runId)')+'<button class="btn-action" style="padding:8px 18px;font-size:15px" onclick="mcbGoModule()">Previzualizează</button></div>');
+  mcbModChanged();
+};
+window.mcbModChanged = function(){
+  const m = MCB.cfg.modules.find(x=>x.id===document.getElementById("mcb-mod").value);
+  document.getElementById("mcb-hint").textContent = m.hint||"";
+  document.getElementById("mcb-mode").innerHTML = '<option value="all">Tot modulul (toate elementele)</option><option value="items">Doar anumite elemente</option>'+m.fieldsets.map(f=>'<option value="fs:'+mcbEsc(f.id)+'">'+mcbEsc(f.label)+' (toate elementele)</option>').join("");
+  document.getElementById("mcb-items").innerHTML = "";
+};
+window.mcbModeChanged = async function(){
+  const box=document.getElementById("mcb-items");
+  if(document.getElementById("mcb-mode").value!=="items"){ box.innerHTML=""; return; }
+  box.innerHTML='<div style="color:var(--text-dim);font-size:13px">Se încarcă...</div>';
+  try{
+    const r = await mcbCall("backupItems",{runId:MCB.runId, moduleId:document.getElementById("mcb-mod").value}); MCB.list=r.items;
+    box.innerHTML = mcbListHtml();
+  }catch(e){ box.innerHTML = mcbErr(e); }
+};
+window.mcbGoModule = function(){
+  const mod=document.getElementById("mcb-mod").value, mode=document.getElementById("mcb-mode").value;
+  if(mode==="all") return mcbPreview({module:mod, mode:"all"});
+  if(mode.startsWith("fs:")) return mcbPreview({module:mod, mode:"fieldset", fieldset:mode.slice(3)});
+  const sel=Array.from(document.querySelectorAll('input[name="mcb-sel"]:checked')).map(i=>MCB.list[+i.value]);
+  if(!sel.length){ mcbToast("Alege cel puțin un element", true); return; }
+  mcbPreview({module:mod, mode:"items", ids:sel.map(x=>({c:x.c,id:x.id}))});
+};
+async function mcbPreview(scope){
+  MCB.scope = scope;
+  mcbShow('<div style="color:var(--text-dim);font-size:13px">Se compară backup-ul cu starea de acum...</div>');
+  try{
+    const p = await mcbCall("backupPreview",{runId:MCB.runId, scope}); MCB.plan = p;
+    const s = p.summary, anyChange = s.create+s.update+s.delete>0;
+    const act = {create:"se recreează", update:"se modifică", delete:"se șterge", skip:"sărit"};
+    const rows = p.items.map(x=>'<div style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:12.5px"><b>'+mcbEsc(x.label)+'</b> <span style="color:var(--text-dim)">· '+mcbEsc(act[x.action]||x.action)+'</span>'+
+      (x.note?'<div style="color:var(--text-dim)">'+mcbEsc(x.note)+'</div>':'')+
+      (x.changes||[]).map(c=>'<div style="color:var(--text-dim);margin-top:2px"><code>'+mcbEsc(c.field)+'</code>: acum <b style="color:var(--text)">'+mcbEsc(c.current==null?"(gol)":c.current)+'</b> → în backup <b style="color:var(--accent-2)">'+mcbEsc(c.backup==null?"(gol)":c.backup)+'</b></div>').join("")+'</div>').join("");
+    mcbShow('<div style="font-size:13px;margin-bottom:10px">Din backup-ul <b>'+mcbEsc(mcbWhen(MCB.runs.find(x=>x.id===MCB.runId).createdAt))+'</b>:</div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px"><span style="padding:3px 9px;border-radius:4px;background:#c9a92e22">'+s.update+' de modificat</span><span style="padding:3px 9px;border-radius:4px;background:#c9a92e22">'+s.create+' de recreat</span><span style="padding:3px 9px;border-radius:4px;background:var(--bg-elev-2)">'+s.same+' identice</span>'+(s.skipped?'<span style="padding:3px 9px;border-radius:4px;background:var(--bg-elev-2)">'+s.skipped+' sărite</span>':'')+'</div>'+
+      (p.warnings.length?'<div style="padding:8px 10px;background:var(--bg-elev-2);border-radius:4px;font-size:12.5px;margin-bottom:10px">'+p.warnings.map(w=>'<div>⚠️ '+mcbEsc(w)+'</div>').join("")+'</div>':'')+
+      (rows?'<div style="max-height:34vh;overflow-y:auto;border:1px solid var(--border);border-radius:4px">'+rows+'</div>':'<div style="font-size:13px;color:var(--text-dim)">Nu e nicio diferență: starea de acum e identică cu backup-ul.</div>')+
+      (p.truncated?'<div style="font-size:12px;color:var(--text-dim);margin-top:4px">Se afișează primele elemente; restaurarea le include pe toate.</div>':'')+
+      (scope.mode==="all"&&s.delete>0?'<label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:12.5px;cursor:pointer"><input type="checkbox" id="mcb-del"> <span><b style="color:var(--red)">Șterge și cele '+s.delete+' elemente create după acest backup</b> (implicit rămân neatinse)</span></label>':'')+
+      '<div style="font-size:12px;color:var(--text-dim);margin-top:12px">Înainte de restaurare se face automat un backup al stării de acum, ca să poți reveni.</div>'+
+      '<div style="display:flex;gap:8px;margin-top:14px">'+mcbBack('mcbPick(MCB.runId)')+(anyChange?'<button class="btn-danger" style="padding:9px 18px;font-size:14px" id="mcb-go" onclick="mcbConfirm()">Restaurează</button>':'')+'</div>');
+  }catch(e){ mcbShow(mcbErr(e)+'<div style="margin-top:14px">'+mcbBack('mcbPick(MCB.runId)')+'</div>'); }
+}
+let _mcbArmed=false;
+window.mcbConfirm = async function(){
+  const b=document.getElementById("mcb-go");
+  if(!_mcbArmed){ _mcbArmed=true; b.textContent="Apasă încă o dată pentru a confirma"; setTimeout(()=>{ _mcbArmed=false; const x=document.getElementById("mcb-go"); if(x) x.textContent="Restaurează"; },5000); return; }
+  _mcbArmed=false; b.disabled=true; b.textContent="Se restaurează...";
+  try{
+    const del = !!(document.getElementById("mcb-del")&&document.getElementById("mcb-del").checked);
+    const r = await mcbCall("backupRestore",{runId:MCB.runId, scope:MCB.scope, confirm:true, deleteExtra:del});
+    const x=r.result;
+    mcbShow('<div style="font-size:14px;margin-bottom:8px">✅ Restaurare terminată.</div><div style="font-size:13px;color:var(--text-dim)">'+x.updated+' modificate · '+x.created+' recreate · '+x.deleted+' șterse'+(x.skipped?' · '+x.skipped+' sărite':'')+'.<br>Starea de dinainte e salvată automat în backup-ul „înainte de restaurare”, deci poți reveni.</div><div style="margin-top:14px"><button class="btn-action" style="padding:8px 18px;font-size:15px" onclick="openBackupManager()">Gata</button></div>');
+  }catch(e){ mcbShow(mcbErr(e)+'<div style="margin-top:14px">'+mcbBack('mcbPick(MCB.runId)')+'</div>'); }
+};
+
+
+function mcbToast(msg,isErr){
+  let t=document.getElementById('mcb-toast'); if(!t){ t=document.createElement('div'); t.id='mcb-toast'; t.style.cssText='position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:100001;padding:10px 16px;border-radius:8px;font-size:13.5px;color:#fff;max-width:90vw;box-shadow:0 4px 16px rgba(0,0,0,.25)'; document.body.appendChild(t); }
+  t.style.background=isErr?'#C0392B':'#1E3A5F'; t.textContent=msg; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>{ t.style.display='none'; },3500);
+}
+
+
+</script>
 <div class="modal-bg" id="adminPanelModal">
   <div class="modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
     <h3>⚙️ Panou Admin</h3>
@@ -4003,6 +4163,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") toggleSecretDrawer
     <button class="btn btn-secondary btn-small" id="pinMgrBtn" onclick="openPinAdmin()" style="width:100%; margin-bottom:6px; display:none">🔐 Coduri PIN</button>
     <button class="btn btn-secondary btn-small" id="devMgrBtn" onclick="mtcOpenDevices()" style="width:100%; margin-bottom:6px; display:none; border-color:#60a5fa; color:#60a5fa">💻 Device-uri și profiluri</button>
     <button class="btn btn-secondary btn-small" id="loadBackupBtn" onclick="openBackupManager()" style="width:100%; margin-bottom:6px; display:none">🔄 Manager Backup / Restaurare</button>
+    <button class="btn btn-secondary btn-small" id="mcbBtn" onclick="mcbOpen()" style="width:100%; margin-bottom:6px; display:none; border-color:#10b981; color:#10b981">☁️ Backup pe module (Cloud)</button>
     <button class="btn btn-secondary btn-small" id="archiveBtn" onclick="openArchive()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">📦 Arhivă persoane</button>
     <button class="btn btn-secondary btn-small" id="permissionsBtn" onclick="openPermissionsPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#0ea5e9; color:#0ea5e9">🔑 Permisiuni acces</button>
     <button class="btn btn-secondary btn-small" id="importExcelBtn" onclick="document.getElementById('importExcelFile').click()" style="width:100%; margin-bottom:6px; display:none; border-color:#34d399; color:#34d399">📥 Import Excel → HTML</button>
@@ -6205,6 +6366,7 @@ function enterApp(userKey){
   // „+ Persoană nouă” eliminat: persoanele se adaugă DOAR din Angajați (sincronizare automată)
   document.getElementById("pinMgrBtn").style.display   = isAdm?"block":"none";
   { const _dm=document.getElementById("devMgrBtn"); if(_dm) _dm.style.display = isAdm?"block":"none"; }
+  { const _mb=document.getElementById("mcbBtn"); if(_mb) _mb.style.display = isAdm?"block":"none"; }
 
   document.getElementById("authScreen").style.display = "none";
   document.getElementById("appRoot").style.display    = "grid";
@@ -9616,9 +9778,10 @@ function salRowCalc(emp){
   const type=rd.type||emp.type||"fix";
   const isPk=type==="pachete"; const rate=SAL_DEFAULT_DAY_RATE;
   const a=salAutoDays(emp);
-  const dC=rd.ovC!=null&&rd.ovC!==""?salNum(rd.ovC):a.c;
-  const dF=rd.ovF!=null&&rd.ovF!==""?salNum(rd.ovF):a.f;
-  const dK=rd.ovK!=null&&rd.ovK!==""?salNum(rd.ovK):a.k;
+  const isFix=type==="fix";   // salar fix: concediul, Feiertag și Krank nu se preiau și nu se calculează (salariul e același indiferent de ele)
+  const dC=isFix?0:(rd.ovC!=null&&rd.ovC!==""?salNum(rd.ovC):a.c);
+  const dF=isFix?0:(rd.ovF!=null&&rd.ovF!==""?salNum(rd.ovF):a.f);
+  const dK=isFix?0:(rd.ovK!=null&&rd.ovK!==""?salNum(rd.ovK):a.k);
   const aS=salAutoSortat(emp);
   const sortOv=rd.sortat!=null&&rd.sortat!=="";
   const salar=salNum(rd.salar), chirie=salNum(rd.chirie), alte=salNum(rd.alte), alteObs=String(rd.alteObs||"");
@@ -9627,11 +9790,11 @@ function salRowCalc(emp){
   if(type==="pachete") base=salar*SAL_PKG_RATE+sortat*SAL_SORT_RATE;
   else base=salar+sortat*SAL_SORT_RATE;
   const hasAmt=v=>v!=null&&v!=="";
-  const aC=(!isPk&&hasAmt(rd.amtC))?salNum(rd.amtC):dC*rate, aF=(!isPk&&hasAmt(rd.amtF))?salNum(rd.amtF):dF*rate, aK=(!isPk&&hasAmt(rd.amtK))?salNum(rd.amtK):dK*rate;
+  const aC=isFix?0:((!isPk&&hasAmt(rd.amtC))?salNum(rd.amtC):dC*rate), aF=isFix?0:((!isPk&&hasAmt(rd.amtF))?salNum(rd.amtF):dF*rate), aK=isFix?0:((!isPk&&hasAmt(rd.amtK))?salNum(rd.amtK):dK*rate);
   const vors=salVorsCalc(emp.id,salMk());
   const live=base+aC+aF+aK-chirie-alte-vors.ded;
   const paid=rd.paid&&rd.paid.at?rd.paid:null;
-  return {rd,type,rate,a,aS,sortOv,dC,dF,dK,aC,aF,aK,salar,sortat,chirie,alte,alteObs,base,vors,vDed:vors.ded,live,paid,total:paid&&paid.total!=null?salNum(paid.total):live};
+  return {rd,type,isFix,rate,a,aS,sortOv,dC,dF,dK,aC,aF,aK,salar,sortat,chirie,alte,alteObs,base,vors,vDed:vors.ded,live,paid,total:paid&&paid.total!=null?salNum(paid.total):live};
 }
 
 // ---- randare ----
@@ -9660,6 +9823,7 @@ function renderSalarii(){
     const ed=canSalarii()&&!c.paid;
     const inp=(field,val,w)=>`<input type="text" inputmode="decimal" value="${val===0||val===""||val==null?"":val}" ${ed?"":"disabled"} onchange="salSet('${e.id}','${field}',this.value)" style="width:${w||70}px;padding:3px 5px;text-align:right;border:1px solid var(--border);border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:12px">`;
     const dayCell=(key,field,days,amt,auto)=>{
+      if(c.isFix) return `<td style="padding:4px 6px;text-align:center;color:var(--text-dim)" title="Salar fix: concediul/Feiertag/Krank nu se calculează">—</td>`;
       const ov=c.rd[field]!=null&&c.rd[field]!=="";
       return `<td style="padding:4px 6px;text-align:right;white-space:nowrap"><input type="text" inputmode="decimal" value="${days||""}" placeholder="0" ${ed?"":"disabled"} onchange="salSet('${e.id}','${field}',this.value)" style="width:42px;padding:3px 4px;text-align:right;border:1px solid ${ov?'var(--sal-amber)':'var(--border)'};border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:12px">${ov?`<span title="Suprascris manual (automat: ${auto}) — click pentru revenire" onclick="salSet('${e.id}','${field}','')" style="cursor:pointer;color:var(--sal-amber)"> ↺</span>`:""}${c.type==="pachete"?`<div style="font-size:10px;color:var(--text-dim)">${days?salFmt(amt):""}</div>`:`<div><input type="text" inputmode="decimal" value="${c.rd[field.replace("ov","amt")]||""}" placeholder="${days?salFmt(amt):"€"}" title="Suma se calculează automat: zile × 66 €. Scrie o sumă aici doar ca s-o suprascrii." ${ed?"":"disabled"} onchange="salSet('${e.id}','${field.replace("ov","amt")}',this.value)" style="width:62px;margin-top:2px;padding:2px 4px;text-align:right;border:1px solid var(--border);border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:11px"></div>`}</td>`;
     };
@@ -9829,7 +9993,8 @@ function renderVors(){
   const mk=salMk(); lbl.textContent=MONTHS[salCur.getMonth()]+" "+salCur.getFullYear();
   const nameOf=id=>{ const e=salEmps.find(x=>x.id===id); return e?e.name:"(șters din listă)"; };
   const ids=Object.keys(salVors.emps).filter(id=>(salVors.emps[id].adv||[]).length);
-  const rows=ids.map(id=>({id,name:nameOf(id),c:salVorsCalc(id,mk)})).sort((a,b)=>a.name.localeCompare(b.name,"ro"));
+  const vq=normalizeForSearch((document.getElementById("salVorsSearch")||{}).value||"");
+  const rows=ids.map(id=>({id,name:nameOf(id),c:salVorsCalc(id,mk)})).filter(r=>!vq||normalizeForSearch(r.name).includes(vq)).sort((a,b)=>a.name.localeCompare(b.name,"ro"));
   const totGiven=rows.reduce((t,r)=>t+r.c.given,0), totDed=rows.reduce((t,r)=>t+r.c.totalDed,0), totMonth=rows.reduce((t,r)=>t+r.c.ded,0);
   const totLeft=rows.reduce((t,r)=>t+Math.max(0,r.c.given-r.c.totalDed),0);
   document.getElementById("salVorsCards").innerHTML=`<div class="vs-cards">
@@ -10664,11 +10829,16 @@ function salBaniSaveSoon(){
   },500);
 }
 function salBaniCalc(id){
-  const l=salBani.entries.filter(x=>x.empId===id); let dat=0,pri=0;
-  l.forEach(x=>{ if(x.kind==="dat") dat+=salNum(x.amount); else pri+=salNum(x.amount); });
-  const dates=l.map(x=>x.date).filter(Boolean).sort();
-  return {n:l.length,dat,pri,sold:dat-pri,first:dates[0]||"",last:dates[dates.length-1]||""};
+  const l=salBani.entries.filter(x=>x.empId===id); let prev=0,dat=0,pri=0;
+  l.forEach(x=>{ const a=salNum(x.amount); if(x.kind==="inainte") prev+=a; else if(x.kind==="dat") dat+=a; else pri+=a; });
+  // Vorschuss: se adaugă AUTOMAT la total (ce s-a dat) și se scade ce s-a reținut deja din salariu până luna aceasta
+  const ve=salVEmp(id), vg=(ve.adv||[]).filter(a=>a&&salNum(a.amount)>0).reduce((t,a)=>t+salNum(a.amount),0);
+  const t=new Date(), mk=t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0");
+  const vd=vg?Math.min(vg,salVorsCalc(id,mk).totalDed):0;
+  const dates=l.map(x=>x.date).filter(Boolean).concat((ve.adv||[]).map(a=>a.date)).filter(Boolean).sort();
+  return {n:l.length,prev,dat,pri,vg,vd,sold:prev+dat+vg-pri-vd,first:dates[0]||"",last:dates[dates.length-1]||""};
 }
+const salBaniIds=()=>[...new Set(salBani.entries.map(x=>x.empId).concat(Object.keys(salVors.emps||{}).filter(id=>((salVors.emps[id]||{}).adv||[]).length)))];
 const salDateRo=d=>d?d.split("-").reverse().join("."):"—";
 function salBaniOpenAdd(empId,kind,editId){
   _salBaniEdit=editId||null;
@@ -10678,7 +10848,7 @@ function salBaniOpenAdd(empId,kind,editId){
   document.getElementById("salBaniEmp").innerHTML=emps.map(e=>`<option value="${e.id}" ${e.id===pre?"selected":""}>${escapeHtml(e.name)}${e.active===false?" (inactiv)":""}</option>`).join("");
   document.getElementById("salBaniKind").value=ent?ent.kind:(kind||"dat");
   const t=new Date();
-  document.getElementById("salBaniDate").value=ent?ent.date:(t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0"));
+  document.getElementById("salBaniDate").value=ent?(ent.date||""):(kind==="inainte"?"":t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0"));
   document.getElementById("salBaniAmt").value=ent?String(ent.amount).replace(".",","):""; document.getElementById("salBaniNote").value=ent?(ent.note||""):"";
   document.getElementById("salBaniErr").textContent=""; document.getElementById("salBaniTitle").textContent=editId?"✎ Modifică mișcarea":"💰 Mișcare bani";
   openModal("salBaniModal");
@@ -10688,60 +10858,68 @@ function salBaniSave(){
   const date=document.getElementById("salBaniDate").value, err=document.getElementById("salBaniErr");
   if(!id){ err.textContent="Alege persoana"; return; }
   if(!(amt>0)){ err.textContent="Introdu o sumă mai mare ca 0"; return; }
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){ err.textContent="Alege data"; return; }
+  if(!(kind==="inainte"&&!date)&&!/^\d{4}-\d{2}-\d{2}$/.test(date)){ err.textContent="Alege data"; return; }
   const note=document.getElementById("salBaniNote").value.trim();
   if(_salBaniEdit){ const x=salBani.entries.find(e=>e.id===_salBaniEdit); if(x){ Object.assign(x,{empId:id,kind,amount:amt,date,note}); } }
   else salBani.entries.push({id:uid(),empId:id,kind,amount:amt,date,note,at:new Date().toISOString(),by:window.activeUserKey||""});
   _salBaniSel=id; salBaniSaveSoon(); closeModal("salBaniModal"); renderBani();
-  try{ logActivity(kind==="dat"?"💸 Bani dați":"✅ Bani primiți",salFmt(amt)+" € · "+date,salEmpName(id),"salarii"); }catch(e){}
+  try{ logActivity(kind==="inainte"?"📂 Sold dinainte":kind==="dat"?"💸 Bani dați":"✅ Bani primiți",salFmt(amt)+" € · "+date,salEmpName(id),"salarii"); }catch(e){}
   toast("✓ Salvat");
 }
 function salBaniDel(entryId){
   const x=salBani.entries.find(e=>e.id===entryId); if(!x) return;
-  if(!confirm("Ștergi mișcarea din "+salDateRo(x.date)+" ("+(x.kind==="dat"?"dat":"primit")+" "+salFmt(salNum(x.amount))+" €) pentru "+salEmpName(x.empId)+"?")) return;
+  if(!confirm("Ștergi mișcarea din "+salDateRo(x.date)+" ("+(x.kind==="inainte"?"sold dinainte":x.kind==="dat"?"dat":"primit")+" "+salFmt(salNum(x.amount))+" €) pentru "+salEmpName(x.empId)+"?")) return;
   salBani.entries=salBani.entries.filter(e=>e.id!==entryId); salBaniSaveSoon(); renderBani();
 }
 function salBaniSelect(id){ _salBaniSel=(_salBaniSel===id?"":id); renderBani(); }
 function renderBani(){
   const tb=document.getElementById("salBaniTable"); if(!tb) return;
   const q=normalizeForSearch((document.getElementById("salBaniSearch")||{}).value||"");
-  const ids=[...new Set(salBani.entries.map(x=>x.empId))].map(id=>({id,name:salEmpName(id),c:salBaniCalc(id)})).filter(r=>!q||normalizeForSearch(r.name).includes(q)).sort((a,b)=>b.c.sold-a.c.sold||a.name.localeCompare(b.name,"ro"));
-  const all=[...new Set(salBani.entries.map(x=>x.empId))].map(id=>salBaniCalc(id));
-  const dat=all.reduce((t,c)=>t+c.dat,0), pri=all.reduce((t,c)=>t+c.pri,0), open=all.filter(c=>c.sold>0.005).length;
+  const allRows=salBaniIds().map(id=>({id,name:salEmpName(id),c:salBaniCalc(id)}));
+  const ids=allRows.filter(r=>!q||normalizeForSearch(r.name).includes(q)).sort((a,b)=>b.c.sold-a.c.sold||a.name.localeCompare(b.name,"ro"));
+  const all=allRows.map(r=>r.c);
+  const sum=k=>all.reduce((t,c)=>t+c[k],0), open=all.filter(c=>c.sold>0.005).length;
   document.getElementById("salBaniCards").innerHTML=`<div class="vs-cards">
-    <div class="vs-card"><div class="l">💸 Total dat</div><div class="v">${salFmt(dat)} €</div></div>
-    <div class="vs-card"><div class="l">✅ Total primit înapoi</div><div class="v" style="color:var(--sal-green)">${salFmt(pri)} €</div></div>
-    <div class="vs-card"><div class="l">Sold de recuperat</div><div class="v" style="color:var(--sal-amber)">${salFmt(dat-pri)} €</div></div>
+    <div class="vs-card"><div class="l">💰 Total de recuperat</div><div class="v" style="color:var(--sal-amber)">${salFmt(sum("sold"))} €</div></div>
+    <div class="vs-card"><div class="l">📂 Sold dinainte</div><div class="v">${salFmt(sum("prev"))} €</div></div>
+    <div class="vs-card"><div class="l">🧾 Din Vorschuss (automat)</div><div class="v">${salFmt(sum("vg"))} €</div></div>
+    <div class="vs-card"><div class="l">✅ Primit + reținut din salariu</div><div class="v" style="color:var(--sal-green)">${salFmt(sum("pri")+sum("vd"))} €</div></div>
     <div class="vs-card"><div class="l">Persoane cu sold deschis</div><div class="v">${open}</div></div></div>`;
   const th=(t,r)=>`<th style="padding:9px 10px;text-align:${r?"right":"left"};font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim)">${t}</th>`;
-  tb.innerHTML=`<thead><tr>${th("Persoană")}${th("Dat",1)}${th("Primit",1)}${th("Sold",1)}${th("Mișcări",1)}${th("Ultima")}${th("")}</tr></thead><tbody>${
+  const bt=(id,k,t,tt)=>`<button onclick="salBaniOpenAdd('${id}','${k}')" title="${tt}" style="padding:4px 9px;border:1px solid var(--border);border-radius:6px;background:none;color:var(--text);cursor:pointer;font-size:12px">${t}</button>`;
+  tb.innerHTML=`<thead><tr>${th("Persoană")}${th("Dinainte",1)}${th("Vorschuss",1)}${th("Dat (manual)",1)}${th("Primit",1)}${th("Reținut din salariu",1)}${th("Total",1)}${th("Ultima")}${th("")}</tr></thead><tbody>${
     ids.map(r=>`<tr style="border-top:1px solid var(--border);${r.id===_salBaniSel?"background:rgba(16,185,129,.08)":""}"><td style="padding:8px 10px;font-weight:700;cursor:pointer" onclick="salBaniSelect('${r.id}')">${escapeHtml(r.name)}</td>
-      <td style="text-align:right;padding:8px">${salFmt(r.c.dat)} €</td><td style="text-align:right;padding:8px;color:var(--sal-green)">${salFmt(r.c.pri)} €</td>
+      <td style="text-align:right;padding:8px">${r.c.prev?salFmt(r.c.prev)+" €":"·"}</td><td style="text-align:right;padding:8px">${r.c.vg?salFmt(r.c.vg)+" €":"·"}</td><td style="text-align:right;padding:8px">${r.c.dat?salFmt(r.c.dat)+" €":"·"}</td>
+      <td style="text-align:right;padding:8px;color:var(--sal-green)">${r.c.pri?salFmt(r.c.pri)+" €":"·"}</td><td style="text-align:right;padding:8px;color:var(--sal-green)">${r.c.vd?salFmt(r.c.vd)+" €":"·"}</td>
       <td style="text-align:right;padding:8px;font-weight:800;color:${r.c.sold>0.005?"var(--sal-amber)":"var(--sal-green)"}">${r.c.sold>0.005?salFmt(r.c.sold)+" €":(r.c.sold<-0.005?"− "+salFmt(-r.c.sold)+" € (ai primit mai mult)":"✓ achitat")}</td>
-      <td style="text-align:right;padding:8px">${r.c.n}</td><td style="padding:8px">${salDateRo(r.c.last)}</td>
-      <td style="text-align:right;padding:8px;white-space:nowrap"><button onclick="salBaniOpenAdd('${r.id}','dat')" title="Am dat" style="padding:4px 9px;border:1px solid var(--border);border-radius:6px;background:none;color:var(--text);cursor:pointer;font-size:12px">＋ dat</button> <button onclick="salBaniOpenAdd('${r.id}','primit')" title="Am primit" style="padding:4px 9px;border:1px solid var(--border);border-radius:6px;background:none;color:var(--text);cursor:pointer;font-size:12px">＋ primit</button> <button onclick="salBaniSelect('${r.id}')" style="padding:4px 9px;border:1px solid var(--border);border-radius:6px;background:none;color:var(--text);cursor:pointer;font-size:12px">${r.id===_salBaniSel?"▲":"Detalii"}</button></td></tr>`).join("")
-    ||`<tr><td colspan="7" style="padding:26px;text-align:center;color:var(--text-dim)">Nicio mișcare încă. Apasă <b>＋ Adaugă mișcare</b>.</td></tr>`}</tbody>`;
+      <td style="padding:8px">${salDateRo(r.c.last)}</td>
+      <td style="text-align:right;padding:8px;white-space:nowrap">${bt(r.id,"inainte","📂","Adaugă sold dinainte")} ${bt(r.id,"dat","＋ dat","Am dat")} ${bt(r.id,"primit","＋ primit","Am primit")}</td></tr>`).join("")
+    ||`<tr><td colspan="9" style="padding:26px;text-align:center;color:var(--text-dim)">Nicio persoană încă. Apasă <b>＋ Adaugă mișcare</b> (alege „Sold dinainte” pentru sumele mai vechi).</td></tr>`}</tbody>`;
   const dv=document.getElementById("salBaniDetail"); const sel=_salBaniSel;
-  if(!sel||!salBani.entries.some(x=>x.empId===sel)){ dv.innerHTML=""; return; }
-  const c=salBaniCalc(sel), list=salBani.entries.filter(x=>x.empId===sel).sort((a,b)=>(a.date||"").localeCompare(b.date||"")||(a.at||"").localeCompare(b.at||""));
-  let run=0; const withRun=list.map(x=>{ run+=(x.kind==="dat"?1:-1)*salNum(x.amount); return {x,run}; }).reverse();
-  const years={}; list.forEach(x=>{ const y=(x.date||"").slice(0,4); const o=years[y]||(years[y]={dat:0,pri:0}); if(x.kind==="dat") o.dat+=salNum(x.amount); else o.pri+=salNum(x.amount); });
+  if(!sel||!allRows.some(r=>r.id===sel)){ dv.innerHTML=""; return; }
+  const c=salBaniCalc(sel), list=salBani.entries.filter(x=>x.empId===sel).sort((a,b)=>(b.date||"0000").localeCompare(a.date||"0000")||(b.at||"").localeCompare(a.at||""));
+  const vlist=((salVEmp(sel).adv)||[]).filter(a=>a&&salNum(a.amount)>0).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const kl={inainte:"📂 sold dinainte",dat:"💸 dat",primit:"✅ primit"};
+  const card=(l,v,col)=>`<div class="vs-card"><div class="l">${l}</div><div class="v"${col?` style="color:${col}"`:""}>${salFmt(v)} €</div></div>`;
   dv.innerHTML=`<div style="border:1px solid var(--border);border-radius:14px;background:var(--bg-elev);padding:14px 16px">
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><b style="font-size:15px">📒 ${escapeHtml(salEmpName(sel))}</b>
-      <span style="font-size:12px;color:var(--text-dim)">${c.n} mișcări · prima ${salDateRo(c.first)} · ultima ${salDateRo(c.last)}</span></div>
-    <div class="vs-cards"><div class="vs-card"><div class="l">Dat</div><div class="v">${salFmt(c.dat)} €</div></div><div class="vs-card"><div class="l">Primit</div><div class="v" style="color:var(--sal-green)">${salFmt(c.pri)} €</div></div><div class="vs-card"><div class="l">Sold</div><div class="v" style="color:${c.sold>0.005?"var(--sal-amber)":"var(--sal-green)"}">${salFmt(c.sold)} €</div></div></div>
-    <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">Pe ani: ${Object.keys(years).sort().map(y=>`<b>${y||"—"}</b>: dat ${salFmt(years[y].dat)} €, primit ${salFmt(years[y].pri)} €`).join(" · ")}</div>
-    <table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>${th("Data")}${th("Tip")}${th("Sumă",1)}${th("Sold după",1)}${th("Notă")}${th("")}</tr></thead><tbody>
-    ${withRun.map(({x,run})=>`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${salDateRo(x.date)}</td><td style="padding:6px 10px">${x.kind==="dat"?"💸 dat":"✅ primit"}</td><td style="padding:6px 10px;text-align:right;font-weight:700;color:${x.kind==="dat"?"var(--text)":"var(--sal-green)"}">${x.kind==="dat"?"":"− "}${salFmt(salNum(x.amount))} €</td><td style="padding:6px 10px;text-align:right;color:var(--text-dim)">${salFmt(run)} €</td><td style="padding:6px 10px;color:var(--text-dim)">${escapeHtml(x.note||"")}</td>
+      <span style="font-size:12px;color:var(--text-dim)">Total = dinainte + Vorschuss + dat − primit − reținut din salariu. Nu se scade nicăieri din salariu; e doar o evidență.</span></div>
+    <div class="vs-cards">${card("Dinainte",c.prev)}${card("Vorschuss (auto)",c.vg)}${card("Dat manual",c.dat)}${card("Primit",c.pri,"var(--sal-green)")}${card("Reținut din salariu",c.vd,"var(--sal-green)")}${card("TOTAL de recuperat",c.sold,c.sold>0.005?"var(--sal-amber)":"var(--sal-green)")}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>${th("Data")}${th("Tip")}${th("Sumă",1)}${th("Notă")}${th("")}</tr></thead><tbody>
+    ${list.map(x=>`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${x.date?salDateRo(x.date):'<span style="color:var(--text-dim)">fără dată</span>'}</td><td style="padding:6px 10px">${kl[x.kind]||x.kind}</td><td style="padding:6px 10px;text-align:right;font-weight:700;color:${x.kind==="primit"?"var(--sal-green)":"var(--text)"}">${x.kind==="primit"?"− ":""}${salFmt(salNum(x.amount))} €</td><td style="padding:6px 10px;color:var(--text-dim)">${escapeHtml(x.note||"")}</td>
       <td style="padding:6px 10px;text-align:right;white-space:nowrap"><button onclick="salBaniOpenAdd('','','${x.id}')" style="border:none;background:none;cursor:pointer" title="Modifică">✎</button> <button onclick="salBaniDel('${x.id}')" style="border:none;background:none;cursor:pointer;color:#ef4444" title="Șterge">🗑</button></td></tr>`).join("")}
+    ${vlist.map(a=>`<tr style="border-top:1px solid var(--border);background:rgba(99,102,241,.06)"><td style="padding:6px 10px">${salDateRo(a.date)}</td><td style="padding:6px 10px">🧾 vorschuss <small style="color:var(--text-dim)">(automat)</small></td><td style="padding:6px 10px;text-align:right;font-weight:700">${salFmt(salNum(a.amount))} €</td><td style="padding:6px 10px;color:var(--text-dim)">${escapeHtml(a.note||"")}</td><td></td></tr>`).join("")}
+    ${(!list.length&&!vlist.length)?'<tr><td colspan="5" style="padding:14px;text-align:center;color:var(--text-dim)">Nicio mișcare.</td></tr>':""}
     </tbody></table></div>`;
 }
 function salBaniExport(){
+  const kn={inainte:"sold dinainte",dat:"dat",primit:"primit"};
   const head=["Persoană","Data","Tip","Sumă (€)","Notă"];
-  const rows=salBani.entries.slice().sort((a,b)=>salEmpName(a.empId).localeCompare(salEmpName(b.empId),"ro")||(a.date||"").localeCompare(b.date||"")).map(x=>[salEmpName(x.empId),salDateRo(x.date),x.kind==="dat"?"dat":"primit",(x.kind==="dat"?1:-1)*salNum(x.amount),x.note||""]);
-  const sum=[...new Set(salBani.entries.map(x=>x.empId))].map(id=>{ const c=salBaniCalc(id); return [salEmpName(id),c.dat,c.pri,c.sold]; }).sort((a,b)=>a[0].localeCompare(b[0],"ro"));
+  const rows=salBani.entries.slice().sort((a,b)=>salEmpName(a.empId).localeCompare(salEmpName(b.empId),"ro")||(a.date||"").localeCompare(b.date||"")).map(x=>[salEmpName(x.empId),x.date?salDateRo(x.date):"fără dată",kn[x.kind]||x.kind,(x.kind==="primit"?-1:1)*salNum(x.amount),x.note||""]);
+  Object.keys(salVors.emps||{}).forEach(id=>((salVors.emps[id]||{}).adv||[]).forEach(a=>{ if(salNum(a.amount)>0) rows.push([salEmpName(id),salDateRo(a.date),"vorschuss (automat)",salNum(a.amount),a.note||""]); }));
+  const sum=salBaniIds().map(id=>{ const c=salBaniCalc(id); return [salEmpName(id),c.prev,c.vg,c.dat,c.pri,c.vd,c.sold]; }).sort((a,b)=>a[0].localeCompare(b[0],"ro"));
   const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Persoană","Total dat","Total primit","Sold"],...sum]),"Sold per persoană");
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Persoană","Dinainte","Vorschuss","Dat (manual)","Primit","Reținut din salariu","Total de recuperat"],...sum]),"Total per persoană");
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([head,...rows]),"Mișcări");
   XLSX.writeFile(wb,"Bani_persoane_"+new Date().toISOString().slice(0,10)+".xlsx");
 }
@@ -15905,7 +16083,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261103-212942';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261104-121709';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -15991,6 +16169,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
