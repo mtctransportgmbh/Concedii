@@ -1551,7 +1551,7 @@
           <select id="salTypeFilter" onchange="renderSalarii()" style="padding:5px 6px;font-size:12px"><option value="">Toate tipurile</option><option value="fix">Salar fix</option><option value="pachete">Din pachete</option><option value="sortat">Doar sortator</option></select>
           <button onclick="salOpenEmployees()" style="padding:5px 12px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text)">👥 Angajați</button>
           <button onclick="document.getElementById('salPkgFile').click()" style="padding:5px 12px;background:var(--bg-elev-2);border:1px solid #6366f1;border-radius:6px;cursor:pointer;font-size:12px;color:#6366f1">📦 Încarcă pachete (Excel)</button>
-          <input id="salPkgFile" type="file" accept=".xlsx,.xls,.xlsm,.csv" style="display:none" onchange="salPackagesFile(this)">
+          <input id="salPkgFile" type="file" accept=".xlsx,.xls,.xlsm,.csv,.ods" style="display:none" onchange="salPackagesFile(this)">
           <button onclick="salExportExcel()" style="padding:5px 12px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text)">⬇️ Export Excel</button>
           <button onclick="salPrint()" style="padding:5px 12px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text)">🖨️ Print</button>
         </div>
@@ -6324,6 +6324,18 @@ window.doLogout = async function(){
   document.getElementById("authScreen").style.display = "flex";
 };
 
+
+// Gardă: ecranul de login și aplicația nu trebuie să fie niciodată vizibile în același timp (bug apărut pe telefon, după blocare/revenire în pagină)
+function authAppGuard(){
+  try{
+    const a=document.getElementById("authScreen"), r=document.getElementById("appRoot"); if(!a||!r) return;
+    if(r.style.display==="none"||getComputedStyle(a).display==="none") return;
+    if(window.activeUserKey){ a.style.display="none"; } else { r.style.display="none"; }
+  }catch(e){}
+}
+setInterval(authAppGuard,1200);
+document.addEventListener("visibilitychange",authAppGuard);
+window.addEventListener("pageshow",authAppGuard);
 function enterApp(userKey){
   window.activeUserKey = userKey;
   const user = USERS[userKey];
@@ -10598,7 +10610,7 @@ function salParseCsv(txt){
 }
 function salEmpFileImportPick(){
   let i=document.getElementById("salEmpFileGlobal");
-  if(!i){ i=document.createElement("input"); i.type="file"; i.id="salEmpFileGlobal"; i.accept=".xlsx,.xls,.xlsm,.csv,.json"; i.style.display="none"; i.onchange=()=>salEmpFileImport(i); document.body.appendChild(i); }
+  if(!i){ i=document.createElement("input"); i.type="file"; i.id="salEmpFileGlobal"; i.accept=".xlsx,.xls,.xlsm,.csv,.ods,.json"; i.style.display="none"; i.onchange=()=>salEmpFileImport(i); document.body.appendChild(i); }
   i.click();
 }
 function salEmpFileImport(inp){
@@ -10847,7 +10859,7 @@ function salLmaImport(rows,fileName){
   document.getElementById("salLmaInfo").innerHTML="📄 <b>"+escapeHtml(fileName)+"</b><br>"+n+" ture · "+salInt(tot)+" pachete livrate";
   document.getElementById("salLmaMonth").value=salMk();
   document.getElementById("salLmaErr").textContent="";
-  document.getElementById("salLmaLoc").value="";
+  { const lm=/eiselfing|ruhstorf/i.exec(fileName||""); document.getElementById("salLmaLoc").value=lm?lm[0].charAt(0).toUpperCase()+lm[0].slice(1).toLowerCase():""; }
   salLmaMonthHint();
   openModal("salLmaModal");
 }
@@ -16723,7 +16735,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261104-170935';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261105-114006';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -16809,6 +16821,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
