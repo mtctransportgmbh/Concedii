@@ -6389,6 +6389,7 @@ function enterApp(userKey){
   const modZet2 = document.getElementById("modZet");
   if(modZet2) modZet2.style.display = (isAdm||userKey==="tania")?"block":"none";
   if(isAdm) setTimeout(()=>{ try{ zetLogStart(); }catch(e){} },3000);
+  if(isAdm) setTimeout(()=>{ try{ sanitizeLeavesSunHol(); }catch(e){ console.warn('sanitize',e); } },6000);
 
   if(quickAction)    quickAction.style.display = (canConcedii && canEdit()) ? "" : "none";
   updateGroupFilterBar(userKey, isAdm, canConcedii);
@@ -11075,7 +11076,8 @@ function zetCalc(emp,y,m){
 }
 
 // ---- legătura cu Concedii / Sortatori ----
-function zetConcType(dr,ds){ if(!dr) return ""; const has=a=>(dr[a]||[]).some(l=>ds>=l.start&&ds<=l.end);
+function zetConcType(dr,ds){ if(!dr) return ""; { const dd=parseDate(ds); if(dd.getDay()===0||getHoliday(dd)) return ""; }   // duminica/sărbătoarea nu se preia niciodată din Concedii
+  const has=a=>(dr[a]||[]).some(l=>ds>=l.start&&ds<=l.end);
   if(has("leaves")) return "U"; if(has("krankLeaves")) return "K"; if(has("unpaidLeaves")) return "UP"; return ""; }
 function zetSortKey(emp,mk){ const pm=(typeof sortState!=="undefined"&&sortState.presence&&sortState.presence[mk])||null; if(!pm) return null; const k=salNameKey(emp.name); const key=Object.keys(pm).find(x=>salNameKey(x)===k); return key?pm[key]:null; }
 function zetWarnings(person,emp,y,m){   // → {byDay:{d:[{msg,fix}]}, general:[], n}
@@ -11175,12 +11177,12 @@ const ZET_CSS=`.zs-wrap{max-width:760px;margin:0 auto}.zs{border-collapse:collap
 .zs-warnrow td{background:#fff3cd!important}.zs,.zs *{-webkit-print-color-adjust:exact;print-color-adjust:exact}.zs-wr{display:table-row}@media print{.zs-wr{display:none}}`;
 // ---- blocare rânduri (doar Raluca/Mădălina/Mihaela) + jurnal de modificări (server) ----
 let _zetHd={};   // minute pentru zi de sărbătoare/concediu per persoană (derivat din Soll; utilizatorii nu văd Soll-ul)
-function zetHdFromSoll(soll){ if(soll==null||isNaN(soll)) return null; const h=soll/60; return h<=100?120:(h<=165?360:480); }
+function zetHdFromSoll(soll){ if(soll==null||isNaN(soll)) return null; const h=soll/60; return h<=100?120:(h<=140?300:(h<=165?360:480)); }
 function zetHdFor(id){ if(_zetCtx==="admin"){ const e=_zetData&&_zetData.emps[id]; const v=zetHdFromSoll(e&&e.soll); if(v!=null) return v; } return _zetHd[id]!=null?_zetHd[id]:null; }
 function zetHHMM(min){ return String(Math.floor(min/60)).padStart(2,"0")+":"+String(min%60).padStart(2,"0"); }
 async function zetHdLoad(){ if(_zetCtx==="admin"){ _zetHd={}; return; } try{ const d=await db.collection("zeiten_cfg").doc("hd").get(); _zetHd=(d.exists&&d.data().map)||{}; }catch(e){ _zetHd={}; } }
 async function zetHdSync(){   // Admin: scrie în zeiten_cfg/hd categoria de ore/zi a fiecărei persoane (din Soll)
-  if(_zetCtx!=="admin"||window._simUser||!_zetData) return;
+  if(_zetCtx!=="admin"||window._simUser||!_zetData) return; { const n=new Date(); if(zetMk()<n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0")) return; }
   const map={}; Object.keys(_zetData.emps).forEach(k=>{ const v=zetHdFromSoll(_zetData.emps[k].soll); if(v!=null) map[k]=v; });
   if(!Object.keys(map).length||JSON.stringify(map)===JSON.stringify(_zetHdSent)) return; _zetHdSent=map;
   try{ await db.collection("zeiten_cfg").doc("hd").set({map,updatedAt:new Date().toISOString()},{merge:true}); }catch(e){ console.warn("hd sync",e&&e.code); }
@@ -11192,10 +11194,12 @@ function zetAutoPause(){   // rânduri cu Kommt+Geht fără pauză → 0:45
     for(let d=1;d<=last;d++){ const r=emp.days[d]; if(r&&r.k&&r.g&&!r.p&&zetAbsType(r.a)!=="UP"&&new Date(y,m,d).getDay()!==0){ r.p="00:45"; ch.add(p.id); } } });
   if(ch.size){ ch.forEach(id=>_zetDirty.add(id)); zetSaveSoon(); renderZet(); }
 }
-function zetAutoHoliday(){   // zile de sărbătoare: Geht se completează automat (6:00 / 2:00 / 8:00 după Soll)
-  if(!_zetData||_zetDirty.size||_zetSaveT) return; const y=_zetCur.getFullYear(), m=_zetCur.getMonth(), last=new Date(y,m+1,0).getDate(); const ch=new Set();
-  zetPeople().forEach(p=>{ const hd=zetHdFor(p.id); if(hd==null) return; const emp=zetGetEmp(p.id);
-    for(let d=1;d<=last;d++){ const dt=new Date(y,m,d); if(dt.getDay()===0||!getHoliday(dt)) continue; const r=emp.days[d]; if(r&&(r.k||r.g||r.p||r.a||r.b)) continue; emp.days[d]={g:zetHHMM(hd)}; ch.add(p.id); } });
+function zetAutoHoliday(force){   // Geht automat în zile de sărbătoare / Urlaub / Krank / Feiertag, după Soll (și se recalculează dacă Soll se schimbă)
+  if(!_zetData||(!force&&(_zetDirty.size||_zetSaveT))) return; const y=_zetCur.getFullYear(), m=_zetCur.getMonth(), last=new Date(y,m+1,0).getDate(); const ch=new Set();
+  zetPeople().forEach(p=>{ const hd=zetHdFor(p.id); if(hd==null) return; const emp=zetGetEmp(p.id); const want=zetHHMM(hd);
+    for(let d=1;d<=last;d++){ const dt=new Date(y,m,d); if(dt.getDay()===0) continue; const hol=!!getHoliday(dt); const r=emp.days[d];
+      if(!r||!(r.k||r.g||r.p||r.a||r.b)){ if(hol){ emp.days[d]={g:want}; ch.add(p.id); } continue; }
+      const ty=zetAbsType(r.a); if(!r.k&&!r.p&&r.g&&r.g!==want&&(ty==="U"||ty==="K"||ty==="F"||(hol&&!r.a))){ r.g=want; ch.add(p.id); } } });
   if(ch.size){ ch.forEach(id=>_zetDirty.add(id)); zetSaveSoon(); renderZet(); }
 }
 function zetMarkLocked(key){ if(!key||_zetCtx!=="staff"||!_zetData) return; const [id,d]=key.split("|"); const e=_zetData.emps[id]; const r=e&&e.days&&e.days[d]; if(r&&zetRowDone(r)&&!r.l){ r.l=1; zetSaveSoon(id); } }
@@ -11285,6 +11289,7 @@ function zetSetMeta(id,f,v){
   else { const s=String(v).trim(); if(s===""){ emp[f]=f==="saldo"?0:null; } else { const t=zetParseHM(s); if(t===null||isNaN(t)){ toast("Valoare invalidă (ex. 175:00)",true); renderZet(); return; } emp[f]=t; } }
   zetSaveSoon(id); renderZet();
   if(f==="soll"||f==="rate") zetPropagate(id,f,emp[f]);
+  if(f==="soll"){ zetAutoHoliday(true); zetHdSync(); }
 }
 async function zetPropagate(id,f,val){   // Soll/tarif nou → și în lunile următoare deja existente
   if(window._simUser) return; const mk=zetMk();
@@ -11645,12 +11650,8 @@ async function zetFsBackup(force){
     await write(h,zetFileName());
     const day=new Date().toISOString().slice(0,10);
     const ar=await h.getDirectoryHandle("arhiva",{create:true}); await write(ar,zetFileName().replace(/\.xlsx$/,"_"+day+".xlsx"));   // copia zilei se rescrie la fiecare modificare
-    // jurnal text: fiecare modificare (cine, când, ce a fost → ce e acum), se adaugă la sfârșit, nu se șterge niciodată
-    const cur=zetDaysOf(Object.fromEntries(Object.keys(_zetData.emps).map(k=>[k,{days:_zetData.emps[k].days}])));
-    const lines=zetDiffLines(_zetFsPrev,cur);
-    if(lines.length){ const jn="Jurnal_"+zetMk()+".txt"; let old=""; try{ const jf=await h.getFileHandle(jn); old=await (await jf.getFile()).text(); }catch(e){}
-      const jfh=await h.getFileHandle(jn,{create:true}); const jw=await jfh.createWritable(); await jw.write(old+lines.join("\n")+"\n"); await jw.close(); }
-    _zetFsPrev=cur;
+    { const hh=new Date().getHours(); await write(ar,zetFileName().replace(/\.xlsx$/,"_"+day+"_"+String(hh).padStart(2,"0")+"h.xlsx")); }   // câte o stare pe oră, ca să nu se piardă nimic
+    _zetFsPrev=zetDaysOf(Object.fromEntries(Object.keys(_zetData.emps).map(k=>[k,{days:_zetData.emps[k].days}])));
     _zetFsState={st:"ok",name:h.name,at:new Date().toLocaleTimeString("ro-RO",{hour:"2-digit",minute:"2-digit"})}; zetFsChipRefresh();
   }catch(e){ _zetFsState={st:"err",msg:(e&&e.message)||String(e)}; zetFsChipRefresh(); }
 }
@@ -15619,6 +15620,12 @@ function splitLeavesFromHolidaysOnly(leaves){
   return mergeLeaves(result);
 }
 
+function sanitizeLeavesSunHol(){   // concediile (plătit/krank/fără plată) nu pot conține duminici sau sărbători — le scoate pe cele rămase din date vechi
+  if(!state||!state.drivers||!canEdit()) return; let n=0;
+  const has=l=>{ const a=parseDate(l.start), b=parseDate(l.end); for(let d=new Date(a); d<=b; d.setDate(d.getDate()+1)){ if(d.getDay()===0||getHoliday(d)) return true; } return false; };
+  state.drivers.forEach(dr=>{ ["leaves","krankLeaves","unpaidLeaves"].forEach(k=>{ if((dr[k]||[]).some(has)){ dr[k]=splitLeavesFromHolidaysOnly(dr[k]); n++; } }); });
+  if(n){ scheduleSave(); try{ renderAll(); }catch(e){} toast("🧹 Duminicile/sărbătorile scoase din concedii la "+n+" perioade"); }
+}
 async function normalizeAllLeaves(){
   if(!isAdmin()){toast("Doar Admin",true);return;}
   if(!confirm("Unești perioadele consecutive ȘI scoți zilele de sărbătoare din concedii?\nAcesta va actualiza datele în Firestore.")) return;
@@ -17092,7 +17099,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-113619';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-114703';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17178,6 +17185,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
