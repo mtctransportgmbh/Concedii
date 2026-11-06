@@ -10966,7 +10966,7 @@ const ZET_WD=["So","Mo","Di","Mi","Do","Fr","Sa"];
 const ZET_SPESEN=25;
 let _zetFilt="all"; function zetSetFilt(f){ _zetFilt=f; renderZet(); }
 function zetMissing(emp,y,m){ const now=new Date(); const t0=new Date(now.getFullYear(),now.getMonth(),now.getDate()); const last=new Date(y,m+1,0).getDate(); let n=0,any=false;
-  for(let d=1;d<=last;d++){ const r=zetRec(emp,d); if(r.k||r.g||r.p||r.a) any=true; const dt=new Date(y,m,d); if(dt>t0) continue; if(dt.getDay()===0||getHoliday(dt)) continue; if(!(r.k||r.g||r.p||r.a)) n++; }
+  for(let d=1;d<=last;d++){ const r=zetRec(emp,d); if(r.k||r.g||r.p||r.a) any=true; const dt=new Date(y,m,d); if(dt>=t0) continue; if(dt.getDay()===0||getHoliday(dt)) continue; /* ziua de azi nu se numără */ if(!(r.k||r.g||r.p||r.a)) n++; }
   return {n,any}; }
 let _zetCur=new Date(new Date().getFullYear(),new Date().getMonth(),1), _zetData=null, _zetMk="", _zetSel="", _zetSaveT=null, _zetQ="", _zetPendingImport=null;
 const zetMk=()=>_zetCur.getFullYear()+"-"+String(_zetCur.getMonth()+1).padStart(2,"0");
@@ -11281,6 +11281,14 @@ async function zetLogSeen(){
   const ids=_zetLogRows.filter(x=>!x.seen).map(x=>x._id); if(!ids.length) return;
   try{ for(let i=0;i<ids.length;i+=400){ const b=db.batch(); ids.slice(i,i+400).forEach(id=>b.update(db.collection("zeiten_log").doc(id),{seen:true})); await b.commit(); } }catch(e){ toast("❌ "+(e.message||e),true); }
 }
+function zetFocusAt(idx,dir){ const all=Array.from(document.querySelectorAll("#zetSheetBox .zs-in[data-d]")); for(let i=idx;i>=0&&i<all.length;i+=dir){ const e=all[i]; if(!e.readOnly&&!e.disabled&&!e.classList.contains("zs-lk")){ e.focus(); if(e.select&&e.tagName==="INPUT") e.select(); return true; } } return false; }
+document.addEventListener("keydown",e=>{   // Tab / Enter → următoarea căsuță editabilă (Shift+Tab → precedenta)
+  const t=e.target; if(!t||!t.classList||!t.classList.contains("zs-in")||!t.dataset.d) return; if(e.key!=="Tab"&&e.key!=="Enter") return; if(e.ctrlKey||e.altKey||e.metaKey) return;
+  const all=Array.from(document.querySelectorAll("#zetSheetBox .zs-in[data-d]")); const i=all.indexOf(t); if(i<0) return; const back=e.key==="Tab"&&e.shiftKey; e.preventDefault();
+  const changed=t.tagName==="INPUT"&&t.value!==t.defaultValue;
+  if(changed){ zetSet(t); if(back){ setTimeout(()=>zetFocusAt(i-1,-1),0); } }   // zetSet mută singur focusul înainte
+  else zetFocusAt(back?i-1:i+1,back?-1:1);
+});
 function zetFocusNext(el){ const all=Array.from(document.querySelectorAll("#zetSheetBox .zs-in[data-d]")); const i=all.indexOf(el); return i>=0?i+1:-1; }
 function zetSet(el){
   const id=el.dataset.id, d=+el.dataset.d, f=el.dataset.f; let v=el.value; const nextIdx=zetFocusNext(el);
@@ -11334,14 +11342,14 @@ function renderZet(focusIdx){
   const cnt={all:people.length,miss:0,done:0,none:0}; people.forEach(p=>{ const c=cls(p); cnt[c]++; if(!(_zetData.emps[p.id]&&zetMissing(_zetData.emps[p.id],y,m).any)) cnt.none+=0; });
   const noneCnt=people.filter(p=>!zetMissing(_zetData.emps[p.id]||{days:{}},y,m).any).length;
   const fbtn=(k,t,n)=>`<button onclick="zetSetFilt('${k}')" style="padding:4px 9px;border:1px solid var(--border);border-radius:999px;cursor:pointer;font-size:11.5px;font-weight:700;color:var(--text);background:${_zetFilt===k?"rgba(16,185,129,.25)":"var(--bg-elev)"}">${t} ${n}</button>`;
-  const filt=`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">${fbtn("all","Toate",people.length)}${fbtn("miss","⚠ Necompletate (până azi)",cnt.miss)}${fbtn("done","✓ Completate",cnt.done)}${fbtn("none","Deloc completate",noneCnt)}</div>`;
+  const filt=`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">${fbtn("all","Toate",people.length)}${fbtn("miss","⚠ Necompletate (până ieri)",cnt.miss)}${fbtn("done","✓ Completate",cnt.done)}${fbtn("none","Deloc completate",noneCnt)}</div>`;
   const fOk=p=>{ if(_zetFilt==="all") return true; const x=zetMissing(_zetData.emps[p.id]||{days:{}},y,m); return _zetFilt==="miss"?x.n>0:_zetFilt==="done"?(x.n===0&&x.any):!x.any; };
   const list=people.filter(p=>fOk(p)&&(!q||normalizeForSearch(p.name).includes(q))).map(p=>{
     const e=_zetData.emps[p.id]; const c=e?zetCalc(e,y,m):null; const W=e?zetWarnings(p,e,y,m):null;
     return `<div onclick="zetSelect('${p.id}')" style="padding:7px 10px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:13px;${p.id===_zetSel?"background:rgba(16,185,129,.15);font-weight:800":""}">
       <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${zetEsc(p.name)}</span>
       ${c&&c.any?`<span style="font-size:11px;color:var(--text-dim)">${zetFm(c.tot)}</span>`:`<span style="font-size:11px;color:var(--text-dim)">—</span>`}
-      ${(()=>{ const x=zetMissing(e||{days:{}},y,m); return x.n?`<span title="${x.n} zile necompletate până azi" style="font-size:11px;background:#ef4444;color:#fff;border-radius:999px;padding:0 6px;font-weight:800">−${x.n}</span>`:""; })()}${W&&W.n?`<span title="${W.n} avertismente" style="font-size:11px;background:#f59e0b;color:#fff;border-radius:999px;padding:0 6px;font-weight:800">⚠${W.n}</span>`:""}</div>`; }).join("");
+      ${(()=>{ const x=zetMissing(e||{days:{}},y,m); return !x.n&&x.any?`<span title="Totul completat până ieri" style="font-size:11px;background:#10b981;color:#fff;border-radius:999px;padding:0 6px;font-weight:800">✓</span>`:x.n?`<span title="${x.n} zile necompletate până ieri" style="font-size:11px;background:#ef4444;color:#fff;border-radius:999px;padding:0 6px;font-weight:800">−${x.n}</span>`:""; })()}${W&&W.n?`<span title="${W.n} avertismente" style="font-size:11px;background:#f59e0b;color:#fff;border-radius:999px;padding:0 6px;font-weight:800">⚠${W.n}</span>`:""}</div>`; }).join("");
   const person=people.find(p=>p.id===_zetSel);
   let main=`<div style="padding:30px;text-align:center;color:var(--text-dim)">Nicio persoană în lista Salarii.</div>`;
   if(person){
@@ -17113,7 +17121,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-115946';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-121418';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17199,6 +17207,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
