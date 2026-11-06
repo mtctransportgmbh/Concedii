@@ -11333,7 +11333,7 @@ async function zetPropagate(id,f,val){   // Soll/tarif nou → și în lunile ur
   if(window._simUser) return; const mk=zetMk();
   try{ const snap=await db.collection("stundenzettel").get(); for(const d of snap.docs){ if(d.id<=mk) continue; try{ await d.ref.update({["emps."+id+"."+f]:val===undefined?null:val}); }catch(e){} } }catch(e){ console.warn("propagate",e&&e.code); }
 }
-function zetSelect(id){ _zetSel=id; _zetFitTop=true; renderZet(); }
+function zetSelect(id){ _zetSel=id; renderZet(); }
 function zetFixClick(id,d,i){ const y=_zetCur.getFullYear(), m=_zetCur.getMonth(); const p=zetPeople().find(e=>e.id===id); if(!p) return; const W=zetWarnings(p,zetGetEmp(id),y,m); const w=(W.byDay[d]||[])[i]; if(w&&w.fix) zetFix(id,d,w.fix); }
 function renderZet(focusIdx){
   const box=document.getElementById(zetBoxId()); if(!box) return;
@@ -11392,6 +11392,7 @@ function renderZet(focusIdx){
   { const pl=document.getElementById("zetPplList"); if(pl){ pl.scrollTop=_plTop; _zetListTop=_plTop; requestAnimationFrame(()=>{ const q=document.getElementById("zetPplList"); if(q&&q.scrollTop!==_plTop) q.scrollTop=_plTop; }); } const sb=document.getElementById("zetSheetBox"); if(sb) sb.scrollLeft=_sbL; if(window.scrollY!==_wy||window.scrollX!==_wx) window.scrollTo(_wx,_wy); }
   zetApplyLocks();
   zetFit(_zetFitTop); _zetFitTop=false;
+  { const q=document.getElementById("zetPplList"); if(q){ q.scrollTop=_plTop; _zetListTop=_plTop; } if(!_zetFitTop&&(window.scrollY!==_wy||window.scrollX!==_wx)) window.scrollTo(_wx,_wy); }
 }
 // foaia pe ecran, cu avertismentele afișate în clar sub ziua respectivă
 function zetSheetW(person,emp,y,m,W){
@@ -11617,7 +11618,7 @@ function zetFillSheet(ws,p,E,y,m,blank,nm){
     if(E.rate!=null) set("H37","x"+Number(E.rate).toFixed(2).replace(".",","),{});
     if(calc.soll!=null) set("G38",calc.soll/1440,{fmt:"[h]:mm"}); else set("G38",null,{fmt:"[h]:mm"});
     set("G39",(calc.saldo||0)/1440,{fmt:"[h]:mm"});
-    set("G40",{formula:'IF(G37<>"",IF(ABS(G37-G38)<0.0000000001,0,G37-G38),"")',result:calc.konto==null?"":calc.konto/1440},{fmt:"[h]:mm",b:1});
+    set("G40",{formula:'IF(G37<>"",IF(ABS(G37-G38)<0.0000000001,"0:00",IF(G37-G38<0,"-"&TEXT(G38-G37,"[h]:mm"),TEXT(G37-G38,"[h]:mm"))),"")',result:calc.konto==null?"":zetFm(calc.konto)},{fmt:"@",b:1,h:"right"});
     set("I38",{formula:'COUNTIF(H6:H36,"X")*25',result:calc.spesen},{b:1}); set("J38","SPESEN",{b:1});
   } else { ["G38","G39","G40"].forEach(a=>set(a,null,{fmt:"[h]:mm"})); }
   [37,38,39,40].forEach(r=>{ ws.getCell("G"+r).border={top:med,bottom:med,left:med,right:med}; });
@@ -17144,7 +17145,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-131716';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-135141';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17230,6 +17231,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
