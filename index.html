@@ -11281,6 +11281,17 @@ async function zetLogSeen(){
   try{ for(let i=0;i<ids.length;i+=400){ const b=db.batch(); ids.slice(i,i+400).forEach(id=>b.update(db.collection("zeiten_log").doc(id),{seen:true})); await b.commit(); } }catch(e){ toast("❌ "+(e.message||e),true); }
 }
 function zetFocusAt(idx,dir){ const all=Array.from(document.querySelectorAll("#zetSheetBox .zs-in[data-d]")); for(let i=idx;i>=0&&i<all.length;i+=dir){ const e=all[i]; if(!e.readOnly&&!e.disabled&&!e.classList.contains("zs-lk")){ e.focus(); if(e.select&&e.tagName==="INPUT") e.select(); return true; } } return false; }
+function zetFocusStep(i,step){ const all=Array.from(document.querySelectorAll("#zetSheetBox .zs-in[data-d]")); for(let j=i+step;j>=0&&j<all.length;j+=step){ const e=all[j]; if(!e.readOnly&&!e.disabled&&!e.classList.contains("zs-lk")){ e.focus(); if(e.select&&e.tagName==="INPUT") e.select(); return true; } } return false; }
+document.addEventListener("keydown",e=>{   // săgeți: ↑↓ aceeași coloană (zi anterioară/următoare), ←→ căsuța vecină din rând
+  const t=e.target; if(!t||!t.classList||!t.classList.contains("zs-in")||!t.dataset.d) return; if(e.ctrlKey||e.altKey||e.metaKey||e.shiftKey) return;
+  const k=e.key; if(k!=="ArrowUp"&&k!=="ArrowDown"&&k!=="ArrowLeft"&&k!=="ArrowRight") return;
+  const isSel=t.tagName==="SELECT"; if(isSel&&(k==="ArrowUp"||k==="ArrowDown")) return;     // în listă ↑↓ schimbă opțiunea
+  if(!isSel&&(k==="ArrowLeft"||k==="ArrowRight")){ const L=t.value.length, a=t.selectionStart, b=t.selectionEnd; const all=(a===0&&b===L); if(k==="ArrowLeft"&&!(all||(a===0&&b===0))) return; if(k==="ArrowRight"&&!(all||(a===L&&b===L))) return; }
+  const list=Array.from(document.querySelectorAll("#zetSheetBox .zs-in[data-d]")); const i=list.indexOf(t); if(i<0) return;
+  const per=list.filter(x=>x.dataset.d===t.dataset.d).length||5; const step=k==="ArrowUp"?-per:k==="ArrowDown"?per:k==="ArrowLeft"?-1:1; e.preventDefault();
+  const changed=t.tagName==="INPUT"&&t.value!==t.defaultValue;
+  if(changed){ zetSet(t); setTimeout(()=>zetFocusStep(i,step),0); } else zetFocusStep(i,step);
+});
 document.addEventListener("keydown",e=>{   // Tab / Enter → următoarea căsuță editabilă (Shift+Tab → precedenta)
   const t=e.target; if(!t||!t.classList||!t.classList.contains("zs-in")||!t.dataset.d) return; if(e.key!=="Tab"&&e.key!=="Enter") return; if(e.ctrlKey||e.altKey||e.metaKey) return;
   const all=Array.from(document.querySelectorAll("#zetSheetBox .zs-in[data-d]")); const i=all.indexOf(t); if(i<0) return; const back=e.key==="Tab"&&e.shiftKey; e.preventDefault();
@@ -17114,7 +17125,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-121737';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-124811';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17200,6 +17211,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
