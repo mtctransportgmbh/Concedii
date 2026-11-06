@@ -1357,6 +1357,7 @@
         <button id="modSortatori" class="mod-tab" data-color="indigo" onclick="setAppMode('sortatori')" style="display:none"><span class="mod-tab-icon">📦</span>Sortatori</button>
         <button id="modPlanificare" class="mod-tab" data-color="green" onclick="setAppMode('planificare')" style="display:none"><span class="mod-tab-icon">🗓️</span>Planificare</button>
         <button id="modLibere" class="mod-tab" data-color="red" onclick="setAppMode('libere')" style="display:none"><span class="mod-tab-icon">🏠</span>Libere Springeri</button>
+        <button id="modZeit" class="mod-tab" data-color="green" onclick="setAppMode('zeit')" style="display:none"><span class="mod-tab-icon">🕘</span>Pontaj</button>
       </div>
     </div>
     <div id="concediiModule">
@@ -1518,6 +1519,10 @@
       <div class="timeline-wrap">
         <div class="timeline" id="libereTimeline"></div>
       </div>
+    </div>
+
+    <div id="zeitModule" style="display:none">
+      <div id="zeitBody"></div>
     </div>
 
     <div id="zetModule" class="sal-theme" style="display:none">
@@ -4078,7 +4083,7 @@ function mcbRenderRuns(){
         (r.skipped&&Object.keys(r.skipped).length?' <span style="color:var(--red)">⚠ module sărite (prea multe documente)</span>':'')+'<br>'+mcbEsc(sumCounts(r.counts))+'</div>'+
       '<button class="btn-action" style="padding:6px 14px;font-size:14px" onclick="mcbPick(\''+mcbEsc(r.id)+'\')">Alege</button></div>').join("")
   ).join("") : '<div style="font-size:13px;color:var(--text-dim);padding:12px 0">Încă nu există backup-uri. Apasă „Fă backup acum”.</div>';
-  mcbShow('<div style="font-size:12.5px;color:var(--text-dim);margin-bottom:10px">Se face automat la 06:00, 14:00 și 22:00. Se păstrează toate copiile 14 zile, apoi câte una pe zi până la '+MCB.cfg.retention.dailyDays+' de zile. Înainte de orice restaurare se face automat o copie a stării de acum.</div>'+
+  mcbShow('<div style="font-size:12.5px;color:var(--text-dim);margin-bottom:10px">Se face automat la 06:00, 08:00, 10:00, 12:00, 14:00 și 22:00. Se păstrează toate copiile 14 zile, apoi câte una pe zi până la '+MCB.cfg.retention.dailyDays+' de zile. Înainte de orice restaurare se face automat o copie a stării de acum.</div>'+
     '<button class="btn-action" id="mcb-now" onclick="mcbNow()">Fă backup acum</button> <button class="btn-secondary" id="mcb-mail" onclick="mcbTestMail()">✉ Trimite email de test</button>'+
     '<div style="max-height:46vh;overflow-y:auto;margin-top:6px">'+body+'</div>'+
     '<div style="margin-top:14px"><button class="btn-secondary" onclick="mcbClose()">Închide</button></div>');
@@ -5214,7 +5219,7 @@ function finishInit(){
       setTimeout(()=>showLoginNotification(uk), 400);
     }
   }catch(e){ console.warn("notif err",e); }
-  // Backup automat programat (06:00, 14:00, 22:00) — doar admin
+  // Backup automat programat (06:00, 08:00, 10:00, 12:00, 14:00, 22:00) — doar admin
   setTimeout(()=>startScheduledBackups(), 3000);
   // Load prezente state
   loadPresState();
@@ -6378,6 +6383,7 @@ function enterApp(userKey){
   if(modSortatori)   modSortatori.style.display   = canSortatori?"block":"none";
   if(modPlanificare2) modPlanificare2.style.display = canPlanificare?"block":"none";
   if(modLibere2)     modLibere2.style.display     = canLibere?"block":"none";
+  { const mzt=document.getElementById("modZeit"); if(mzt) mzt.style.display = (userKey==="raluca"||userKey==="madalina")?"block":"none"; }
   const modSal2 = document.getElementById("modSalarii");
   if(modSal2) modSal2.style.display = (isAdm||userKey==="tania")?"block":"none";
   const modZet2 = document.getElementById("modZet");
@@ -8479,7 +8485,8 @@ function simToastOnce(){ if(Date.now()-_simToastAt>4000){ _simToastAt=Date.now()
 function simInstallGuard(){
   if(_simGuardOn) return; _simGuardOn=true;
   const ref=Object.getPrototypeOf(db.collection("_sim").doc("_sim")), col=Object.getPrototypeOf(db.collection("_sim")), bat=Object.getPrototypeOf(db.batch());
-  ["set","update","delete"].forEach(m=>{ const o=ref[m]; ref[m]=function(){ if(window._simUser){ simToastOnce(); return Promise.resolve(); } return o.apply(this,arguments); }; });
+  const simAllow=r=>{ try{ return /^zeiten\//.test(String(r.path||"")); }catch(e){ return false; } };   // Pontaj se poate încerca și în simulare (pentru probă)
+  ["set","update","delete"].forEach(m=>{ const o=ref[m]; ref[m]=function(){ if(window._simUser&&!simAllow(this)){ simToastOnce(); return Promise.resolve(); } return o.apply(this,arguments); }; });
   { const o=col.add; col.add=function(){ if(window._simUser){ simToastOnce(); return Promise.resolve({id:"sim"}); } return o.apply(this,arguments); }; }
   { const o=bat.commit; bat.commit=function(){ if(window._simUser){ simToastOnce(); return Promise.resolve(); } return o.apply(this,arguments); }; }
   { const o=db.runTransaction.bind(db); db.runTransaction=function(){ if(window._simUser){ simToastOnce(); return Promise.resolve(); } return o.apply(null,arguments); }; }
@@ -8504,7 +8511,7 @@ function simShowBar(){
   let b=document.getElementById("simBar");
   if(!b){ b=document.createElement("div"); b.id="simBar"; b.style.cssText="position:fixed;top:0;left:0;right:0;z-index:100500;background:linear-gradient(90deg,#7c3aed,#2563eb);color:#fff;padding:8px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;font-weight:600;box-shadow:0 2px 12px rgba(0,0,0,.4)"; document.body.appendChild(b); }
   const others=Object.keys(USERS).filter(k=>k!=="admin"&&k!==window._simUser);
-  b.innerHTML='<span>👁 SIMULARE — vezi ca <b>'+USERS[window._simUser].name+'</b> · doar vizualizare, nimic nu se salvează</span>'+
+  b.innerHTML='<span>👁 SIMULARE — vezi ca <b>'+USERS[window._simUser].name+'</b> · doar vizualizare — nimic nu se salvează, în afară de tab-ul Pontaj (pentru probă)</span>'+
     '<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">'+others.map(k=>'<button onclick="simStart(\''+k+'\')" style="padding:4px 10px;border:1px solid rgba(255,255,255,.5);border-radius:7px;background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:12px;cursor:pointer">'+USERS[k].name+'</button>').join("")+
     '<button onclick="simStop()" style="padding:4px 12px;border:none;border-radius:7px;background:#fff;color:#4c1d95;font:inherit;font-size:12px;font-weight:800;cursor:pointer">✕ Ieși din simulare</button></span>';
   document.body.style.paddingTop="44px";
@@ -9755,6 +9762,8 @@ function setAppMode(mode){
   const salM = document.getElementById("salariiModule");
   if(salM) salM.style.display = (mode==="salarii"&&canSalarii())?"block":"none";
   const zm=document.getElementById("zetModule"); if(zm) zm.style.display=(mode==="zet"&&canSalarii())?"block":"none";
+  const zeM=document.getElementById("zeitModule"); if(zeM) zeM.style.display=(mode==="zeit"&&canZeit())?"block":"none";
+  const mzeit=document.getElementById("modZeit"); if(mzeit){ mzeit.classList.toggle("active",mode==="zeit"); mzeit.classList.toggle("mod-tab-active",mode==="zeit"); }
   const mz=document.getElementById("modZet"); if(mz){ mz.classList.toggle("active",mode==="zet"); mz.classList.toggle("mod-tab-active",mode==="zet"); }
   document.body.classList.toggle("sal-on", (mode==="salarii"||mode==="zet")&&canSalarii());
   const msal = document.getElementById("modSalarii");
@@ -9774,8 +9783,11 @@ function setAppMode(mode){
   else stopPlanificareLiveListeners();
   if(mode==="libere")      renderLibere();
   if(mode==="salarii" && canSalarii()){ salLoadMonth(); renderSalarii(); }
-  if(mode==="zet" && canSalarii()){ zetLoad(true); }
+  if(mode==="zet" && canSalarii()){ _zetCtx="admin"; zetReset(); zetFsInit(); zetLoad(true); }
+  else if(mode==="zeit" && canZeit()){ _zetCtx="staff"; zetReset(); zetFsInit(); zetLoad(true); }
+  else if(mode!=="zet"&&mode!=="zeit"){ zetStop(); }
 }
+function canZeit(){ const u=window.activeUserKey; return u==="raluca"||u==="madalina"; }
 let _salTarget="salarii";
 
 // ============================================================
@@ -10953,22 +10965,69 @@ const ZET_SPESEN=25;
 let _zetCur=new Date(new Date().getFullYear(),new Date().getMonth(),1), _zetData=null, _zetMk="", _zetSel="", _zetSaveT=null, _zetQ="", _zetPendingImport=null;
 const zetMk=()=>_zetCur.getFullYear()+"-"+String(_zetCur.getMonth()+1).padStart(2,"0");
 const zetEsc=v=>String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-function zetReset(){ _zetData=null; _zetMk=""; _zetSel=""; if(_zetSaveT){ clearTimeout(_zetSaveT); _zetSaveT=null; } }
+let _zetCtx="admin";            // "admin" = modulul ascuns (PIN+2FA, toate persoanele) · "staff" = tab-ul Pontaj din Concedii (Raluca / Mădălina, doar persoanele lor)
+let _zetUnsub=null, _zetMeta={}, _zetDirty=new Set();
+const zetKey=n=>salNameKey(n).replace(/\s+/g,"_");
+const zetBoxId=()=>_zetCtx==="staff"?"zeitBody":"zetBody";
+function zetStop(){ if(_zetUnsub){ try{ _zetUnsub(); }catch(e){} _zetUnsub=null; } }
+function zetReset(){ zetStop(); _zetData=null; _zetMk=""; _zetSel=""; _zetMeta={}; _zetDirty=new Set(); if(_zetSaveT){ clearTimeout(_zetSaveT); _zetSaveT=null; } }
+// Date: zeiten/{YYYY-MM} = {emps:{ [cheiePersoană]:{days:{...}} }}  (ore — scrise și de Raluca/Mădălina)
+//       stundenzettel/{YYYY-MM} = {emps:{ [cheiePersoană]:{soll,saldo,rate} }}  (doar Admin/Tania, cu PIN+2FA)
+function zetBuild(zdays){
+  const emps={}; const keys=new Set(Object.keys(zdays||{}).concat(Object.keys(_zetMeta||{})));
+  keys.forEach(k=>{ const m=_zetMeta[k]||{}; emps[k]={days:(zdays[k]&&zdays[k].days)||{},soll:m.soll!=null?m.soll:null,saldo:m.saldo!=null?m.saldo:0,rate:m.rate!=null?m.rate:null}; });
+  return emps;
+}
 async function zetLoad(force){
   const mk=zetMk(); if(!force&&_zetMk===mk&&_zetData) return;
-  _zetData=null; _zetMk=""; renderZet();
-  try{ const s=await db.collection("stundenzettel").doc(mk).get(); if(zetMk()!==mk) return; _zetData={emps:(s.exists&&s.data().emps)||{}}; }
-  catch(e){ if(zetMk()!==mk) return; toast("❌ Stundenzettel: "+(e.message||e.code),true); _zetData={emps:{},err:(e.code||"eroare")}; }
-  _zetMk=mk; renderZet();
+  zetStop(); _zetData=null; _zetMk=""; renderZet();
+  try{
+    if(_zetCtx==="admin"){ await zetLoadMetaAdmin(mk); }
+    let first=true;
+    _zetUnsub=db.collection("zeiten").doc(mk).onSnapshot(snap=>{
+      if(zetMk()!==mk) return;
+      const zd=(snap.exists&&snap.data().emps)||{};
+      if(_zetDirty.size||_zetSaveT){ if(!_zetData){ _zetData={emps:zetBuild(zd)}; _zetMk=mk; renderZet(); } return; }   // nu suprascriem ce se scrie chiar acum
+      const act=document.activeElement; const editing=act&&act.classList&&act.classList.contains("zs-in");
+      _zetData={emps:zetBuild(zd)}; _zetMk=mk; if(first||!editing) renderZet(); first=false; zetFsBackupSoon();
+    },e=>{ if(zetMk()!==mk) return; toast("❌ Pontaj: "+(e.message||e.code),true); _zetData={emps:{},err:(e.code||"eroare")}; _zetMk=mk; renderZet(); });
+  }catch(e){ if(zetMk()!==mk) return; toast("❌ Stundenzettel: "+(e.message||e.code),true); _zetData={emps:{},err:(e.code||"eroare")}; _zetMk=mk; renderZet(); }
 }
-function zetSaveSoon(){
+async function zetLoadMetaAdmin(mk){   // meta (Soll/Saldo/tarif) + migrare din formatul vechi (zile în stundenzettel, pe id de angajat)
+  const snap=await db.collection("stundenzettel").doc(mk).get(); const raw=(snap.exists&&snap.data().emps)||{}; const meta={}; let legacy=false; const moveDays={};
+  Object.keys(raw).forEach(k=>{
+    const e=raw[k]||{}; const emp=salEmps.find(x=>x.id===k); const key=emp?zetKey(emp.name):k;
+    if(e.days&&Object.keys(e.days).length){ legacy=true; moveDays[key]=e.days; }
+    if(emp) legacy=true;
+    meta[key]={soll:e.soll!=null?e.soll:null,saldo:e.saldo!=null?e.saldo:0,rate:e.rate!=null?e.rate:null};
+  });
+  _zetMeta=meta;
+  if(legacy){
+    for(const key of Object.keys(moveDays)){ await zetWriteDays(mk,key,moveDays[key],true); }
+    await db.collection("stundenzettel").doc(mk).set(JSON.parse(JSON.stringify({emps:meta,updatedAt:new Date().toISOString()})));
+  }
+}
+async function zetWriteDays(mk,key,days,onlyIfMissing){
+  const ref=db.collection("zeiten").doc(mk); const clean=JSON.parse(JSON.stringify(days||{}));
+  if(onlyIfMissing){ const cur=await ref.get(); const ex=cur.exists&&cur.data().emps&&cur.data().emps[key]&&cur.data().emps[key].days; if(ex&&Object.keys(ex).length) return; }
+  const stamp={updatedAt:new Date().toISOString(),by:window.activeUserKey||""};
+  try{ await ref.update(Object.assign({["emps."+key+".days"]:clean},stamp)); }
+  catch(e){ if(e&&e.code==="not-found"){ await ref.set(Object.assign({emps:{[key]:{days:clean}}},stamp),{merge:true}); } else throw e; }
+}
+function zetSaveSoon(id){
+  if(id) _zetDirty.add(id);
   if(_zetSaveT) clearTimeout(_zetSaveT);
-  const mk=_zetMk, emps=_zetData&&_zetData.emps; if(!emps||!mk) return;
+  const mk=_zetMk; if(!_zetData||!mk) return;
   _zetSaveT=setTimeout(async()=>{
-    _zetSaveT=null;
-    if(!_salUnlocked){ toast("🔒 Blocat — modificarea NU s-a salvat. Redeschide cu PIN-ul și repet-o.",true); return; }
-    try{ await db.collection("stundenzettel").doc(mk).set(JSON.parse(JSON.stringify({emps,updatedAt:new Date().toISOString()}))); const el=document.getElementById("zetSaved"); if(el){ el.textContent="✓ salvat"; setTimeout(()=>{ if(el) el.textContent=""; },1500); } }
-    catch(e){ toast("❌ Eroare salvare Stundenzettel: "+(e.message||e.code),true); }
+    _zetSaveT=null; const ids=Array.from(_zetDirty); _zetDirty=new Set();
+    if(_zetCtx==="admin"&&!_salUnlocked){ toast("🔒 Blocat — modificarea NU s-a salvat. Redeschide cu PIN-ul și repet-o.",true); return; }
+    try{
+      for(const k of ids){ const e=_zetData.emps[k]; if(!e) continue; await zetWriteDays(mk,k,e.days);
+        if(_zetCtx==="admin") _zetMeta[k]={soll:e.soll,saldo:e.saldo,rate:e.rate}; }
+      if(_zetCtx==="admin"&&ids.length){ await db.collection("stundenzettel").doc(mk).set(JSON.parse(JSON.stringify({emps:_zetMeta,updatedAt:new Date().toISOString()}))); }
+      const el=document.getElementById("zetSaved"); if(el){ el.textContent="✓ salvat"; setTimeout(()=>{ if(el) el.textContent=""; },1500); }
+      zetFsBackupSoon();
+    }catch(e){ ids.forEach(k=>_zetDirty.add(k)); toast("❌ Eroare salvare Pontaj: "+(e.message||e.code),true); }
   },700);
 }
 function zetChangeMonth(d){ _zetCur=new Date(_zetCur.getFullYear(),_zetCur.getMonth()+d,1); zetLoad(); }
@@ -11006,7 +11065,7 @@ function zetConcType(dr,ds){ if(!dr) return ""; const has=a=>(dr[a]||[]).some(l=
 function zetSortKey(emp,mk){ const pm=(typeof sortState!=="undefined"&&sortState.presence&&sortState.presence[mk])||null; if(!pm) return null; const k=salNameKey(emp.name); const key=Object.keys(pm).find(x=>salNameKey(x)===k); return key?pm[key]:null; }
 function zetWarnings(person,emp,y,m){   // → {byDay:{d:[{msg,fix}]}, general:[], n}
   const out={byDay:{},general:[],n:0}; const add=(d,msg,fix)=>{ (out.byDay[d]=out.byDay[d]||[]).push({msg,fix}); out.n++; };
-  const mk=y+"-"+String(m+1).padStart(2,"0"); const dr=salFindDriver(person);
+  const mk=y+"-"+String(m+1).padStart(2,"0"); const dr=person.drv||salFindDriver(person);
   if(!dr){ out.general.push("Persoana nu e găsită în Concedii (nume diferit?) — nu pot verifica zilele de concediu."); out.n++; }
   else if(y!==activeYear){ out.general.push("Concedii afișează acum anul "+activeYear+" — verificarea cu Concedii e sărită pentru "+y+"."); }
   const chk=dr&&y===activeYear; const sp=zetSortKey(person,mk); const spAny=sp&&Object.values(sp).some(v=>v==="prezent");
@@ -11033,19 +11092,24 @@ function zetFix(id,d,fix){
   const emp=_zetData.emps[id]; if(!emp) return; emp.days=emp.days||{}; const r=emp.days[d]=emp.days[d]||{};
   if(fix.t==="clear"){ r.a=""; if(!r.k&&r.g==="08:00") r.g=""; }
   else if(fix.t==="set"){ r.a=zetAbsNorm(fix.v==="U"?"Urlaub":fix.v==="K"?"Krank":"Unbezahlt"); if(!r.k) r.g="08:00"; r.k=r.k||""; r.p=r.k?r.p:""; if(r.k&&r.g&&fix.v!=="U"&&fix.v!=="K"){} }
-  zetSaveSoon(); renderZet();
+  zetSaveSoon(id); renderZet();
 }
 
 // ---- date derivate ----
 function zetPeople(){
-  const mk=zetMk(), y=_zetCur.getFullYear(), m=_zetCur.getMonth();
-  return salEmps.filter(e=>e.active!==false||(_zetData&&_zetData.emps[e.id])).sort((a,b)=>a.name.localeCompare(b.name,"ro"));
+  const out=[], seen=new Set();
+  if(_zetCtx==="staff"){
+    (state.drivers||[]).filter(d=>!d.archived).forEach(d=>{ const k=zetKey(d.name); if(seen.has(k)) return; seen.add(k); out.push({id:k,name:d.name,drv:d}); });
+  } else {
+    salEmps.filter(e=>e.active!==false||(_zetData&&_zetData.emps[zetKey(e.name)]&&Object.keys(_zetData.emps[zetKey(e.name)].days).length)).forEach(e=>{ const k=zetKey(e.name); if(seen.has(k)) return; seen.add(k); out.push({id:k,name:e.name,emp:e}); });
+  }
+  return out.sort((a,b)=>a.name.localeCompare(b.name,"ro"));
 }
 function zetGetEmp(id){ const e=_zetData.emps[id]||(_zetData.emps[id]={days:{},soll:null,saldo:0,rate:null}); e.days=e.days||{}; return e; }
 
 // ---- foaia (editabilă pe ecran / statică la tipărit) ----
 function zetSheet(person,emp,y,m,mode){   // mode: "edit" | "print" | "blank"
-  const blank=mode==="blank", edit=mode==="edit"; const last=new Date(y,m+1,0).getDate();
+  const blank=mode==="blank", edit=mode==="edit"; const last=new Date(y,m+1,0).getDate(); const nm=_zetCtx==="staff";   // Raluca/Mădălina văd doar orele: fără Soll/Saldo/tarif/Spesen
   const E=blank?{days:{}}:(emp||{days:{}}); const c=zetCalc(E,y,m); const id=person.id;
   let rows="";
   for(let d=1;d<=last;d++){
@@ -11058,11 +11122,11 @@ function zetSheet(person,emp,y,m,mode){   // mode: "edit" | "print" | "blank"
     const tt=v=>v?(zetFm(zetTm(v))):"";
     rows+=`<tr class="${cls}" id="zr_${d}">${tag}<td class="zs-c">${edit?inp("k"):zetEsc(tt(r.k))}</td><td class="zs-c">${edit?inp("g"):zetEsc(tt(r.g))}</td><td class="zs-c">${edit?inp("p"):zetEsc(tt(r.p))}</td><td class="zs-c zs-h" id="zh_${d}">${zetFm(h)}</td><td class="zs-c" id="za_${d}">${edit?inp("a"):zetEsc(ab)}</td><td class="zs-bem">${edit?inp("b"):zetEsc(r.b||"")}</td></tr>`;
   }
-  const rate=blank?"":(E.rate!=null?E.rate:""), rateTxt=rate===""?"":("× "+String(rate).replace(".",","));
+  const rate=(blank||nm)?"":(E.rate!=null?E.rate:""), rateTxt=rate===""?"":("× "+String(rate).replace(".",","));
   const sumRow=blank?`<td class="zs-sv"></td>`:`<td class="zs-sv" id="zSum">${c.tot>0?zetFm(c.tot):""}</td>`;
-  const sollV=blank?"":(edit?`<input class="zs-in zs-in-w" id="zSoll" value="${c.soll!=null?zetFm(c.soll):""}" placeholder="0:00" onchange="zetSetMeta('${id}','soll',this.value)">`:(c.soll!=null?zetFm(c.soll):""));
-  const saldoV=blank?"":(edit?`<input class="zs-in zs-in-w" id="zSaldo" value="${zetFm(c.saldo)}" placeholder="0:00" onchange="zetSetMeta('${id}','saldo',this.value)">`:zetFm(c.saldo));
-  const rateIn=blank?"":(edit?`× <input class="zs-in zs-in-s" id="zRate" value="${rate===""?"":String(rate).replace(".",",")}" placeholder="€/h" onchange="zetSetMeta('${id}','rate',this.value)">`:zetEsc(rateTxt));
+  const sollV=(blank||nm)?"":(edit?`<input class="zs-in zs-in-w" id="zSoll" value="${c.soll!=null?zetFm(c.soll):""}" placeholder="0:00" onchange="zetSetMeta('${id}','soll',this.value)">`:(c.soll!=null?zetFm(c.soll):""));
+  const saldoV=(blank||nm)?"":(edit?`<input class="zs-in zs-in-w" id="zSaldo" value="${zetFm(c.saldo)}" placeholder="0:00" onchange="zetSetMeta('${id}','saldo',this.value)">`:zetFm(c.saldo));
+  const rateIn=(blank||nm)?"":(edit?`× <input class="zs-in zs-in-s" id="zRate" value="${rate===""?"":String(rate).replace(".",",")}" placeholder="€/h" onchange="zetSetMeta('${id}','rate',this.value)">`:zetEsc(rateTxt));
   return `<div class="zs-wrap"><table class="zs"><colgroup><col style="width:9%"><col style="width:13%"><col style="width:13%"><col style="width:13%"><col style="width:16%"><col style="width:16%"><col style="width:20%"></colgroup>
     <tr><td colspan="7" class="zs-title">Zeiterfassung</td></tr>
     <tr class="zs-hd"><td colspan="3" class="zs-c"><b>Name, Vorname:</b></td><td colspan="2" class="zs-c"><b>${zetEsc(person.name)}</b></td><td class="zs-c"><b>Monat:</b></td><td class="zs-c"><b>${ZET_DE_MONTHS[m]}</b></td></tr>
@@ -11072,9 +11136,9 @@ function zetSheet(person,emp,y,m,mode){   // mode: "edit" | "print" | "blank"
     <tr><td colspan="7" class="zs-bar"></td></tr>
     <tr><td colspan="7" class="zs-foot"><div class="zs-ftw">
       <div class="zs-fl"><table class="zs-s"><tr><td class="zs-sl"><b>Summe der Arbeitsstunden:</b></td>${sumRow}<td class="zs-sr" id="zRateTd">${rateIn}</td></tr>
-        <tr><td class="zs-sl"><b>./. Sollstunden / Monat:</b></td><td class="zs-sv">${sollV}</td><td class="zs-sr zs-sp" id="zSpesen">${blank?"":(c.spesen?zetEsc(String(c.spesen))+" SPESEN":"")}</td></tr>
+        <tr><td class="zs-sl"><b>./. Sollstunden / Monat:</b></td><td class="zs-sv">${sollV}</td><td class="zs-sr zs-sp" id="zSpesen">${(blank||nm)?"":(c.spesen?zetEsc(String(c.spesen))+" SPESEN":"")}</td></tr>
         <tr><td class="zs-sl"><b>+/- Saldo Vormonat:</b></td><td class="zs-sv">${saldoV}</td><td></td></tr>
-        <tr><td class="zs-sl"><b>Aktuelles Zeitkonto:</b></td><td class="zs-sv" id="zKonto" style="font-weight:700">${blank||c.konto==null?"":zetFm(c.konto)}</td><td></td></tr></table>
+        <tr><td class="zs-sl"><b>Aktuelles Zeitkonto:</b></td><td class="zs-sv" id="zKonto" style="font-weight:700">${blank||nm||c.konto==null?"":zetFm(c.konto)}</td><td></td></tr></table>
         <div class="zs-note"><b>* Pausen</b><br>mind. 30 Minuten täglich (Eingabe im Format 00:00)<br><br><b>** Abwesenheit</b><br>U = Urlaub &nbsp; K = Krankheit &nbsp; F = Feiertag<br>G = Geschäftsreise &nbsp; T = Training / Seminar<br>Z = Zeitausgleich &nbsp; S = Sonstiges</div></div>
       <div class="zs-fr"><div class="zs-sig"><div class="zs-line"></div>Unterschrift Mitarbeiter</div><div class="zs-sig"><div class="zs-line"></div>Kontrolliert / Datum</div><div class="zs-sig"><div class="zs-line"></div>Unterschrift Vorgesetzter</div></div>
     </div></td></tr></table></div>`;
@@ -11088,7 +11152,7 @@ const ZET_CSS=`.zs-wrap{max-width:760px;margin:0 auto}.zs{border-collapse:collap
 .zs-ftw{display:flex;gap:16px;justify-content:space-between;padding:4px 8px}.zs-fl{flex:1}.zs-fr{width:38%;display:flex;flex-direction:column;justify-content:flex-end;gap:26px;padding-bottom:6px}
 .zs-s{border-collapse:collapse;width:100%}.zs-s td{border:none;padding:1px 3px;font-size:11px}.zs-s .zs-sv{border:1px solid #000;text-align:right;width:70px;padding:1px 4px}.zs-sl{white-space:nowrap}.zs-sr{white-space:nowrap;font-weight:700}.zs-sp{text-align:center}
 .zs-note{font-size:9px;margin-top:14px;line-height:1.35}.zs-sig{font-size:9px;text-align:left}.zs-line{border-bottom:1px solid #000;height:22px;margin-bottom:2px}
-.zs-in{width:100%;box-sizing:border-box;border:none;background:transparent;text-align:center;font:inherit;padding:2px 0;color:inherit;outline:none}.zs-in:focus{background:#fffbe0;box-shadow:inset 0 0 0 1px #c9a92e}.zs-in::placeholder{color:#aaa}.zs-in-w{width:62px;text-align:right}.zs-in-s{width:52px;border-bottom:1px dotted #888}
+.zs-in{width:100%;box-sizing:border-box;border:none!important;background:transparent!important;border-radius:0!important;box-shadow:none!important;text-align:center;font:inherit;padding:2px 0!important;height:auto!important;min-height:0!important;color:inherit!important;outline:none}.zs-in:focus{background:#fffbe0!important;box-shadow:inset 0 0 0 1px #c9a92e!important}.zs-in::placeholder{color:#aaa}.zs-in-w{width:62px;text-align:right}.zs-in-s{width:52px;border-bottom:1px dotted #888}
 .zs-warnrow td{background:#fff3cd!important}.zs,.zs *{-webkit-print-color-adjust:exact;print-color-adjust:exact}.zs-wr{display:table-row}@media print{.zs-wr{display:none}}`;
 function zetFocusNext(el){ const all=Array.from(document.querySelectorAll("#zetSheetBox .zs-in[data-d]")); const i=all.indexOf(el); return i>=0?i+1:-1; }
 function zetSet(el){
@@ -11098,18 +11162,18 @@ function zetSet(el){
   else if(f==="a"){ r.a=zetAbsNorm(v); if(r.a&&zetAbsType(r.a)!==""&&!r.k&&!r.g&&/^(Urlaub|Krank|Feiertag|Zeitausgleich|Unbezahlt)$/.test(r.a)&&r.a!=="Unbezahlt") r.g="08:00"; }
   else r.b=v.slice(0,120);
   if(!r.k&&!r.g&&!r.p&&!r.a&&!r.b) delete emp.days[d];
-  zetSaveSoon(); renderZet(nextIdx);
+  zetSaveSoon(id); renderZet(nextIdx);
 }
 function zetSetMeta(id,f,v){
   const emp=zetGetEmp(id);
   if(f==="rate"){ const n=parseFloat(String(v).replace(",",".")); emp.rate=isNaN(n)||v===""?null:n; }
   else { const s=String(v).trim(); if(s===""){ emp[f]=f==="saldo"?0:null; } else { const t=zetParseHM(s); if(t===null||isNaN(t)){ toast("Valoare invalidă (ex. 175:00)",true); renderZet(); return; } emp[f]=t; } }
-  zetSaveSoon(); renderZet();
+  zetSaveSoon(id); renderZet();
 }
 function zetSelect(id){ _zetSel=id; renderZet(); }
-function zetFixClick(id,d,i){ const y=_zetCur.getFullYear(), m=_zetCur.getMonth(); const p=salEmps.find(e=>e.id===id); const W=zetWarnings(p,zetGetEmp(id),y,m); const w=(W.byDay[d]||[])[i]; if(w&&w.fix) zetFix(id,d,w.fix); }
+function zetFixClick(id,d,i){ const y=_zetCur.getFullYear(), m=_zetCur.getMonth(); const p=zetPeople().find(e=>e.id===id); if(!p) return; const W=zetWarnings(p,zetGetEmp(id),y,m); const w=(W.byDay[d]||[])[i]; if(w&&w.fix) zetFix(id,d,w.fix); }
 function renderZet(focusIdx){
-  const box=document.getElementById("zetBody"); if(!box) return;
+  const box=document.getElementById(zetBoxId()); if(!box) return;
   const y=_zetCur.getFullYear(), m=_zetCur.getMonth();
   const head=`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
     <button onclick="zetChangeMonth(-1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--text-dim)">◀</button>
@@ -11118,10 +11182,11 @@ function renderZet(focusIdx){
     <button onclick="zetGoToday()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;color:var(--text-dim)">Azi</button>
     <span id="zetSaved" style="font-size:12px;color:var(--sal-green,#10b981)"></span>
     <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
-      <button onclick="document.getElementById('zetFile').click()" style="padding:8px 16px;border:none;border-radius:999px;background:linear-gradient(135deg,var(--sal-em,#10b981),#0ea5a4);color:#fff;font-weight:800;cursor:pointer">📥 Încarcă Excel (toate persoanele)</button>
+      ${_zetCtx==="admin"?`<button onclick="document.getElementById('zetFile').click()" style="padding:8px 16px;border:none;border-radius:999px;background:linear-gradient(135deg,var(--sal-em,#10b981),#0ea5a4);color:#fff;font-weight:800;cursor:pointer">📥 Încarcă Excel (toate persoanele)</button>`:""}
+      <button onclick="zetExportClick('all')" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">📤 Export Excel (toți)</button>
       <button onclick="zetPrint('all')" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🖨 Toți (completate)</button>
       <button onclick="zetPrint('allblank')" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🖨 Toți (goale)</button>
-    </span></div>`;
+    </span></div><div id="zetFsChip" style="margin:-4px 0 12px">${zetFsChipHtml()}</div>`;
   if(!_zetData){ box.innerHTML=head+`<div style="padding:30px;text-align:center;color:var(--text-dim)">Se încarcă…</div>`; return; }
   if(_zetData.err){ box.innerHTML=head+`<div style="padding:18px;border:1px dashed #ef4444;border-radius:10px;color:#ef4444;font-size:13px">Nu pot citi Stundenzettel (${zetEsc(_zetData.err)}). Regula Firestore pentru colecția <b>stundenzettel</b> nu e publicată încă sau sesiunea Salarii a expirat.</div>`; return; }
   const people=zetPeople(); if(!_zetSel||!people.some(p=>p.id===_zetSel)) _zetSel=(people[0]||{}).id||"";
@@ -11140,7 +11205,8 @@ function renderZet(focusIdx){
     const sheet=zetSheetW(person,emp,y,m,W);
     main=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center"><b style="font-size:15px">${zetEsc(person.name)}</b>
       <span style="margin-left:auto;display:flex;gap:8px"><button onclick="zetPrint('one')" style="padding:6px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🖨 Fișa (completată)</button>
-      <button onclick="zetPrint('oneblank')" style="padding:6px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🖨 Fișa goală</button></span></div>${gen}
+      <button onclick="zetPrint('oneblank')" style="padding:6px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🖨 Fișa goală</button>
+      <button onclick="zetExportClick('one')" style="padding:6px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">📤 Excel</button></span></div>${gen}
       <div id="zetSheetBox" style="overflow-x:auto">${sheet}</div>
       <div style="font-size:11px;color:var(--text-dim);margin-top:8px;text-align:center">Scrie orele ca 9:00 sau 900; la Pausen 45 = 0:45. Abwesenheit: U=Urlaub, K=Krank, F=Feiertag, UP=Unbezahlt. „X” apare singur la peste 8 ore (→ Spesen 25 €).</div>`;
   }
@@ -11291,22 +11357,166 @@ function zetPeopleAll(){ return salEmps.slice().sort((a,b)=>a.name.localeCompare
 async function zetImportConfirm(){
   const pd=_zetPendingImport; if(!pd) return; const err=document.getElementById("zetImpErr");
   const mk=document.getElementById("zetImpMonth").value; if(!/^\d{4}-\d{2}$/.test(mk)){ err.textContent="Alege luna"; return; }
-  const chosen=pd.sheets.map((s,i)=>({s,id:document.getElementById("zetImpSel"+i).value})).filter(x=>x.id);
+  const chosen=pd.sheets.map((s,i)=>({s,id:document.getElementById("zetImpSel"+i).value})).filter(x=>x.id).map(x=>{ const emp=salEmps.find(e=>e.id===x.id); return Object.assign(x,{emp,key:emp?zetKey(emp.name):""}); }).filter(x=>x.key);
   if(!chosen.length){ err.textContent="Nicio foaie nu e legată de o persoană"; return; }
-  const ids=chosen.map(x=>x.id); if(new Set(ids).size!==ids.length){ err.textContent="O persoană e aleasă la două foi"; return; }
+  const keys=chosen.map(x=>x.key); if(new Set(keys).size!==keys.length){ err.textContent="O persoană e aleasă la două foi"; return; }
   const [y,m]=mk.split("-").map(Number);
   if(!confirm("CONFIRMARE\n\nÎncarci "+chosen.length+" fișe pentru luna:\n\n      "+(MONTHS[m-1]+" "+y).toUpperCase()+"\n\nEste luna corectă?")) return;
   try{
-    const snap=await db.collection("stundenzettel").doc(mk).get(); const emps=(snap.exists&&snap.data().emps)||{};
-    const over=chosen.filter(x=>emps[x.id]&&Object.keys(emps[x.id].days||{}).length);
-    if(over.length&&!confirm(over.length+" persoane au deja date în luna asta ("+over.slice(0,5).map(x=>salEmpName(x.id)).join(", ")+(over.length>5?"…":"")+").\nLe înlocuiești cu cele din Excel?")) return;
-    chosen.forEach(x=>{ const old=emps[x.id]||{}; emps[x.id]={days:x.s.days,soll:x.s.soll!=null?x.s.soll:(old.soll!=null?old.soll:null),saldo:x.s.saldo!=null?x.s.saldo:(old.saldo||0),rate:x.s.rate!=null?x.s.rate:(old.rate!=null?old.rate:null)}; });
-    await db.collection("stundenzettel").doc(mk).set(JSON.parse(JSON.stringify({emps,updatedAt:new Date().toISOString()})));
+    const zs=await db.collection("zeiten").doc(mk).get(); const zemps=(zs.exists&&zs.data().emps)||{};
+    const over=chosen.filter(x=>zemps[x.key]&&zemps[x.key].days&&Object.keys(zemps[x.key].days).length);
+    if(over.length&&!confirm(over.length+" persoane au deja date în luna asta ("+over.slice(0,5).map(x=>x.emp.name).join(", ")+(over.length>5?"…":"")+").\nLe înlocuiești cu cele din Excel?")) return;
+    const ms=await db.collection("stundenzettel").doc(mk).get(); const meta=(ms.exists&&ms.data().emps)||{};
+    for(const x of chosen){ await zetWriteDays(mk,x.key,x.s.days,false); const old=meta[x.key]||{};
+      meta[x.key]={soll:x.s.soll!=null?x.s.soll:(old.soll!=null?old.soll:null),saldo:x.s.saldo!=null?x.s.saldo:(old.saldo||0),rate:x.s.rate!=null?x.s.rate:(old.rate!=null?old.rate:null)}; }
+    await db.collection("stundenzettel").doc(mk).set(JSON.parse(JSON.stringify({emps:meta,updatedAt:new Date().toISOString()})));
     _zetPendingImport=null; closeModal("zetImpModal");
-    _zetCur=new Date(y,m-1,1); _zetSel=chosen[0].id; await zetLoad(true);
+    _zetCur=new Date(y,m-1,1); _zetSel=chosen[0].key; await zetLoad(true);
     toast("✓ "+chosen.length+" fișe încărcate pentru "+MONTHS[m-1]+" "+y);
   }catch(e){ err.textContent="Eroare: "+(e.message||e.code); }
 }
+// ---------- Export Excel (același format ca fișierul Zeiterfassung) ----------
+const ZET_EJ_URL="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js", ZET_EJ_SRI="sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz";
+let _zetEJ=null;
+function zetLoadEJ(){
+  if(window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  if(_zetEJ) return _zetEJ;
+  _zetEJ=new Promise((res,rej)=>{ const sc=document.createElement("script"); sc.src=ZET_EJ_URL; sc.integrity=ZET_EJ_SRI; sc.crossOrigin="anonymous"; sc.onload=()=>res(window.ExcelJS); sc.onerror=()=>{ _zetEJ=null; rej(new Error("nu pot încărca modulul Excel (internet?)")); }; document.head.appendChild(sc); });
+  return _zetEJ;
+}
+function zetFillSheet(ws,p,E,y,m,blank,nm){
+  const AR="Arial"; const last=new Date(y,m+1,0).getDate(); const calc=zetCalc(E,y,m);
+  const med={style:"medium",color:{argb:"FF000000"}}, thin={style:"thin",color:{argb:"FF000000"}}, dot={style:"dotted",color:{argb:"FF000000"}};
+  const fill=c=>({type:"pattern",pattern:"solid",fgColor:{argb:c}});
+  [["A",2],["B",6.3],["C",0.6],["D",11.1],["E",12.1],["F",13],["G",14.7],["H",14.4],["I",6.7],["J",15.9]].forEach(([c,w])=>{ ws.getColumn(c).width=w; });
+  const set=(addr,v,o)=>{ const c=ws.getCell(addr); if(v!==undefined&&v!==null) c.value=v; o=o||{}; c.font={name:AR,size:o.sz||10,bold:!!o.b}; if(o.fill) c.fill=fill(o.fill); c.alignment={horizontal:o.h||undefined,vertical:"middle",wrapText:!!o.wrap}; if(o.fmt) c.numFmt=o.fmt; return c; };
+  const box=(r1,c1,r2,c2,b)=>{ for(let r=r1;r<=r2;r++) for(let c=c1;c<=c2;c++){ const cell=ws.getCell(r,c); cell.border=Object.assign({},cell.border||{},b); } };
+  // titlu + antet
+  ws.mergeCells("B2:J2"); set("B2","Zeiterfassung",{sz:18,b:1,h:"center",fill:"FFC2D69B"}); ws.getRow(2).height=51;
+  ws.mergeCells("B3:E3"); ws.mergeCells("F3:G3"); ws.mergeCells("I3:J3"); ws.mergeCells("B4:G4"); ws.mergeCells("I4:J4");
+  const hd="FFEAF1DD";
+  set("B3","Name, Vorname:",{b:1,h:"center",fill:hd}); set("F3",p.name,{b:1,h:"center",fill:hd}); set("H3","Monat:",{b:1,h:"center",fill:hd}); set("I3",ZET_DE_MONTHS[m],{b:1,h:"center",fill:hd});
+  set("B4","Abteilung:           MTC Transport GmbH",{b:1,h:"center",fill:hd}); set("H4","Jahr:",{b:1,h:"center",fill:hd}); set("I4",y,{b:1,h:"center",fill:hd});
+  ws.getRow(3).height=17.25; ws.getRow(4).height=21;
+  ["C3","D3","E3","G3","J3","C4","D4","E4","F4","G4","J4"].forEach(a=>{ ws.getCell(a).fill=fill(hd); });
+  box(3,2,4,10,{top:thin,bottom:thin,left:thin,right:thin});
+  ws.mergeCells("B5:C5"); ws.mergeCells("I5:J5");
+  [["B5","Tag"],["D5","Kommt"],["E5","Geht"],["F5","Pausen*"],["G5","Arbeitsstunden"],["H5","Abwesenheit**"],["I5","Bemerkung"]].forEach(([a,t])=>set(a,t,{b:1,h:"center",fill:hd}));
+  ["C5","J5"].forEach(a=>{ ws.getCell(a).fill=fill(hd); }); box(5,2,5,10,{top:thin,bottom:thin,left:thin,right:thin});
+  // zilele 1..31 (rândurile 6..36); cele care nu există în lună se ascund
+  for(let d=1;d<=31;d++){
+    const r=5+d; const row=ws.getRow(r); row.height=15;
+    ws.mergeCells("B"+r+":C"+r); ws.mergeCells("I"+r+":J"+r);
+    if(d>last){ row.hidden=true; set("B"+r,null,{h:"center"}); set("G"+r,{formula:"MOD(E"+r+"-D"+r+"-F"+r+",1)",result:0},{fmt:'[h]":"mm'}); set("H"+r,{formula:'IF(G'+r+'>TIME(8,0,0),"X","")',result:""},{h:"center"}); continue; }
+    const dt=new Date(y,m,d), sun=dt.getDay()===0, f=sun?"FF92D050":undefined, rec=blank?{}:zetRec(E,d);
+    set("B"+r,d,{h:"center",fmt:"0",fill:f});
+    const tv=s=>{ const t=zetTm(s); return t==null?null:t/1440; };
+    set("D"+r,blank?null:tv(rec.k),{h:"center",fmt:'h":"mm;@',fill:f}); set("E"+r,blank?null:tv(rec.g),{h:"center",fmt:'h":"mm;@',fill:f}); set("F"+r,blank?null:tv(rec.p),{h:"center",fmt:'h":"mm;@',fill:f});
+    if(blank){ set("G"+r,null,{fmt:'[h]":"mm',fill:f}); set("H"+r,null,{h:"center",fill:f}); }
+    else{
+      const mins=zetDayMin(rec); set("G"+r,{formula:"MOD(E"+r+"-D"+r+"-F"+r+",1)",result:mins/1440},{fmt:'[h]":"mm',fill:f});
+      const a=String(rec.a||"").trim();
+      if(a) set("H"+r,a,{h:"center",fill:f}); else set("H"+r,{formula:'IF(G'+r+'>TIME(8,0,0),"X","")',result:mins>480?"X":""},{h:"center",fill:f});
+    }
+    set("I"+r,blank?null:(rec.b||" "),{b:1,h:"center",fill:f}); if(f){ ws.getCell("C"+r).fill=fill(f); ws.getCell("J"+r).fill=fill(f); }
+    for(let c=2;c<=10;c++){ const cell=ws.getCell(r,c); cell.border={top:thin,bottom:thin,left:c===2?med:thin,right:c===10?med:thin}; }
+    ws.getCell("B"+r).border={top:dot,bottom:dot,left:med,right:undefined}; ws.getCell("C"+r).border={top:dot,bottom:dot};
+  }
+  // subsol
+  const lr=(r,t,b)=>{ ws.mergeCells("C"+r+":F"+r); set("C"+r,t,{b:b!==false}); };
+  lr(37,"Summe der Arbeitsstunden:"); lr(38,"./. Sollstunden / Monat:"); lr(39,"+/- Saldo Vormonat:"); lr(40,"Aktuelles Zeitkonto:");
+  const tot=calc.tot;
+  set("G37",blank?null:{formula:'IF(SUM(G6:G36),SUM(G6:G36),"")',result:tot>0?tot/1440:""},{fmt:"[h]:mm"});
+  if(!blank&&!nm){
+    if(E.rate!=null) set("H37","x"+Number(E.rate).toFixed(2).replace(".",","),{});
+    if(calc.soll!=null) set("G38",calc.soll/1440,{fmt:"[h]:mm"}); else set("G38",null,{fmt:"[h]:mm"});
+    set("G39",(calc.saldo||0)/1440,{fmt:"[h]:mm"});
+    set("G40",{formula:'IF(G37<>"",IF(ABS(G37-G38)<0.0000000001,0,G37-G38),"")',result:calc.konto==null?"":calc.konto/1440},{fmt:"[h]:mm",b:1});
+    set("I38",{formula:'COUNTIF(H6:H36,"X")*25',result:calc.spesen},{b:1}); set("J38","SPESEN",{b:1});
+  } else { ["G38","G39","G40"].forEach(a=>set(a,null,{fmt:"[h]:mm"})); }
+  [37,38,39,40].forEach(r=>{ ws.getCell("G"+r).border={top:med,bottom:med,left:med,right:med}; });
+  lr(42,"* Pausen"); ws.mergeCells("C43:G43"); set("C43","mind. 30 Minuten täglich (Eingabe im Format 00:00)",{}); lr(45,"** Abwesenheit");
+  [["U","Urlaub"],["K","Krankheit"],["F","Feiertag"],["G","Geschäftsreise"],["T","Training / Seminar"],["Z","Zeitausgleich"],["S","Sonstiges"]].forEach(([c,t],i)=>{ set("C"+(46+i),c,{h:"right"}); set("D"+(46+i),"=   "+t,{}); });
+  set("H44","Unterschrift Mitarbeiter",{sz:8}); set("H48","Kontrolliert / Datum",{sz:8}); set("H52","Unterschrift Vorgesetzter",{sz:8});
+  [43,47,51].forEach(r=>{ ["H","I","J"].forEach(c=>{ ws.getCell(c+r).border={bottom:thin}; }); });
+  for(let r=37;r<=53;r++){ ws.getCell("B"+r).border=Object.assign({},ws.getCell("B"+r).border||{},{left:med}); ws.getCell("J"+r).border=Object.assign({},ws.getCell("J"+r).border||{},{right:med}); }
+  for(let c=2;c<=10;c++){ const cell=ws.getCell(53,c); cell.border=Object.assign({},cell.border||{},{bottom:med}); const t=ws.getCell(37,c); t.border=Object.assign({},t.border||{},{top:{style:"thick",color:{argb:"FF000000"}}}); }
+  for(let c=2;c<=10;c++){ const cell=ws.getCell(2,c); cell.border=Object.assign({},cell.border||{},{top:med}); }
+  for(let r=2;r<=36;r++){ ws.getCell("B"+r).border=Object.assign({},ws.getCell("B"+r).border||{},{left:med}); ws.getCell("J"+r).border=Object.assign({},ws.getCell("J"+r).border||{},{right:med}); }
+  ws.pageSetup={paperSize:9,orientation:"portrait",fitToPage:true,fitToWidth:1,fitToHeight:1,horizontalCentered:true,printArea:"B2:J53",margins:{left:0.55,right:0.55,top:0.6,bottom:0.6,header:0.3,footer:0.3}};
+  ws.views=[{showGridLines:false}];
+}
+async function zetBuildWorkbook(people,y,m,blank){
+  const EJ=await zetLoadEJ(); const wb=new EJ.Workbook(); wb.creator="MTC Transport GmbH"; const used=new Set(); const nm=_zetCtx==="staff";
+  people.forEach(p=>{
+    let base=String(p.name).replace(/[\\\/\?\*\[\]:]/g," ").trim().slice(0,31)||"Foaie"; let n=base,i=2; while(used.has(n.toLowerCase())){ n=base.slice(0,28)+" "+(i++); } used.add(n.toLowerCase());
+    zetFillSheet(wb.addWorksheet(n),p,(_zetData&&_zetData.emps[p.id])||{days:{}},y,m,blank,nm);
+  });
+  return wb;
+}
+function zetDownloadBlob(blob,name){ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1500); }
+function zetFileName(){ return "Stundenzettel_"+zetMk()+"_"+(_zetCtx==="staff"?(window.activeUserKey||"user"):"toti")+".xlsx"; }
+async function zetExportClick(kind){
+  const y=_zetCur.getFullYear(), m=_zetCur.getMonth(); let ps=zetPeople();
+  if(kind==="one") ps=ps.filter(p=>p.id===_zetSel);
+  else ps=ps.filter(p=>_zetData&&_zetData.emps[p.id]&&zetCalc(_zetData.emps[p.id],y,m).any);
+  if(!ps.length){ toast("Nicio fișă completată în luna asta",true); return; }
+  try{ const wb=await zetBuildWorkbook(ps,y,m,false); const buf=await wb.xlsx.writeBuffer();
+    zetDownloadBlob(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),kind==="one"?("Zeiterfassung_"+ps[0].name.replace(/[^\w\-]+/g,"_")+"_"+zetMk()+".xlsx"):zetFileName());
+    toast("✓ Excel exportat ("+ps.length+" foi)"); }
+  catch(e){ toast("❌ Export Excel: "+(e.message||e),true); }
+}
+
+// ---------- Copie automată pe PC (folder ales; Chrome/Edge) ----------
+const ZET_FS_OK=typeof window!=="undefined"&&!!window.showDirectoryPicker;
+let _zetFsT=null, _zetFsState={st:"none",msg:"",at:""};
+function zetIdb(){ return new Promise((res,rej)=>{ const r=indexedDB.open("mtc_zeit_fs",1); r.onupgradeneeded=()=>r.result.createObjectStore("h"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function zetIdbGet(k){ const db=await zetIdb(); return new Promise((res,rej)=>{ const q=db.transaction("h").objectStore("h").get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); }
+async function zetIdbSet(k,v){ const db=await zetIdb(); return new Promise((res,rej)=>{ const t=db.transaction("h","readwrite"); t.objectStore("h").put(v,k); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error); }); }
+const zetFsKey=()=>"dir_"+(window._simUser||window.activeUserKey||"x");
+async function zetFsInit(){   // verifică dacă există folder salvat și dacă avem încă permisiunea
+  if(!ZET_FS_OK){ _zetFsState={st:"unsupported"}; return; }
+  try{ const h=await zetIdbGet(zetFsKey()); if(!h){ _zetFsState={st:"none"}; return; }
+    const perm=await h.queryPermission({mode:"readwrite"}); _zetFsState=perm==="granted"?{st:"ok",name:h.name,at:_zetFsState.at||""}:{st:"perm",name:h.name}; }
+  catch(e){ _zetFsState={st:"none"}; }
+  zetFsChipRefresh();
+}
+async function zetFsPick(){
+  try{ const h=await window.showDirectoryPicker({mode:"readwrite"}); await zetIdbSet(zetFsKey(),h); _zetFsState={st:"ok",name:h.name,at:""}; zetFsChipRefresh(); await zetFsBackup(true); toast("✓ Copia pe PC activată în folderul „"+h.name+"”"); }
+  catch(e){ if(e&&e.name!=="AbortError") toast("❌ Folder: "+(e.message||e),true); }
+}
+async function zetFsReauth(){
+  try{ const h=await zetIdbGet(zetFsKey()); if(!h) return zetFsPick(); const p=await h.requestPermission({mode:"readwrite"}); if(p==="granted"){ _zetFsState={st:"ok",name:h.name,at:""}; zetFsChipRefresh(); await zetFsBackup(true); } else toast("Permisiunea nu a fost acordată",true); }
+  catch(e){ toast("❌ "+(e.message||e),true); }
+}
+function zetFsBackupSoon(){
+  if(window._simUser||!ZET_FS_OK||_zetFsState.st!=="ok"||!_zetData) return;
+  if(_zetFsT) clearTimeout(_zetFsT); _zetFsT=setTimeout(()=>zetFsBackup(false),5000);
+}
+async function zetFsBackup(force){
+  _zetFsT=null; if(window._simUser||!_zetData) return;
+  try{
+    const h=await zetIdbGet(zetFsKey()); if(!h) return; if((await h.queryPermission({mode:"readwrite"}))!=="granted"){ _zetFsState={st:"perm",name:h.name}; zetFsChipRefresh(); return; }
+    const y=_zetCur.getFullYear(), m=_zetCur.getMonth(); const ps=zetPeople().filter(p=>_zetData.emps[p.id]&&zetCalc(_zetData.emps[p.id],y,m).any);
+    if(!ps.length&&!force) return; if(!ps.length) return;
+    const wb=await zetBuildWorkbook(ps,y,m,false); const buf=await wb.xlsx.writeBuffer();
+    const write=async(dir,name)=>{ const fh=await dir.getFileHandle(name,{create:true}); const w=await fh.createWritable(); await w.write(buf); await w.close(); };
+    await write(h,zetFileName());
+    const day=new Date().toISOString().slice(0,10); let last=""; try{ last=localStorage.getItem("zetFsDay_"+zetFsKey()+"_"+zetMk())||""; }catch(e){}
+    if(last!==day){ const ar=await h.getDirectoryHandle("arhiva",{create:true}); await write(ar,zetFileName().replace(/\.xlsx$/,"_"+day+".xlsx")); try{ localStorage.setItem("zetFsDay_"+zetFsKey()+"_"+zetMk(),day); }catch(e){} }
+    _zetFsState={st:"ok",name:h.name,at:new Date().toLocaleTimeString("ro-RO",{hour:"2-digit",minute:"2-digit"})}; zetFsChipRefresh();
+  }catch(e){ _zetFsState={st:"err",msg:(e&&e.message)||String(e)}; zetFsChipRefresh(); }
+}
+function zetFsChipHtml(){
+  const st=_zetFsState.st; const b=(t,f)=>`<button onclick="${f}" style="margin-left:8px;padding:3px 10px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-size:12px;color:var(--text)">${t}</button>`;
+  const base='style="font-size:12.5px;padding:7px 12px;border-radius:10px;border:1px dashed var(--border);color:var(--text-dim)"';
+  if(st==="ok") return `<div ${base}>💾 Copie automată pe PC activă — folder „${zetEsc(_zetFsState.name||"")}”${_zetFsState.at?" · ultima: "+_zetFsState.at:""}${b("Schimbă folderul","zetFsPick()")}${b("Salvează acum","zetFsBackup(true)")}</div>`;
+  if(st==="perm") return `<div ${base.replace("var(--text-dim)","#b45309")}>⚠ Copia pe PC e oprită până confirmi accesul la folderul „${zetEsc(_zetFsState.name||"")}” ${b("Reactivează","zetFsReauth()")}</div>`;
+  if(st==="err") return `<div ${base.replace("var(--text-dim)","#ef4444")}>❌ Copia pe PC a eșuat: ${zetEsc(_zetFsState.msg||"")} ${b("Alege folderul din nou","zetFsPick()")}</div>`;
+  if(st==="unsupported") return `<div ${base}>💾 Copia automată pe PC merge doar în Chrome/Edge pe calculator. Aici folosește „📤 Export Excel” ca să-ți salvezi o copie.</div>`;
+  return `<div ${base}>💾 Nu ai activat copia automată pe PC ${b("Alege folderul pentru copie","zetFsPick()")}</div>`;
+}
+function zetFsChipRefresh(){ const el=document.getElementById("zetFsChip"); if(el) el.innerHTML=zetFsChipHtml(); }
 
 function salPkgFilter(){
   const q=normalizeForSearch((document.getElementById("salPkgQ")||{}).value||"").trim();
@@ -16735,7 +16945,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261105-114006';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-102325';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -16821,6 +17031,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
