@@ -11178,7 +11178,7 @@ const ZET_CSS=`.zs-wrap{max-width:760px;margin:0 auto}.zs{border-collapse:collap
 .zs td{border:1px solid #000;padding:1px 4px;line-height:1.25}.zs-title{background:#c4d79b;text-align:center;font-size:20px;font-weight:700;padding:8px!important}
 .zs-hd td{background:#ebf1de;text-align:center}.zs-hd2 td{background:#ebf1de;text-align:center;font-weight:700;font-size:11px}
 .zs-c{text-align:center}.zs-day{position:relative}.zs-wd{display:block;font-size:8px;color:#666;line-height:1}
-.zs-sun td{background:#92d050!important}.zs-hol td{background:#ffffcc}.zs-bem{text-align:center}
+.zs-sun td{background:#92d050!important}.zs-hol td{background:#00b0f0!important}.zs-bem{text-align:center}
 .zs-bar{background:#000;height:9px;padding:0!important}.zs-foot{border:none!important;padding:6px 0 0!important}.zs-foot{border:0}
 .zs-ftw{display:flex;gap:16px;justify-content:space-between;padding:4px 8px}.zs-fl{flex:1}.zs-fr{width:38%;display:flex;flex-direction:column;justify-content:flex-end;gap:26px;padding-bottom:6px}
 .zs-s{border-collapse:collapse;width:100%}.zs-s td{border:none;padding:1px 3px;font-size:11px}.zs-s .zs-sv{border:1px solid #000;text-align:right;width:70px;padding:1px 4px}.zs-sl{white-space:nowrap}.zs-sr{white-space:nowrap;font-weight:700}.zs-sp{text-align:center}
@@ -11383,7 +11383,7 @@ function zetPrint(kind){
   if(!ps.length){ toast(blank?"Nicio persoană":"Nicio persoană cu ore completate în luna asta",true); return; }
   const fr=document.createElement("iframe"); fr.style.cssText="position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden"; document.body.appendChild(fr); const w=fr.contentWindow;
   const pages=ps.map(p=>`<section class="pg">${zetSheet(p,_zetData.emps[p.id],y,m,blank?"blank":"print")}</section>`).join("");
-  w.document.write(`<html><head><meta charset="utf-8"><title>Zeiterfassung ${ZET_DE_MONTHS[m]} ${y}</title><style>${ZET_CSS}@page{size:A4;margin:10mm}body{margin:0}.pg{page-break-after:always;padding:2mm 0}.pg:last-child{page-break-after:auto}.pg{padding:6mm 0 0}.zs-wrap{width:172mm;max-width:172mm;margin:0 auto}.zs{font-size:11px}.zs td{padding:1.9px 5px;line-height:1.2}.zs-wd{display:none}.zs-title{font-size:20px;padding:7px!important}.zs-hd td{padding:2.5px 5px}.zs-line{height:24px}.zs-hol td{background:#fff}.zs-ftw{padding:6px 10px 8px}.zs-note{font-size:9.5px}.zs-sig{font-size:9.5px}.zs-s td{font-size:11.5px}</style></head><body>${pages}</body></html>`);
+  w.document.write(`<html><head><meta charset="utf-8"><title>Zeiterfassung ${ZET_DE_MONTHS[m]} ${y}</title><style>${ZET_CSS}@page{size:A4;margin:10mm}body{margin:0}.pg{page-break-after:always;padding:2mm 0}.pg:last-child{page-break-after:auto}.pg{padding:6mm 0 0}.zs-wrap{width:172mm;max-width:172mm;margin:0 auto}.zs{font-size:11px}.zs td{padding:1.9px 5px;line-height:1.2}.zs-wd{display:none}.zs-title{font-size:20px;padding:7px!important}.zs-hd td{padding:2.5px 5px}.zs-line{height:24px}.zs-hol td{background:#00b0f0!important}.zs-ftw{padding:6px 10px 8px}.zs-note{font-size:9.5px}.zs-sig{font-size:9.5px}.zs-s td{font-size:11.5px}</style></head><body>${pages}</body></html>`);
   w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){ toast("❌ Tipărire: "+(e.message||e),true); } setTimeout(()=>{ try{ fr.remove(); }catch(e){} try{ renderZet(); }catch(e){} },1500); },400);
 }
 // ---- import Excel (un fișier, câte o foaie per persoană) ----
@@ -11557,7 +11557,7 @@ function zetFillSheet(ws,p,E,y,m,blank,nm){
     const r=5+d; const row=ws.getRow(r); row.height=15;
     ws.mergeCells("B"+r+":C"+r); ws.mergeCells("I"+r+":J"+r);
     if(d>last){ row.hidden=true; set("B"+r,null,{h:"center"}); set("G"+r,{formula:"MOD(E"+r+"-D"+r+"-F"+r+",1)",result:0},{fmt:'[h]":"mm'}); set("H"+r,{formula:'IF(G'+r+'>TIME(8,0,0),"X","")',result:""},{h:"center"}); continue; }
-    const dt=new Date(y,m,d), sun=dt.getDay()===0, f=sun?"FF92D050":undefined, rec=blank?{}:zetRec(E,d);
+    const dt=new Date(y,m,d), sun=dt.getDay()===0, f=sun?"FF92D050":(getHoliday(dt)?"FF00B0F0":undefined), rec=blank?{}:zetRec(E,d);
     set("B"+r,d,{h:"center",fmt:"0",fill:f});
     const tv=s=>{ const t=zetTm(s); return t==null?null:t/1440; };
     set("D"+r,blank?null:tv(rec.k),{h:"center",fmt:'h":"mm;@',fill:f}); set("E"+r,blank?null:tv(rec.g),{h:"center",fmt:'h":"mm;@',fill:f}); set("F"+r,blank?null:tv(rec.p),{h:"center",fmt:'h":"mm;@',fill:f});
@@ -17113,7 +17113,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-115408';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-115946';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17199,6 +17199,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
