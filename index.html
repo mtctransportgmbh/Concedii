@@ -11125,7 +11125,7 @@ function zetSheet(person,emp,y,m,mode){   // mode: "edit" | "print" | "blank"
     if(blank){ rows+=`<tr class="${cls}">${tag}<td></td><td></td><td></td><td></td><td></td><td class="zs-bem"></td></tr>`; continue; }
     const h=zetDayMin(r), ab=zetAbsShown(r);
     const lk=edit&&zetIsLocked(id,d,r);
-    const inp=(f,w)=>edit?`<input class="zs-in${lk?" zs-lk":""}" ${lk?"readonly tabindex=-1":""} data-id="${id}" data-d="${d}" data-f="${f}" value="${zetEsc(r[f]||"")}" onchange="zetSet(this)" onfocus="this.select()" ${f==="a"?`list="zetAbsList" placeholder="${zetAbsShown({k:r.k,g:r.g,p:r.p})==="X"?"X":""}"`:""} ${f==="b"?'style="text-align:left"':""}>`:zetEsc(f==="a"?ab:(r[f]||""));
+    const inp=(f,w)=>edit?`<input class="zs-in${lk?" zs-lk":""}" ${lk?"readonly tabindex=-1":""} data-id="${id}" data-d="${d}" data-f="${f}" value="${zetEsc(r[f]||"")}" onchange="zetSet(this)" onfocus="this.select()" ${f==="a"?`list="zetAbsList" placeholder="${zetAbsShown({k:r.k,g:r.g,p:r.p})==="X"?"X":""}"`:""}>`:zetEsc(f==="a"?ab:(r[f]||""));
     const tt=v=>v?(zetFm(zetTm(v))):"";
     rows+=`<tr class="${cls}" id="zr_${d}">${tag}<td class="zs-c">${edit?inp("k"):zetEsc(tt(r.k))}</td><td class="zs-c">${edit?inp("g"):zetEsc(tt(r.g))}</td><td class="zs-c">${edit?inp("p"):zetEsc(tt(r.p))}</td><td class="zs-c zs-h" id="zh_${d}">${zetFm(h)}</td><td class="zs-c" id="za_${d}">${edit?inp("a"):zetEsc(ab)}</td><td class="zs-bem">${edit?inp("b"):zetEsc(r.b||"")}</td></tr>`;
   }
@@ -11154,7 +11154,7 @@ const ZET_CSS=`.zs-wrap{max-width:760px;margin:0 auto}.zs{border-collapse:collap
 .zs td{border:1px solid #000;padding:1px 4px;line-height:1.25}.zs-title{background:#c4d79b;text-align:center;font-size:20px;font-weight:700;padding:8px!important}
 .zs-hd td{background:#ebf1de;text-align:center}.zs-hd2 td{background:#ebf1de;text-align:center;font-weight:700;font-size:11px}
 .zs-c{text-align:center}.zs-day{position:relative}.zs-wd{display:block;font-size:8px;color:#666;line-height:1}
-.zs-sun td{background:#92d050!important}.zs-hol td{background:#ffffcc}.zs-bem{text-align:left}
+.zs-sun td{background:#92d050!important}.zs-hol td{background:#ffffcc}.zs-bem{text-align:center}
 .zs-bar{background:#000;height:9px;padding:0!important}.zs-foot{border:none!important;padding:6px 0 0!important}.zs-foot{border:0}
 .zs-ftw{display:flex;gap:16px;justify-content:space-between;padding:4px 8px}.zs-fl{flex:1}.zs-fr{width:38%;display:flex;flex-direction:column;justify-content:flex-end;gap:26px;padding-bottom:6px}
 .zs-s{border-collapse:collapse;width:100%}.zs-s td{border:none;padding:1px 3px;font-size:11px}.zs-s .zs-sv{border:1px solid #000;text-align:right;width:70px;padding:1px 4px}.zs-sl{white-space:nowrap}.zs-sr{white-space:nowrap;font-weight:700}.zs-sp{text-align:center}
@@ -17020,7 +17020,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-105708';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-105944';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17106,6 +17106,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
