@@ -6389,7 +6389,6 @@ function enterApp(userKey){
   const modZet2 = document.getElementById("modZet");
   if(modZet2) modZet2.style.display = (isAdm||userKey==="tania")?"block":"none";
   if(isAdm) setTimeout(()=>{ try{ zetLogStart(); }catch(e){} },3000);
-  if(isAdm) setTimeout(()=>{ try{ sanitizeLeavesSunHol(); }catch(e){ console.warn('sanitize',e); } },6000);
 
   if(quickAction)    quickAction.style.display = (canConcedii && canEdit()) ? "" : "none";
   updateGroupFilterBar(userKey, isAdm, canConcedii);
@@ -15642,12 +15641,6 @@ function splitLeavesFromHolidaysOnly(leaves){
   return mergeLeaves(result);
 }
 
-function sanitizeLeavesSunHol(){   // concediile (plătit/krank/fără plată) nu pot conține duminici sau sărbători — le scoate pe cele rămase din date vechi
-  if(!state||!state.drivers||!canEdit()) return; let n=0;
-  const has=l=>{ const a=parseDate(l.start), b=parseDate(l.end); for(let d=new Date(a); d<=b; d.setDate(d.getDate()+1)){ if(d.getDay()===0||getHoliday(d)) return true; } return false; };
-  state.drivers.forEach(dr=>{ ["leaves","krankLeaves","unpaidLeaves"].forEach(k=>{ if((dr[k]||[]).some(has)){ dr[k]=splitLeavesFromHolidaysOnly(dr[k]); n++; } }); });
-  if(n){ scheduleSave(); try{ renderAll(); }catch(e){} toast("🧹 Duminicile/sărbătorile scoase din concedii la "+n+" perioade"); }
-}
 async function normalizeAllLeaves(){
   if(!isAdmin()){toast("Doar Admin",true);return;}
   if(!confirm("Unești perioadele consecutive ȘI scoți zilele de sărbătoare din concedii?\nAcesta va actualiza datele în Firestore.")) return;
@@ -17121,7 +17114,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-121418';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-121737';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17207,6 +17200,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
