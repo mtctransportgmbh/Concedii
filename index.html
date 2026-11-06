@@ -10965,6 +10965,8 @@ function salLmaDeleteOne(fid){
 const ZET_DE_MONTHS=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 const ZET_WD=["So","Mo","Di","Mi","Do","Fr","Sa"];
 const ZET_SPESEN=25;
+let _zetListTop=0;
+document.addEventListener("scroll",e=>{ const t=e.target; if(t&&t.id==="zetPplList") _zetListTop=t.scrollTop; },true);
 let _zetFilt="all"; function zetSetFilt(f){ _zetFilt=f; renderZet(); }
 function zetMissing(emp,y,m){ const now=new Date(); const t0=new Date(now.getFullYear(),now.getMonth(),now.getDate()); const last=new Date(y,m+1,0).getDate(); let n=0,any=false;
   for(let d=1;d<=last;d++){ const r=zetRec(emp,d); if(r.k||r.g||r.p||r.a) any=true; const dt=new Date(y,m,d); if(dt>=t0) continue; if(dt.getDay()===0||getHoliday(dt)) continue; /* ziua de azi nu se numără */ if(!(r.k||r.g||r.p||r.a)) n++; }
@@ -11375,15 +11377,15 @@ function renderZet(focusIdx){
       <div id="zetSheetBox" style="overflow-x:auto">${sheet}</div>
       <div style="font-size:11px;color:var(--text-dim);margin-top:8px;text-align:center">Scrie orele ca 9:00 sau 900; la Pausen 45 = 0:45. Abwesenheit: U=Urlaub, K=Krank, F=Feiertag, UP=Unbezahlter Urlaub. „X” apare singur la peste 8 ore (→ Spesen 25 €).</div>`;
   }
-  const _pl=document.getElementById("zetPplList"), _plTop=_pl?_pl.scrollTop:0, _sb=document.getElementById("zetSheetBox"), _sbL=_sb?_sb.scrollLeft:0, _wy=window.scrollY, _wx=window.scrollX;
-  box.innerHTML=head+`<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
-    <div id="zetPplList" style="width:250px;flex:0 0 250px;border:1px solid var(--border);border-radius:12px;background:var(--bg-elev);padding:8px;max-height:75vh;overflow-y:auto">
-      <input id="zetQ" type="text" value="${zetEsc(_zetQ)}" placeholder="🔍 Caută persoană…" oninput="_zetQ=this.value;renderZet()" style="width:100%;box-sizing:border-box;padding:6px 10px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elev-2);color:var(--text);margin-bottom:6px">${filt}${list||'<div style="padding:10px;font-size:12px;color:var(--text-dim)">Nimic găsit</div>'}</div>
+  const _pl=document.getElementById("zetPplList"), _plTop=_pl?_pl.scrollTop:_zetListTop, _sb=document.getElementById("zetSheetBox"), _sbL=_sb?_sb.scrollLeft:0, _wy=window.scrollY, _wx=window.scrollX;
+  box.innerHTML=head+`<div style="display:flex;gap:16px;align-items:stretch;flex-wrap:wrap">
+    <div style="width:250px;flex:0 0 250px;position:relative;min-height:340px"><div id="zetPplList" style="position:absolute;inset:0;box-sizing:border-box;border:1px solid var(--border);border-radius:12px;background:var(--bg-elev);padding:8px;overflow-y:auto">
+      <input id="zetQ" type="text" value="${zetEsc(_zetQ)}" placeholder="🔍 Caută persoană…" oninput="_zetQ=this.value;renderZet()" style="width:100%;box-sizing:border-box;padding:6px 10px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elev-2);color:var(--text);margin-bottom:6px">${filt}${list||'<div style="padding:10px;font-size:12px;color:var(--text-dim)">Nimic găsit</div>'}</div></div>
     <div style="flex:1;min-width:340px">${main}</div></div>
     <datalist id="zetAbsList"><option value="Urlaub"><option value="Krank"><option value="Feiertag"><option value="Unbezahlter Urlaub"></datalist>`;
   if(_zetQ){ const qi=document.getElementById("zetQ"); if(qi&&document.activeElement!==qi&&focusIdx==null){ qi.focus(); qi.setSelectionRange(qi.value.length,qi.value.length); } }
   if(focusIdx!=null&&focusIdx>=0){ const all=document.querySelectorAll("#zetSheetBox .zs-in[data-d]"); for(let i=focusIdx;i<all.length;i++){ if(!all[i].readOnly&&!all[i].classList.contains("zs-lk")){ all[i].focus(); break; } } }
-  { const pl=document.getElementById("zetPplList"); if(pl) pl.scrollTop=_plTop; const sb=document.getElementById("zetSheetBox"); if(sb) sb.scrollLeft=_sbL; if(window.scrollY!==_wy||window.scrollX!==_wx) window.scrollTo(_wx,_wy); }
+  { const pl=document.getElementById("zetPplList"); if(pl){ pl.scrollTop=_plTop; _zetListTop=_plTop; requestAnimationFrame(()=>{ const q=document.getElementById("zetPplList"); if(q&&q.scrollTop!==_plTop) q.scrollTop=_plTop; }); } const sb=document.getElementById("zetSheetBox"); if(sb) sb.scrollLeft=_sbL; if(window.scrollY!==_wy||window.scrollX!==_wx) window.scrollTo(_wx,_wy); }
   zetApplyLocks();
 }
 // foaia pe ecran, cu avertismentele afișate în clar sub ziua respectivă
@@ -17127,7 +17129,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-125302';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-125727';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17213,6 +17215,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
