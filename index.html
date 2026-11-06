@@ -10965,7 +10965,7 @@ function salLmaDeleteOne(fid){
 const ZET_DE_MONTHS=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 const ZET_WD=["So","Mo","Di","Mi","Do","Fr","Sa"];
 const ZET_SPESEN=25;
-let _zetListTop=0;
+let _zetListTop=0, _zetFitTop=true;
 document.addEventListener("scroll",e=>{ const t=e.target; if(t&&t.id==="zetPplList") _zetListTop=t.scrollTop; },true);
 let _zetFilt="all"; function zetSetFilt(f){ _zetFilt=f; renderZet(); }
 function zetMissing(emp,y,m){ const now=new Date(); const t0=new Date(now.getFullYear(),now.getMonth(),now.getDate()); const last=new Date(y,m+1,0).getDate(); let n=0,any=false;
@@ -11059,7 +11059,7 @@ function zetSaveSoon(id){
     }catch(e){ ids.forEach(k=>_zetDirty.add(k)); toast("❌ Eroare salvare Pontaj: "+(e.message||e.code),true); }
   },700);
 }
-function zetChangeMonth(d){ _zetCur=new Date(_zetCur.getFullYear(),_zetCur.getMonth()+d,1); zetLoad(); }
+function zetChangeMonth(d){ _zetFitTop=true; _zetCur=new Date(_zetCur.getFullYear(),_zetCur.getMonth()+d,1); zetLoad(); }
 function zetGoToday(){ const n=new Date(); _zetCur=new Date(n.getFullYear(),n.getMonth(),1); zetLoad(); }
 
 // ---- timp ----
@@ -11329,7 +11329,7 @@ async function zetPropagate(id,f,val){   // Soll/tarif nou → și în lunile ur
   if(window._simUser) return; const mk=zetMk();
   try{ const snap=await db.collection("stundenzettel").get(); for(const d of snap.docs){ if(d.id<=mk) continue; try{ await d.ref.update({["emps."+id+"."+f]:val===undefined?null:val}); }catch(e){} } }catch(e){ console.warn("propagate",e&&e.code); }
 }
-function zetSelect(id){ _zetSel=id; renderZet(); }
+function zetSelect(id){ _zetSel=id; _zetFitTop=true; renderZet(); }
 function zetFixClick(id,d,i){ const y=_zetCur.getFullYear(), m=_zetCur.getMonth(); const p=zetPeople().find(e=>e.id===id); if(!p) return; const W=zetWarnings(p,zetGetEmp(id),y,m); const w=(W.byDay[d]||[])[i]; if(w&&w.fix) zetFix(id,d,w.fix); }
 function renderZet(focusIdx){
   const box=document.getElementById(zetBoxId()); if(!box) return;
@@ -11387,6 +11387,7 @@ function renderZet(focusIdx){
   if(focusIdx!=null&&focusIdx>=0){ const all=document.querySelectorAll("#zetSheetBox .zs-in[data-d]"); for(let i=focusIdx;i<all.length;i++){ if(!all[i].readOnly&&!all[i].classList.contains("zs-lk")){ all[i].focus(); break; } } }
   { const pl=document.getElementById("zetPplList"); if(pl){ pl.scrollTop=_plTop; _zetListTop=_plTop; requestAnimationFrame(()=>{ const q=document.getElementById("zetPplList"); if(q&&q.scrollTop!==_plTop) q.scrollTop=_plTop; }); } const sb=document.getElementById("zetSheetBox"); if(sb) sb.scrollLeft=_sbL; if(window.scrollY!==_wy||window.scrollX!==_wx) window.scrollTo(_wx,_wy); }
   zetApplyLocks();
+  zetFit(_zetFitTop); _zetFitTop=false;
 }
 // foaia pe ecran, cu avertismentele afișate în clar sub ziua respectivă
 function zetSheetW(person,emp,y,m,W){
@@ -11395,8 +11396,17 @@ function zetSheetW(person,emp,y,m,W){
     const msgs=W.byDay[d].map((w,i)=>`<span style="margin-right:12px">⚠ <b>${d}.${String(m+1).padStart(2,"0")}</b> — ${zetEsc(w.msg)}${w.fix?` <button onclick="zetFixClick('${person.id}',${d},${i})" style="margin-left:6px;padding:1px 8px;border:1px solid #b45309;border-radius:6px;background:#fff;cursor:pointer;font-size:11px;color:#b45309">${zetEsc(w.fix.l)}</button>`:""}</span>`).join("");
     html=html.replace(new RegExp('(<tr[^>]*id="zr_'+d+'">[\\s\\S]*?</tr>)'),`$1<tr class="zs-wr"><td colspan="7" style="background:#fff3cd;font-size:11px;color:#7a4b00;text-align:left;padding:3px 8px">${msgs}</td></tr>`);
   });
-  return `<style>${ZET_CSS}</style>${html}`;
+  const compact=`#zetSheetBox .zs td{padding-top:1px!important;padding-bottom:1px!important;line-height:1.1}#zetSheetBox .zs-title{padding:4px!important}#zetSheetBox .zs-hd td{padding:1px 5px!important}#zetSheetBox .zs-in{padding:0!important;line-height:1.1}#zetSheetBox select.zs-sel{padding:0!important}#zetSheetBox .zs-note,#zetSheetBox .zs-fr{display:none!important}#zetSheetBox .zs-ftw{padding:2px 8px!important}`;
+  return `<style>${ZET_CSS}${compact}</style>${html}`;
 }
+function zetFit(scrollTop){   // fișa încape pe ecran: se micșorează automat (zoom) doar cât e nevoie, iar lista din stânga are aceeași înălțime
+  const box=document.getElementById("zetSheetBox"); if(!box) return; const inner=box.querySelector(".zs-wrap"); if(!inner) return;
+  inner.style.zoom=1; if(window.innerWidth<900){ return; }
+  if(scrollTop) window.scrollTo(window.scrollX,0);
+  const H=inner.getBoundingClientRect().height, top=box.getBoundingClientRect().top+window.scrollY; const avail=window.innerHeight-top-48;
+  const z=Math.min(1,Math.max(0.55,avail/H)); inner.style.zoom=z;
+}
+window.addEventListener("resize",()=>{ try{ zetFit(); }catch(e){} });
 // ---- tipărire ----
 function zetPrint(kind){
   if(zetNoExp()){ toast("Nu ai acces la tipărire",true); return; }
@@ -17129,7 +17139,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-125727';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-130610';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17215,6 +17225,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
