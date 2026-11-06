@@ -5756,8 +5756,10 @@ function loadBackupInfoFromStorage(){
 // ============================================================
 // PIN SYSTEM — stored in Firestore doc "pins"
 // ============================================================
-const PIN_SESSION_MINS = 1; // 1 minut inactivitate = deconectare automată (useri normali)
-const ADMIN_LOCK_SECONDS = 60; // 1 minut inactivitate = lock screen pentru Admin (era 10 secunde)
+const PIN_SESSION_MINS = 10; // 10 minute inactivitate = blocare ecran (useri normali)
+const PIN_SESSION_MINS_BY_USER = { tania: 3 };   // timp de inactivitate până la blocarea ecranului, per utilizator (minute); ceilalți: PIN_SESSION_MINS
+const pinMins = uk => PIN_SESSION_MINS_BY_USER[uk] || PIN_SESSION_MINS;
+const ADMIN_LOCK_SECONDS = 180; // 3 minute inactivitate = lock screen pentru Admin
 let pinState = {userKey:null, mode:"enter", entered:"", firstPin:"", oldPin:"", busy:false};
 // curățăm orice rest de PIN-uri/hash-uri din versiunile vechi
 try{ Object.keys(localStorage).filter(k=>k.startsWith("mtc_pin_")).forEach(k=>localStorage.removeItem(k)); }catch(e){}
@@ -5766,7 +5768,7 @@ let adminLockTimer = null;
 
 // sessionStorage se șterge automat la închiderea tab-ului
 // localStorage persistă — NU îl folosim pentru sesiuni
-function getSession(uk){ const ts=sessionStorage.getItem("mtc_s_"+uk); if(!ts)return false; return (Date.now()-parseInt(ts))/(1000*60)<PIN_SESSION_MINS; }
+function getSession(uk){ const ts=sessionStorage.getItem("mtc_s_"+uk); if(!ts)return false; return (Date.now()-parseInt(ts))/(1000*60)<pinMins(uk); }
 function setSession(uk){ sessionStorage.setItem("mtc_s_"+uk,Date.now().toString()); }
 function clearSession(uk){ sessionStorage.removeItem("mtc_s_"+uk); localStorage.removeItem("mtc_s_"+uk); }
 
@@ -6035,7 +6037,7 @@ function resetAutoLogout(){
   autoLogoutTimer = setTimeout(()=>{
     const uk = window.activeUserKey;
     if(uk && uk!=="admin") showLockScreen();
-  }, PIN_SESSION_MINS*60*1000);
+  }, pinMins(window.activeUserKey)*60*1000);
 }
 
 function resetAdminAutoLock(){
@@ -17125,7 +17127,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-124811';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-125302';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17211,6 +17213,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
