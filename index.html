@@ -10976,9 +10976,10 @@ let _zetUnsub=null, _zetMeta={}, _zetDirty=new Set();
 const zetKey=n=>salNameKey(n).replace(/\s+/g,"_");
 const zetBoxId=()=>_zetCtx==="staff"?"zeitBody":"zetBody";
 function zetStop(){ if(_zetUnsub){ try{ _zetUnsub(); }catch(e){} _zetUnsub=null; } }
-function zetReset(){ zetStop(); _zetData=null; _zetMk=""; _zetSel=""; _zetMeta={}; _zetDirty=new Set(); if(_zetSaveT){ clearTimeout(_zetSaveT); _zetSaveT=null; } }
+function zetReset(){ _zetBase={}; zetStop(); _zetData=null; _zetMk=""; _zetSel=""; _zetMeta={}; _zetDirty=new Set(); if(_zetSaveT){ clearTimeout(_zetSaveT); _zetSaveT=null; } }
 // Date: zeiten/{YYYY-MM} = {emps:{ [cheiePersoană]:{days:{...}} }}  (ore — scrise și de Raluca/Mădălina)
 //       stundenzettel/{YYYY-MM} = {emps:{ [cheiePersoană]:{soll,saldo,rate} }}  (doar Admin/Tania, cu PIN+2FA)
+let _zetBase={};   // starea pe server așa cum o știe pagina asta (ca să scriem DOAR zilele modificate, nu tot)
 let _zetFsPrev={}, _zetFsPrevMk="";
 function zetDaysOf(zd){ const o={}; Object.keys(zd||{}).forEach(k=>{ o[k]=JSON.parse(JSON.stringify((zd[k]&&zd[k].days)||{})); }); return o; }
 function zetBuild(zdays){
@@ -10996,10 +10997,10 @@ async function zetLoad(force){
     _zetUnsub=db.collection("zeiten").doc(mk).onSnapshot(snap=>{
       if(zetMk()!==mk) return;
       const zd=(snap.exists&&snap.data().emps)||{};
-      if(_zetDirty.size||_zetSaveT){ if(!_zetData){ _zetData={emps:zetBuild(zd)}; _zetMk=mk; renderZet(); } return; }   // nu suprascriem ce se scrie chiar acum
+      if(_zetDirty.size||_zetSaveT){ if(!_zetData){ _zetData={emps:zetBuild(zd)}; _zetBase=zetDaysOf(zd); _zetMk=mk; renderZet(); } return; }   // nu suprascriem ce se scrie chiar acum
       const act=document.activeElement; const editing=act&&act.classList&&act.classList.contains("zs-in");
       if(_zetFsPrevMk!==mk){ _zetFsPrev=zetDaysOf(zd); _zetFsPrevMk=mk; }
-      _zetData={emps:zetBuild(zd)}; _zetMk=mk; if(first||!editing) renderZet(); first=false; zetFsBackupSoon(); zetAutoHoliday(); zetAutoPause(); zetHdSync();
+      _zetData={emps:zetBuild(zd)}; _zetBase=zetDaysOf(zd); _zetMk=mk; if(first||!editing) renderZet(); first=false; zetFsBackupSoon(); zetAutoHoliday(); zetAutoPause(); zetHdSync();
     },e=>{ if(zetMk()!==mk) return; toast("❌ Pontaj: "+(e.message||e.code),true); _zetData={emps:{},err:(e.code||"eroare")}; _zetMk=mk; renderZet(); });
   }catch(e){ if(zetMk()!==mk) return; toast("❌ Stundenzettel: "+(e.message||e.code),true); _zetData={emps:{},err:(e.code||"eroare")}; _zetMk=mk; renderZet(); }
 }
@@ -11023,6 +11024,15 @@ async function zetLoadMetaAdmin(mk){   // meta (Soll/Saldo/tarif) + migrare din 
     await db.collection("stundenzettel").doc(mk).set(JSON.parse(JSON.stringify({emps:meta,updatedAt:new Date().toISOString()})));
   }
 }
+async function zetWriteDiff(mk,key,days){   // scrie doar zilele schimbate față de ce știa pagina → o pagină veche nu mai poate șterge/rescrie munca altora
+  const ref=db.collection("zeiten").doc(mk); const mine=JSON.parse(JSON.stringify(days||{})); const base=_zetBase[key]||{}; const DEL=firebase.firestore.FieldValue.delete();
+  const upd={}, setObj={}; Object.keys(Object.assign({},mine,base)).forEach(d=>{ const a=JSON.stringify(mine[d]||null), b=JSON.stringify(base[d]||null); if(a===b) return; if(mine[d]){ upd["emps."+key+".days."+d]=mine[d]; setObj[d]=mine[d]; } else upd["emps."+key+".days."+d]=DEL; });
+  if(!Object.keys(upd).length) return;
+  const stamp={updatedAt:new Date().toISOString(),by:window.activeUserKey||""};
+  try{ await ref.update(Object.assign(upd,stamp)); }
+  catch(e){ if(e&&e.code==="not-found"){ await ref.set(Object.assign({emps:{[key]:{days:setObj}}},stamp),{merge:true}); } else throw e; }
+  _zetBase[key]=mine;
+}
 async function zetWriteDays(mk,key,days,onlyIfMissing){
   const ref=db.collection("zeiten").doc(mk); const clean=JSON.parse(JSON.stringify(days||{}));
   if(onlyIfMissing){ const cur=await ref.get(); const ex=cur.exists&&cur.data().emps&&cur.data().emps[key]&&cur.data().emps[key].days; if(ex&&Object.keys(ex).length) return; }
@@ -11038,7 +11048,7 @@ function zetSaveSoon(id){
     _zetSaveT=null; const ids=Array.from(_zetDirty); _zetDirty=new Set();
     if(_zetCtx==="admin"&&!_salUnlocked){ toast("🔒 Blocat — modificarea NU s-a salvat. Redeschide cu PIN-ul și repet-o.",true); return; }
     try{
-      for(const k of ids){ const e=_zetData.emps[k]; if(!e) continue; await zetWriteDays(mk,k,e.days);
+      for(const k of ids){ const e=_zetData.emps[k]; if(!e) continue; await zetWriteDiff(mk,k,e.days);
         if(_zetCtx==="admin") _zetMeta[k]={soll:e.soll,saldo:e.saldo,rate:e.rate}; }
       if(_zetCtx==="admin"&&ids.length){ await db.collection("stundenzettel").doc(mk).set(JSON.parse(JSON.stringify({emps:_zetMeta,updatedAt:new Date().toISOString()}))); }
       const el=document.getElementById("zetSaved"); if(el){ el.textContent="✓ salvat"; setTimeout(()=>{ if(el) el.textContent=""; },1500); }
@@ -11065,7 +11075,7 @@ function zetAbsNorm(v){ const s=String(v||"").trim(); if(!s) return ""; const k=
 function zetAbsType(a){ const s=String(a||"").trim().toLowerCase(); if(!s||s==="x") return ""; if(/^(unb|up|fara|fără)/.test(s)) return "UP"; if(/^(u|urlaub|concediu)/.test(s)) return "U"; if(/^(k|krank)/.test(s)) return "K"; if(/^(f|feiertag)/.test(s)) return "F"; if(/^(unb|up|fara|fără)/.test(s)) return "UP"; return "O"; }
 const ZET_LBL={U:"Concediu (Urlaub)",K:"Krank",UP:"Fără plată",F:"Feiertag"};
 function zetRec(emp,day){ return (emp&&emp.days&&emp.days[day])||{}; }
-function zetDayMin(r){ const k=zetTm(r.k)||0, g=zetTm(r.g)||0, p=zetTm(r.p)||0; return ((g-k-p)%1440+1440)%1440; }   // identic cu =MOD(Geht-Kommt-Pausen;1)
+function zetDayMin(r){ if(!r||(!r.k&&!r.g)) return 0; const k=zetTm(r.k)||0, g=zetTm(r.g)||0, p=zetTm(r.p)||0; return ((g-k-p)%1440+1440)%1440; }   // identic cu =MOD(Geht-Kommt-Pausen;1)
 function zetAbsShown(r){ const a=zetAbsNorm(r.a); if(a) return a; return zetDayMin(r)>480?"X":""; }
 function zetCalc(emp,y,m){
   const last=new Date(y,m+1,0).getDate(); let tot=0,x=0,any=false;
@@ -11191,7 +11201,9 @@ let _zetHdSent=null;
 function zetAutoPause(){   // rânduri cu Kommt+Geht fără pauză → 0:45
   if(!_zetData||_zetDirty.size||_zetSaveT) return; const y=_zetCur.getFullYear(), m=_zetCur.getMonth(), last=new Date(y,m+1,0).getDate(); const ch=new Set();
   zetPeople().forEach(p=>{ const emp=_zetData.emps[p.id]; if(!emp||!emp.days) return;
-    for(let d=1;d<=last;d++){ const r=emp.days[d]; if(r&&r.k&&r.g&&!r.p&&zetAbsType(r.a)!=="UP"&&new Date(y,m,d).getDay()!==0){ r.p="00:45"; ch.add(p.id); } } });
+    for(let d=1;d<=last;d++){ const r=emp.days[d]; if(!r) continue;
+      if(r.k&&r.g&&!r.p&&zetAbsType(r.a)!=="UP"&&new Date(y,m,d).getDay()!==0){ r.p="00:45"; ch.add(p.id); }
+      else if(!r.k&&!r.g&&r.p){ r.p=""; if(!(r.a||r.b)) delete emp.days[d]; ch.add(p.id); } } });
   if(ch.size){ ch.forEach(id=>_zetDirty.add(id)); zetSaveSoon(); renderZet(); }
 }
 function zetAutoHoliday(force){   // Geht automat în zile de sărbătoare / Urlaub / Krank / Feiertag, după Soll (și se recalculează dacă Soll se schimbă)
@@ -11279,7 +11291,7 @@ function zetSet(el){
   else if(f==="a"){ const oldTy=zetAbsType(r.a); r.a=zetAbsNorm(v); const ty=zetAbsType(r.a); if(!ty&&(oldTy==="U"||oldTy==="K"||oldTy==="F")&&!r.k&&!r.p){ r.g=""; } if(ty==="UP"){ r.k=""; r.g=""; r.p=""; } else if((ty==="U"||ty==="K"||ty==="F")&&!r.k&&!r.g){ const hd=zetHdFor(id); r.g=zetHHMM(hd!=null?hd:480); } }
   else r.b=v.slice(0,120);
   if(r.k&&r.g&&!r.p&&zetAbsType(r.a)!=="UP") r.p="00:45";          // pauza se pune automat acolo unde sunt ore
-  else if(_zetCtx==="staff"&&!(r.k&&r.g)&&r.p==="00:45") r.p="";
+  else if(!r.k&&!r.g&&r.p) r.p="";          // pauză fără ore nu are sens
   if(!r.k&&!r.g&&!r.p&&!r.a&&!r.b) delete emp.days[d];
   zetSaveSoon(id); renderZet(nextIdx);
 }
@@ -11343,13 +11355,15 @@ function renderZet(focusIdx){
       <div id="zetSheetBox" style="overflow-x:auto">${sheet}</div>
       <div style="font-size:11px;color:var(--text-dim);margin-top:8px;text-align:center">Scrie orele ca 9:00 sau 900; la Pausen 45 = 0:45. Abwesenheit: U=Urlaub, K=Krank, F=Feiertag, UP=Unbezahlter Urlaub. „X” apare singur la peste 8 ore (→ Spesen 25 €).</div>`;
   }
+  const _pl=document.getElementById("zetPplList"), _plTop=_pl?_pl.scrollTop:0, _sb=document.getElementById("zetSheetBox"), _sbL=_sb?_sb.scrollLeft:0, _wy=window.scrollY, _wx=window.scrollX;
   box.innerHTML=head+`<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
-    <div style="width:250px;flex:0 0 250px;border:1px solid var(--border);border-radius:12px;background:var(--bg-elev);padding:8px;max-height:75vh;overflow-y:auto">
+    <div id="zetPplList" style="width:250px;flex:0 0 250px;border:1px solid var(--border);border-radius:12px;background:var(--bg-elev);padding:8px;max-height:75vh;overflow-y:auto">
       <input id="zetQ" type="text" value="${zetEsc(_zetQ)}" placeholder="🔍 Caută persoană…" oninput="_zetQ=this.value;renderZet()" style="width:100%;box-sizing:border-box;padding:6px 10px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elev-2);color:var(--text);margin-bottom:6px">${filt}${list||'<div style="padding:10px;font-size:12px;color:var(--text-dim)">Nimic găsit</div>'}</div>
     <div style="flex:1;min-width:340px">${main}</div></div>
     <datalist id="zetAbsList"><option value="Urlaub"><option value="Krank"><option value="Feiertag"><option value="Unbezahlter Urlaub"></datalist>`;
   if(_zetQ){ const qi=document.getElementById("zetQ"); if(qi&&document.activeElement!==qi&&focusIdx==null){ qi.focus(); qi.setSelectionRange(qi.value.length,qi.value.length); } }
   if(focusIdx!=null&&focusIdx>=0){ const all=document.querySelectorAll("#zetSheetBox .zs-in[data-d]"); for(let i=focusIdx;i<all.length;i++){ if(!all[i].readOnly&&!all[i].classList.contains("zs-lk")){ all[i].focus(); break; } } }
+  { const pl=document.getElementById("zetPplList"); if(pl) pl.scrollTop=_plTop; const sb=document.getElementById("zetSheetBox"); if(sb) sb.scrollLeft=_sbL; if(window.scrollY!==_wy||window.scrollX!==_wx) window.scrollTo(_wx,_wy); }
   zetApplyLocks();
 }
 // foaia pe ecran, cu avertismentele afișate în clar sub ziua respectivă
@@ -17099,7 +17113,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-114703';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-115408';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17185,6 +17199,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
