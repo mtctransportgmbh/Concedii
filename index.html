@@ -986,6 +986,7 @@
   /* ===== Salarii: ecran separat, cu temă proprie (smarald) ===== */
   body.sal-on, #salariiModule.sal-theme, #zetModule.sal-theme{ --bg:#f2faf7; --bg-elev:#ffffff; --bg-elev-2:#eaf5f1; --border:#cde3dc; --text:#0e2a26; --text-dim:#5a7a72; --accent:#059669;
     --sal-green:#047857; --sal-amber:#b45309; --sal-blue:#0369a1; --sal-em:#059669; }
+  body.zet-on #ruhBar, body.zet-on #modBarRow{ display:none !important; }
   body.sal-on .modal-bg{ background:rgba(14,42,38,.45); }
   #salariiModule.sal-theme{
     position:fixed; inset:0; z-index:90; overflow:auto; padding:0 22px 40px; color:var(--text);
@@ -1350,7 +1351,7 @@
   
   <main class="main">
     <div id="ruhBar"></div>
-    <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+    <div id="modBarRow" style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
       <button id="sidebarCollapseBtn" onclick="toggleSidebarCollapse()" title="Ascunde meniul" style="display:none;padding:6px 12px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:15px;color:var(--text-dim);line-height:1;flex-shrink:0">◀</button>
       <div class="mod-tabs-bar">
         <button id="modConcedii" class="mod-tab mod-tab-active" data-color="amber" onclick="setAppMode('concedii')"><span class="mod-tab-icon">📅</span>Concedii</button>
@@ -9769,6 +9770,7 @@ function setAppMode(mode){
   const mzeit=document.getElementById("modZeit"); if(mzeit){ mzeit.classList.toggle("active",mode==="zeit"); mzeit.classList.toggle("mod-tab-active",mode==="zeit"); }
   const mz=document.getElementById("modZet"); if(mz){ mz.classList.toggle("active",mode==="zet"); mz.classList.toggle("mod-tab-active",mode==="zet"); }
   document.body.classList.toggle("sal-on", (mode==="salarii"||mode==="zet")&&canSalarii());
+  document.body.classList.toggle("zet-on", mode==="zet"&&canSalarii());
   const msal = document.getElementById("modSalarii");
   if(msal){ msal.classList.toggle("active", mode==="salarii"); msal.classList.toggle("mod-tab-active", mode==="salarii"); }
   document.getElementById("modConcedii").classList.toggle("active",  mode==="concedii");
@@ -11116,7 +11118,7 @@ function zetWarnings(person,emp,y,m){   // → {byDay:{d:[{msg,fix}]}, general:[
     }
     if(sp&&spAny&&wd!==0){
       const pz=sp[String(d)]==="prezent";
-      if(pz&&sheet!=="P"&&!(sheet==="O")) add(d,"În Sortatori e „prezent”, dar în fișă nu sunt ore",null);
+      if(pz&&sheet!=="P"&&!(sheet==="O")&&!/prezent/i.test(String(r.b||"")+" "+a)) add(d,"În Sortatori e „prezent”, dar în fișă nu sunt ore",null);
       else if(!pz&&sheet==="P") add(d,"În fișă sunt ore (prezent), dar în Sortatori nu e marcat prezent",null);
     }
   }
@@ -11956,7 +11958,7 @@ function renderBani(){
   const tb=document.getElementById("salBaniTable"); if(!tb) return;
   const q=normalizeForSearch((document.getElementById("salBaniSearch")||{}).value||"");
   const allRows=salBaniIds().map(id=>({id,name:salEmpName(id),c:salBaniCalc(id)}));
-  const ids=allRows.filter(r=>!q||normalizeForSearch(r.name).includes(q)).sort((a,b)=>b.c.sold-a.c.sold||a.name.localeCompare(b.name,"ro"));
+  const ids=allRows.filter(r=>!q||normalizeForSearch(r.name).includes(q)).sort((a,b)=>a.name.localeCompare(b.name,"ro"));
   const all=allRows.map(r=>r.c);
   const sum=k=>all.reduce((t,c)=>t+c[k],0), open=all.filter(c=>c.sold>0.005).length;
   document.getElementById("salBaniCards").innerHTML=`<div class="vs-cards">
@@ -17163,7 +17165,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-142532';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-162244';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17249,6 +17251,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
