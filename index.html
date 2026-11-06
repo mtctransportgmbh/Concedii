@@ -10966,6 +10966,10 @@ const ZET_DE_MONTHS=["Januar","Februar","März","April","Mai","Juni","Juli","Aug
 const ZET_WD=["So","Mo","Di","Mi","Do","Fr","Sa"];
 const ZET_SPESEN=25;
 let _zetListTop=0, _zetFitTop=true;
+let _zetZoom='auto'; try{ const _z=localStorage.getItem('zetZoom'); if(_z&&_z!=='auto'&&+_z>=0.5&&+_z<=2) _zetZoom=+_z; }catch(e){}
+function zetZoomSet(v){ _zetZoom=v; try{ localStorage.setItem('zetZoom',String(v)); }catch(e){} zetFit(false); zetZoomLbl(); }
+function zetZoomStep(d){ let cur=(_zetZoom==='auto')?(parseFloat((document.querySelector('#zetSheetBox .zs-wrap')||{style:{}}).style.zoom)||1):_zetZoom; zetZoomSet(Math.min(2,Math.max(0.5,Math.round((cur+d)*20)/20))); }
+function zetZoomLbl(){ const e=document.getElementById('zetZoomLbl'); if(!e) return; const w=document.querySelector('#zetSheetBox .zs-wrap'); e.textContent=_zetZoom==='auto'?'Auto':Math.round(_zetZoom*100)+'%'; }
 document.addEventListener("scroll",e=>{ const t=e.target; if(t&&t.id==="zetPplList") _zetListTop=t.scrollTop; },true);
 let _zetFilt="all"; function zetSetFilt(f){ _zetFilt=f; renderZet(); }
 function zetMissing(emp,y,m){ const now=new Date(); const t0=new Date(now.getFullYear(),now.getMonth(),now.getDate()); const last=new Date(y,m+1,0).getDate(); let n=0,any=false;
@@ -11371,7 +11375,7 @@ function renderZet(focusIdx){
     const gen=W.general.map(g=>`<div style="padding:8px 12px;margin-bottom:6px;border-radius:8px;background:rgba(245,158,11,.14);font-size:13px">⚠ ${zetEsc(g)}</div>`).join("");
     const sheet=zetSheetW(person,emp,y,m,W);
     main=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center"><b style="font-size:15px">${zetEsc(person.name)}</b>
-      <span style="margin-left:auto;display:flex;gap:8px">${zetNoExp()?"":`<button onclick="zetPrint('one')" style="padding:6px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🖨 Fișa (completată)</button>
+      <span style="margin-left:auto;display:flex;gap:8px;align-items:center"><span style="display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border);border-radius:999px;padding:2px 6px;background:var(--bg-elev)"><button onclick="zetZoomStep(-0.05)" title="Micșorează" style="width:28px;height:26px;border:0;background:none;cursor:pointer;font-size:18px;font-weight:700;color:var(--text)">−</button><span id="zetZoomLbl" style="min-width:42px;text-align:center;font-size:12px;font-weight:700"></span><button onclick="zetZoomStep(0.05)" title="Mărește" style="width:28px;height:26px;border:0;background:none;cursor:pointer;font-size:18px;font-weight:700;color:var(--text)">+</button><button onclick="zetZoomSet('auto')" title="Potrivește automat pe ecran" style="border:0;background:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--text)">Auto</button></span>${zetNoExp()?"":`<button onclick="zetPrint('one')" style="padding:6px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🖨 Fișa (completată)</button>
       <button onclick="zetPrint('oneblank')" style="padding:6px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🖨 Fișa goală</button>
       <button onclick="zetExportClick('one')" style="padding:6px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">📤 Excel</button>`}</span></div>${gen}
       <div id="zetSheetBox" style="overflow-x:auto">${sheet}</div>
@@ -11401,10 +11405,11 @@ function zetSheetW(person,emp,y,m,W){
 }
 function zetFit(scrollTop){   // fișa încape pe ecran: se micșorează automat (zoom) doar cât e nevoie, iar lista din stânga are aceeași înălțime
   const box=document.getElementById("zetSheetBox"); if(!box) return; const inner=box.querySelector(".zs-wrap"); if(!inner) return;
-  inner.style.zoom=1; if(window.innerWidth<900){ return; }
+  inner.style.zoom=1; if(window.innerWidth<900){ zetZoomLbl(); return; }
+  if(_zetZoom!=='auto'){ inner.style.zoom=_zetZoom; zetZoomLbl(); return; }
   if(scrollTop) window.scrollTo(window.scrollX,0);
   const H=inner.getBoundingClientRect().height, top=box.getBoundingClientRect().top+window.scrollY; const avail=window.innerHeight-top-48;
-  const z=Math.min(1,Math.max(0.55,avail/H)); inner.style.zoom=z;
+  const z=Math.min(1.3,Math.max(0.85,avail/H)); inner.style.zoom=z; zetZoomLbl();
 }
 window.addEventListener("resize",()=>{ try{ zetFit(); }catch(e){} });
 // ---- tipărire ----
@@ -17139,7 +17144,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-130610';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-131716';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17225,6 +17230,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
