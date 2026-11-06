@@ -10998,7 +10998,7 @@ async function zetLoad(force){
   const mk=zetMk(); if(!force&&_zetMk===mk&&_zetData) return;
   zetStop(); _zetData=null; _zetMk=""; renderZet();
   try{
-    await zetHdLoad();
+    await zetHdLoad(); await zetHideLoad();
     if(_zetCtx==="admin"){ await zetLoadMetaAdmin(mk); }
     let first=true;
     _zetUnsub=db.collection("zeiten").doc(mk).onSnapshot(snap=>{
@@ -11130,10 +11130,27 @@ function zetFix(id,d,fix){
 }
 
 // ---- date derivate ----
+const zetSeesHidden=()=>isAdmin()||window.activeUserKey==="tania";
+let _zetHide=new Set();   // persoane ascunse din lista de Pontaj pentru useri (zeiten_cfg/hide.keys) — doar Admin le mai vede
+async function zetHideLoad(){ _zetHide=new Set(); if(_zetCtx!=="staff") return; try{ const d=await db.collection("zeiten_cfg").doc("hide").get(); _zetHide=new Set((d.exists&&d.data().keys)||[]); }catch(e){ console.warn("hide load",e&&e.code); } }
+function zetHideOpen(){
+  if(!isAdmin()) return; const old=document.getElementById("zetHideBox"); if(old) old.remove();
+  const all=(state.drivers||[]).filter(d=>!d.archived).map(d=>({k:zetKey(d.name),n:d.name})).sort((a,b)=>a.n.localeCompare(b.n,"ro"));
+  const seen=new Set(), ppl=all.filter(x=>seen.has(x.k)?false:(seen.add(x.k),true));
+  const o=document.createElement("div"); o.id="zetHideBox"; o.style.cssText="position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px";
+  o.innerHTML=`<div style="background:var(--bg-elev);color:var(--text);border-radius:14px;max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.4)"><div style="padding:14px 16px 8px;font-weight:800;font-size:15px">🙈 Ascunde persoane din lista Pontaj</div><div style="padding:0 16px 8px;font-size:12px;color:var(--text-dim)">Bifate = nu le mai văd Raluca, Mădălina și Mihaela. Tu și Tania le vedeți în continuare, marcate cu 🙈.</div><div style="padding:0 16px 8px"><input id="zetHideQ" placeholder="🔍 Caută…" oninput="zetHideFilt()" style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elev-2);color:var(--text)"></div><div id="zetHideList" style="overflow-y:auto;padding:0 16px;flex:1">${ppl.map(x=>`<label data-n="${zetEsc(normalizeForSearch(x.n))}" style="display:flex;gap:8px;align-items:center;padding:5px 0;font-size:13px;cursor:pointer"><input type="checkbox" value="${zetEsc(x.k)}" ${_zetHide.has(x.k)?"checked":""}> ${zetEsc(x.n)}</label>`).join("")}</div><div style="padding:12px 16px;display:flex;gap:8px;justify-content:flex-end"><button onclick="document.getElementById('zetHideBox').remove()" style="padding:7px 14px;border:1px solid var(--border);border-radius:999px;background:none;cursor:pointer;color:var(--text)">Anulează</button><button onclick="zetHideSave()" style="padding:7px 16px;border:none;border-radius:999px;background:#10b981;color:#fff;font-weight:800;cursor:pointer">Salvează</button></div></div>`;
+  document.body.appendChild(o);
+}
+function zetHideFilt(){ const q=normalizeForSearch(document.getElementById("zetHideQ").value||"").trim(); document.querySelectorAll("#zetHideList label").forEach(l=>{ l.style.display=(!q||l.dataset.n.includes(q))?"flex":"none"; }); }
+async function zetHideSave(){
+  const keys=Array.from(document.querySelectorAll("#zetHideList input:checked")).map(i=>i.value);
+  try{ await db.collection("zeiten_cfg").doc("hide").set({keys,updatedAt:new Date().toISOString(),by:window.activeUserKey||""}); }catch(e){ toast("Nu s-a salvat: "+(e&&e.code||e),true); return; }
+  _zetHide=new Set(keys); const b=document.getElementById("zetHideBox"); if(b) b.remove(); toast(keys.length?("🙈 "+keys.length+" persoane ascunse de useri"):"Toate persoanele sunt vizibile"); renderZet();
+}
 function zetPeople(){
   const out=[], seen=new Set();
   if(_zetCtx==="staff"){
-    (state.drivers||[]).filter(d=>!d.archived).forEach(d=>{ const k=zetKey(d.name); if(seen.has(k)) return; seen.add(k); out.push({id:k,name:d.name,drv:d}); });
+    (state.drivers||[]).filter(d=>!d.archived).forEach(d=>{ const k=zetKey(d.name); if(seen.has(k)) return; seen.add(k); const hid=_zetHide.has(k); if(hid&&!zetSeesHidden()) return; out.push({id:k,name:d.name,drv:d,hid}); });
   } else {
     salEmps.filter(e=>e.active!==false||(_zetData&&_zetData.emps[zetKey(e.name)]&&Object.keys(_zetData.emps[zetKey(e.name)].days).length)).forEach(e=>{ const k=zetKey(e.name); if(seen.has(k)) return; seen.add(k); out.push({id:k,name:e.name,emp:e}); });
   }
@@ -11347,6 +11364,7 @@ function renderZet(focusIdx){
     <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
       ${_zetCtx==="admin"?`<button onclick="document.getElementById('zetFile').click()" style="padding:8px 16px;border:none;border-radius:999px;background:linear-gradient(135deg,var(--sal-em,#10b981),#0ea5a4);color:#fff;font-weight:800;cursor:pointer">📥 Încarcă Excel (toate persoanele)</button>`:""}
       ${_zetCtx==="admin"?`<button onclick="zetClearSundays()" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🧹 Șterge duminicile</button>`:""}
+      ${_zetCtx==="staff"&&isAdmin()?`<button onclick="zetHideOpen()" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🙈 Ascunde persoane${_zetHide.size?" ("+_zetHide.size+")":""}</button>`:""}
       ${_zetCtx==="admin"?`<button onclick="zetLogOpen()" id="zetLogBtn" style="padding:8px 14px;border:1px solid #dc2626;border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:800;color:#dc2626">🔍 Modificări${_zetLogUnseen()?" ("+_zetLogUnseen()+" noi)":""}</button>`:""}
       ${zetNoExp()?"":`<button onclick="zetExportClick('all')" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">📤 Export Excel (toți)</button>
       <button onclick="zetPrint('all')" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🖨 Toți (completate)</button>
@@ -11365,7 +11383,7 @@ function renderZet(focusIdx){
   const list=people.filter(p=>fOk(p)&&(!q||normalizeForSearch(p.name).includes(q))).map(p=>{
     const e=_zetData.emps[p.id]; const c=e?zetCalc(e,y,m):null; const W=e?zetWarnings(p,e,y,m):null;
     return `<div onclick="zetSelect('${p.id}')" style="padding:7px 10px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:13px;${p.id===_zetSel?"background:rgba(16,185,129,.15);font-weight:800":""}">
-      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${zetEsc(p.name)}</span>
+      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${p.hid?"opacity:.55":""}">${p.hid?"🙈 ":""}${zetEsc(p.name)}</span>
       ${c&&c.any?`<span style="font-size:11px;color:var(--text-dim)">${zetFm(c.tot)}</span>`:`<span style="font-size:11px;color:var(--text-dim)">—</span>`}
       ${(()=>{ const x=zetMissing(e||{days:{}},y,m); return !x.n&&x.any?`<span title="Totul completat până ieri" style="font-size:11px;background:#10b981;color:#fff;border-radius:999px;padding:0 6px;font-weight:800">✓</span>`:x.n?`<span title="${x.n} zile necompletate până ieri" style="font-size:11px;background:#ef4444;color:#fff;border-radius:999px;padding:0 6px;font-weight:800">−${x.n}</span>`:""; })()}${W&&W.n?`<span title="${W.n} avertismente" style="font-size:11px;background:#f59e0b;color:#fff;border-radius:999px;padding:0 6px;font-weight:800">⚠${W.n}</span>`:""}</div>`; }).join("");
   const person=people.find(p=>p.id===_zetSel);
@@ -17145,7 +17163,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-135141';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-141357';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17231,6 +17249,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
