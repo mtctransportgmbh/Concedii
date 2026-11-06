@@ -10963,6 +10963,10 @@ function salLmaDeleteOne(fid){
 const ZET_DE_MONTHS=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 const ZET_WD=["So","Mo","Di","Mi","Do","Fr","Sa"];
 const ZET_SPESEN=25;
+let _zetFilt="all"; function zetSetFilt(f){ _zetFilt=f; renderZet(); }
+function zetMissing(emp,y,m){ const now=new Date(); const t0=new Date(now.getFullYear(),now.getMonth(),now.getDate()); const last=new Date(y,m+1,0).getDate(); let n=0,any=false;
+  for(let d=1;d<=last;d++){ const r=zetRec(emp,d); if(r.k||r.g||r.p||r.a) any=true; const dt=new Date(y,m,d); if(dt>t0) continue; if(dt.getDay()===0||getHoliday(dt)) continue; if(!(r.k||r.g||r.p||r.a)) n++; }
+  return {n,any}; }
 let _zetCur=new Date(new Date().getFullYear(),new Date().getMonth(),1), _zetData=null, _zetMk="", _zetSel="", _zetSaveT=null, _zetQ="", _zetPendingImport=null;
 const zetMk=()=>_zetCur.getFullYear()+"-"+String(_zetCur.getMonth()+1).padStart(2,"0");
 const zetEsc=v=>String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -11117,7 +11121,7 @@ function zetSheet(person,emp,y,m,mode){   // mode: "edit" | "print" | "blank"
     const dt=new Date(y,m,d), wd=dt.getDay(), r=zetRec(E,d), sun=wd===0, hol=!!getHoliday(dt);
     const cls=sun?"zs-sun":(hol?"zs-hol":"");
     const tag0=`<td class="zs-c zs-day ${cls}" title="${ZET_WD[wd]}${hol?" · "+zetEsc(String(getHoliday(dt)).split("(")[0].trim()):""}">${d}<span class="zs-wd">${ZET_WD[wd]}</span>`;
-    const _r0=zetRec(E,d); const tag=tag0+(edit&&_r0.why?`<span title="Corectat: ${zetEsc(_r0.why)}" style="color:#dc2626;font-size:11px;margin-left:2px">✎</span>`:"")+(edit&&_zetCtx==="staff"&&zetIsLocked(id,d,_r0)?`<span class="zs-unl" onclick="zetUnlock('${id}',${d})" title="Rând blocat — click pentru corecție (cu motiv)" style="cursor:pointer;font-size:11px;margin-left:2px">🔒</span>`:"")+`</td>`;
+    const _r0=zetRec(E,d); const tag=tag0+(edit&&_r0.wat?`<span title="Rând corectat după blocare" style="color:#dc2626;font-size:11px;margin-left:2px">✎</span>`:"")+(edit&&_zetCtx==="staff"&&zetIsLocked(id,d,_r0)?`<span class="zs-unl" onclick="zetUnlock('${id}',${d})" title="Rând blocat — click pentru a-l modifica (modificarea se înregistrează)" style="cursor:pointer;font-size:11px;margin-left:2px">🔒</span>`:"")+`</td>`;
     if(blank){ rows+=`<tr class="${cls}">${tag}<td></td><td></td><td></td><td></td><td></td><td class="zs-bem"></td></tr>`; continue; }
     const h=zetDayMin(r), ab=zetAbsShown(r);
     const lk=edit&&zetIsLocked(id,d,r);
@@ -11166,16 +11170,14 @@ function zetApplyLocks(){
     const ins=tr.querySelectorAll(".zs-in[data-d]"); if(!ins.length) return;
     const id=ins[0].dataset.id, d=+ins[0].dataset.d; const emp=_zetData&&_zetData.emps[id]; const lk=zetIsLocked(id,d,(emp&&emp.days&&emp.days[d])||{});
     ins.forEach(i=>{ i.readOnly=lk; i.tabIndex=lk?-1:0; i.classList.toggle("zs-lk",lk); });
-    const dc=tr.querySelector(".zs-day"); if(dc){ const u=dc.querySelector(".zs-unl"); if(lk&&!u){ const sp=document.createElement("span"); sp.className="zs-unl"; sp.textContent="🔒"; sp.title="Rând blocat — click pentru corecție (cu motiv)"; sp.style.cssText="cursor:pointer;font-size:11px;margin-left:2px"; sp.onclick=()=>zetUnlock(id,d); dc.appendChild(sp); } else if(!lk&&u) u.remove(); }
+    const dc=tr.querySelector(".zs-day"); if(dc){ const u=dc.querySelector(".zs-unl"); if(lk&&!u){ const sp=document.createElement("span"); sp.className="zs-unl"; sp.textContent="🔒"; sp.title="Rând blocat — click pentru a-l modifica (modificarea se înregistrează)"; sp.style.cssText="cursor:pointer;font-size:11px;margin-left:2px"; sp.onclick=()=>zetUnlock(id,d); dc.appendChild(sp); } else if(!lk&&u) u.remove(); }
   });
 }
 document.addEventListener("focusin",e=>{ const t=e.target; if(_zetCtx!=="staff"||!t||!t.classList||!t.classList.contains("zs-in")||!t.dataset.d||t.readOnly) return; const k=t.dataset.id+"|"+t.dataset.d; if(_zetActT){ clearTimeout(_zetActT); _zetActT=null; } if(_zetAct!==k){ _zetAct=k; zetApplyLocks(); } });
 document.addEventListener("focusout",e=>{ if(_zetCtx!=="staff") return; const t=e.target; if(!t||!t.classList||!t.classList.contains("zs-in")) return; if(_zetActT) clearTimeout(_zetActT); _zetActT=setTimeout(()=>{ _zetActT=null; const a=document.activeElement; if(!(a&&a.classList&&a.classList.contains("zs-in")&&a.dataset.d)){ _zetAct=""; zetApplyLocks(); } },250); });
 function zetUnlock(id,d){
   const emp=zetGetEmp(id); const r=emp.days[d]; if(!r) return;
-  const why=(window.prompt("Rând blocat. Pentru a-l corecta scrie MOTIVUL (obligatoriu). Corecția va fi înregistrată și Adminul o va vedea:","")||"").trim();
-  if(why.length<3){ toast("Fără motiv nu se poate corecta",true); return; }
-  r.why=why.slice(0,160); r.wat=new Date().toISOString(); _zetAct=id+"|"+d; zetSaveSoon(id); renderZet();
+  r.wat=new Date().toISOString(); _zetAct=id+"|"+d; zetSaveSoon(id); renderZet();
   const f=document.querySelector(`#zetSheetBox .zs-in[data-id="${id}"][data-d="${d}"]`); if(f) f.focus();
 }
 // ---- jurnal modificări (Admin) ----
@@ -11201,7 +11203,7 @@ function zetLogRender(){
     const day=String(x.day).padStart(2,"0")+"."+String((x.mk||"").slice(5,7))+"."+(x.mk||"").slice(0,4);
     const late=x.kind==="late";
     return `<div style="padding:9px 10px;border-bottom:1px solid var(--border);${x.seen?"opacity:.6":"background:rgba(220,38,38,.07)"}"><div style="font-size:12px;color:var(--text-dim)">${ts} · <b>${zetEsc(x.by||"?")}</b> · fișa lui <b>${zetEsc(nm(x.person))}</b></div>
-      <div style="font-size:14px;margin-top:2px">${late?`⏰ <b>Introdus târziu</b> – ziua ${day}: ${fm(x.new)}`:`✎ ziua <b>${day}</b> · ${ZET_FLD[x.field]||x.field}: <s>${fm(x.old)}</s> → <b>${fm(x.new)}</b>`}</div>${x.why?`<div style="font-size:12px;color:#b45309">Motiv: ${zetEsc(x.why)}</div>`:(late?"":`<div style="font-size:12px;color:#dc2626">Fără motiv (modificat direct)</div>`)}</div>`;
+      <div style="font-size:14px;margin-top:2px">${late?`⏰ <b>Introdus târziu</b> – ziua ${day}: ${fm(x.new)}`:`✎ ziua <b>${day}</b> · ${ZET_FLD[x.field]||x.field}: <s>${fm(x.old)}</s> → <b>${fm(x.new)}</b>`}</div></div>`;
   }).join(""):`<div style="padding:30px;text-align:center;color:var(--text-dim)">Nicio modificare înregistrată.</div>`;
 }
 function zetLogOpen(){
@@ -11217,7 +11219,7 @@ async function zetLogSeen(){
 function zetFocusNext(el){ const all=Array.from(document.querySelectorAll("#zetSheetBox .zs-in[data-d]")); const i=all.indexOf(el); return i>=0?i+1:-1; }
 function zetSet(el){
   const id=el.dataset.id, d=+el.dataset.d, f=el.dataset.f; let v=el.value; const nextIdx=zetFocusNext(el);
-  const emp=zetGetEmp(id); if(zetIsLocked(id,d,emp.days[d]||{})){ toast("🔒 Rândul e blocat. Apasă 🔒 de lângă zi ca să-l corectezi (cu motiv).",true); renderZet(); return; }
+  const emp=zetGetEmp(id); if(zetIsLocked(id,d,emp.days[d]||{})){ toast("🔒 Rândul e blocat. Apasă 🔒 de lângă zi ca să-l modifici (modificarea se înregistrează).",true); renderZet(); return; }
   const r=emp.days[d]=emp.days[d]||{};
   if(f==="k"||f==="g"||f==="p"){ const n=zetNormT(v,f==="p"); if(n===null){ toast("Oră invalidă: scrie de ex. 9:00, 930 sau 0:45",true); el.value=r[f]||""; return; } r[f]=n; }
   else if(f==="a"){ r.a=zetAbsNorm(v); if(r.a&&zetAbsType(r.a)!==""&&!r.k&&!r.g&&/^(Urlaub|Krank|Feiertag|Zeitausgleich|Unbezahlt)$/.test(r.a)&&r.a!=="Unbezahlt") r.g="08:00"; }
@@ -11248,17 +11250,23 @@ function renderZet(focusIdx){
       ${zetNoExp()?"":`<button onclick="zetExportClick('all')" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">📤 Export Excel (toți)</button>
       <button onclick="zetPrint('all')" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🖨 Toți (completate)</button>
       <button onclick="zetPrint('allblank')" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🖨 Toți (goale)</button>`}
-    </span></div>${zetNoExp()?"":`<div id="zetFsChip" style="margin:-4px 0 12px">${zetFsChipHtml()}</div>`}`;
+    </span></div>${window.activeUserKey==="mihaela"&&_zetCtx==="staff"?"":`<div id="zetFsChip" style="margin:-4px 0 12px">${zetFsChipHtml()}</div>`}`;
   if(!_zetData){ box.innerHTML=head+`<div style="padding:30px;text-align:center;color:var(--text-dim)">Se încarcă…</div>`; return; }
   if(_zetData.err){ box.innerHTML=head+`<div style="padding:18px;border:1px dashed #ef4444;border-radius:10px;color:#ef4444;font-size:13px">Nu pot citi Stundenzettel (${zetEsc(_zetData.err)}). Regula Firestore pentru colecția <b>stundenzettel</b> nu e publicată încă sau sesiunea Salarii a expirat.</div>`; return; }
   const people=zetPeople(); if(!_zetSel||!people.some(p=>p.id===_zetSel)) _zetSel=(people[0]||{}).id||"";
   const q=normalizeForSearch(_zetQ||"").trim();
-  const list=people.filter(p=>!q||normalizeForSearch(p.name).includes(q)).map(p=>{
+  const cls=p=>{ const x=zetMissing(_zetData.emps[p.id]||{days:{}},y,m); return x.n>0?"miss":(x.any?"done":"none"); };
+  const cnt={all:people.length,miss:0,done:0,none:0}; people.forEach(p=>{ const c=cls(p); cnt[c]++; if(!(_zetData.emps[p.id]&&zetMissing(_zetData.emps[p.id],y,m).any)) cnt.none+=0; });
+  const noneCnt=people.filter(p=>!zetMissing(_zetData.emps[p.id]||{days:{}},y,m).any).length;
+  const fbtn=(k,t,n)=>`<button onclick="zetSetFilt('${k}')" style="padding:4px 9px;border:1px solid var(--border);border-radius:999px;cursor:pointer;font-size:11.5px;font-weight:700;color:var(--text);background:${_zetFilt===k?"rgba(16,185,129,.25)":"var(--bg-elev)"}">${t} ${n}</button>`;
+  const filt=`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">${fbtn("all","Toate",people.length)}${fbtn("miss","⚠ Necompletate (până azi)",cnt.miss)}${fbtn("done","✓ Completate",cnt.done)}${fbtn("none","Deloc completate",noneCnt)}</div>`;
+  const fOk=p=>{ if(_zetFilt==="all") return true; const x=zetMissing(_zetData.emps[p.id]||{days:{}},y,m); return _zetFilt==="miss"?x.n>0:_zetFilt==="done"?(x.n===0&&x.any):!x.any; };
+  const list=people.filter(p=>fOk(p)&&(!q||normalizeForSearch(p.name).includes(q))).map(p=>{
     const e=_zetData.emps[p.id]; const c=e?zetCalc(e,y,m):null; const W=e?zetWarnings(p,e,y,m):null;
     return `<div onclick="zetSelect('${p.id}')" style="padding:7px 10px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:13px;${p.id===_zetSel?"background:rgba(16,185,129,.15);font-weight:800":""}">
       <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${zetEsc(p.name)}</span>
       ${c&&c.any?`<span style="font-size:11px;color:var(--text-dim)">${zetFm(c.tot)}</span>`:`<span style="font-size:11px;color:var(--text-dim)">—</span>`}
-      ${W&&W.n?`<span title="${W.n} avertismente" style="font-size:11px;background:#f59e0b;color:#fff;border-radius:999px;padding:0 6px;font-weight:800">⚠${W.n}</span>`:""}</div>`; }).join("");
+      ${(()=>{ const x=zetMissing(e||{days:{}},y,m); return x.n?`<span title="${x.n} zile necompletate până azi" style="font-size:11px;background:#ef4444;color:#fff;border-radius:999px;padding:0 6px;font-weight:800">−${x.n}</span>`:""; })()}${W&&W.n?`<span title="${W.n} avertismente" style="font-size:11px;background:#f59e0b;color:#fff;border-radius:999px;padding:0 6px;font-weight:800">⚠${W.n}</span>`:""}</div>`; }).join("");
   const person=people.find(p=>p.id===_zetSel);
   let main=`<div style="padding:30px;text-align:center;color:var(--text-dim)">Nicio persoană în lista Salarii.</div>`;
   if(person){
@@ -11274,7 +11282,7 @@ function renderZet(focusIdx){
   }
   box.innerHTML=head+`<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
     <div style="width:250px;flex:0 0 250px;border:1px solid var(--border);border-radius:12px;background:var(--bg-elev);padding:8px;max-height:75vh;overflow-y:auto">
-      <input id="zetQ" type="text" value="${zetEsc(_zetQ)}" placeholder="🔍 Caută persoană…" oninput="_zetQ=this.value;renderZet()" style="width:100%;box-sizing:border-box;padding:6px 10px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elev-2);color:var(--text);margin-bottom:6px">${list||'<div style="padding:10px;font-size:12px;color:var(--text-dim)">Nimic găsit</div>'}</div>
+      <input id="zetQ" type="text" value="${zetEsc(_zetQ)}" placeholder="🔍 Caută persoană…" oninput="_zetQ=this.value;renderZet()" style="width:100%;box-sizing:border-box;padding:6px 10px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elev-2);color:var(--text);margin-bottom:6px">${filt}${list||'<div style="padding:10px;font-size:12px;color:var(--text-dim)">Nimic găsit</div>'}</div>
     <div style="flex:1;min-width:340px">${main}</div></div>
     <datalist id="zetAbsList"><option value="Urlaub"><option value="Krank"><option value="Feiertag"><option value="Geschäftsreise"><option value="Training"><option value="Zeitausgleich"><option value="Sonstiges"><option value="Unbezahlt"></datalist>`;
   if(_zetQ){ const qi=document.getElementById("zetQ"); if(qi&&document.activeElement!==qi&&focusIdx==null){ qi.focus(); qi.setSelectionRange(qi.value.length,qi.value.length); } }
@@ -11533,7 +11541,7 @@ async function zetExportClick(kind){
 }
 
 // ---------- Copie automată pe PC (folder ales; Chrome/Edge) ----------
-const zetNoExp=()=>_zetCtx==="staff"&&window.activeUserKey==="mihaela";   // Mihaela doar completează: fără export/tipărire/copie pe PC
+const zetNoExp=()=>_zetCtx==="staff";   // useri (Raluca/Mădălina/Mihaela): doar completează — fără butoane de export/tipărire
 const ZET_FS_OK=typeof window!=="undefined"&&!!window.showDirectoryPicker;
 let _zetFsT=null, _zetFsState={st:"none",msg:"",at:""};
 function zetIdb(){ return new Promise((res,rej)=>{ const r=indexedDB.open("mtc_zeit_fs",1); r.onupgradeneeded=()=>r.result.createObjectStore("h"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
@@ -11541,7 +11549,7 @@ async function zetIdbGet(k){ const db=await zetIdb(); return new Promise((res,re
 async function zetIdbSet(k,v){ const db=await zetIdb(); return new Promise((res,rej)=>{ const t=db.transaction("h","readwrite"); t.objectStore("h").put(v,k); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error); }); }
 const zetFsKey=()=>"dir_"+(window._simUser||window.activeUserKey||"x");
 async function zetFsInit(){
-  if(zetNoExp()){ _zetFsState={st:"unsupported"}; return; }   // verifică dacă există folder salvat și dacă avem încă permisiunea
+  if(window.activeUserKey==="mihaela"){ _zetFsState={st:"unsupported"}; return; }   // verifică dacă există folder salvat și dacă avem încă permisiunea
   if(!ZET_FS_OK){ _zetFsState={st:"unsupported"}; return; }
   try{ const h=await zetIdbGet(zetFsKey()); if(!h){ _zetFsState={st:"none"}; return; }
     const perm=await h.queryPermission({mode:"readwrite"}); _zetFsState=perm==="granted"?{st:"ok",name:h.name,at:_zetFsState.at||""}:{st:"perm",name:h.name}; }
@@ -11557,7 +11565,7 @@ async function zetFsReauth(){
   catch(e){ toast("❌ "+(e.message||e),true); }
 }
 function zetFsBackupSoon(){
-  if(zetNoExp()||window._simUser||!ZET_FS_OK||_zetFsState.st!=="ok"||!_zetData) return;
+  if(window.activeUserKey==="mihaela"||window._simUser||!ZET_FS_OK||_zetFsState.st!=="ok"||!_zetData) return;
   if(_zetFsT) clearTimeout(_zetFsT); _zetFsT=setTimeout(()=>zetFsBackup(false),5000);
 }
 async function zetFsBackup(force){
@@ -17012,7 +17020,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-104911';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-105708';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17098,6 +17106,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
