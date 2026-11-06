@@ -10998,7 +10998,7 @@ async function zetLoad(force){
       if(_zetDirty.size||_zetSaveT){ if(!_zetData){ _zetData={emps:zetBuild(zd)}; _zetMk=mk; renderZet(); } return; }   // nu suprascriem ce se scrie chiar acum
       const act=document.activeElement; const editing=act&&act.classList&&act.classList.contains("zs-in");
       if(_zetFsPrevMk!==mk){ _zetFsPrev=zetDaysOf(zd); _zetFsPrevMk=mk; }
-      _zetData={emps:zetBuild(zd)}; _zetMk=mk; if(first||!editing) renderZet(); first=false; zetFsBackupSoon(); zetAutoHoliday(); zetHdSync();
+      _zetData={emps:zetBuild(zd)}; _zetMk=mk; if(first||!editing) renderZet(); first=false; zetFsBackupSoon(); zetAutoHoliday(); zetAutoPause(); zetHdSync();
     },e=>{ if(zetMk()!==mk) return; toast("❌ Pontaj: "+(e.message||e.code),true); _zetData={emps:{},err:(e.code||"eroare")}; _zetMk=mk; renderZet(); });
   }catch(e){ if(zetMk()!==mk) return; toast("❌ Stundenzettel: "+(e.message||e.code),true); _zetData={emps:{},err:(e.code||"eroare")}; _zetMk=mk; renderZet(); }
 }
@@ -11137,7 +11137,7 @@ function zetSheet(person,emp,y,m,mode){   // mode: "edit" | "print" | "blank"
     const lk=edit&&zetIsLocked(id,d,r);
     const selA=()=>{ const ro=lk||zetPermRO(id,d,"a",r); const cur=zetAbsNorm(r.a); const opts=["Urlaub","Krank","Feiertag","Unbezahlter Urlaub"]; if(cur&&!opts.includes(cur)) opts.push(cur); const xs=zetAbsShown({k:r.k,g:r.g,p:r.p})==="X"?"X":"";
       return `<select class="zs-in zs-sel${ro?" zs-lk":""}" ${ro?"disabled":""} ${zetPermRO(id,d,"a",r)?'data-ro="1"':""} data-id="${id}" data-d="${d}" data-f="a" onchange="zetSet(this)"><option value="">${xs}</option>${opts.map(o=>`<option value="${zetEsc(o)}"${o===cur?" selected":""}>${zetEsc(o)}</option>`).join("")}</select>`; };
-    const inp=(f,w)=>(edit&&f==="a"&&_zetCtx==="staff")?selA():edit?`<input class="zs-in${(lk||zetPermRO(id,d,f,r))?" zs-lk":""}" ${(lk||zetPermRO(id,d,f,r))?"readonly tabindex=-1":""} ${zetPermRO(id,d,f,r)?'data-ro="1"':""} data-id="${id}" data-d="${d}" data-f="${f}" value="${zetEsc(r[f]||"")}" onchange="zetSet(this)" onfocus="this.select()" ${f==="a"?`list="zetAbsList" placeholder="${zetAbsShown({k:r.k,g:r.g,p:r.p})==="X"?"X":""}"`:""}>`:zetEsc(f==="a"?ab:(r[f]||""));
+    const inp=(f,w)=>(edit&&f==="a")?selA():edit?`<input class="zs-in${(lk||zetPermRO(id,d,f,r))?" zs-lk":""}" ${(lk||zetPermRO(id,d,f,r))?"readonly tabindex=-1":""} ${zetPermRO(id,d,f,r)?'data-ro="1"':""} data-id="${id}" data-d="${d}" data-f="${f}" value="${zetEsc(r[f]||"")}" onchange="zetSet(this)" onfocus="this.select()" ${f==="a"?`list="zetAbsList" placeholder="${zetAbsShown({k:r.k,g:r.g,p:r.p})==="X"?"X":""}"`:""}>`:zetEsc(f==="a"?ab:(r[f]||""));
     const tt=v=>v?(zetFm(zetTm(v))):"";
     rows+=`<tr class="${cls}" id="zr_${d}">${tag}<td class="zs-c">${edit?inp("k"):zetEsc(tt(r.k))}</td><td class="zs-c">${edit?inp("g"):zetEsc(tt(r.g))}</td><td class="zs-c">${edit?inp("p"):zetEsc(tt(r.p))}</td><td class="zs-c zs-h" id="zh_${d}">${zetFm(h)}</td><td class="zs-c" id="za_${d}">${edit?inp("a"):zetEsc(ab)}</td><td class="zs-bem">${edit?inp("b"):zetEsc(r.b||"")}</td></tr>`;
   }
@@ -11186,6 +11186,12 @@ async function zetHdSync(){   // Admin: scrie în zeiten_cfg/hd categoria de ore
   try{ await db.collection("zeiten_cfg").doc("hd").set({map,updatedAt:new Date().toISOString()},{merge:true}); }catch(e){ console.warn("hd sync",e&&e.code); }
 }
 let _zetHdSent=null;
+function zetAutoPause(){   // rânduri cu Kommt+Geht fără pauză → 0:45
+  if(!_zetData||_zetDirty.size||_zetSaveT) return; const y=_zetCur.getFullYear(), m=_zetCur.getMonth(), last=new Date(y,m+1,0).getDate(); const ch=new Set();
+  zetPeople().forEach(p=>{ const emp=_zetData.emps[p.id]; if(!emp||!emp.days) return;
+    for(let d=1;d<=last;d++){ const r=emp.days[d]; if(r&&r.k&&r.g&&!r.p&&zetAbsType(r.a)!=="UP"&&new Date(y,m,d).getDay()!==0){ r.p="00:45"; ch.add(p.id); } } });
+  if(ch.size){ ch.forEach(id=>_zetDirty.add(id)); zetSaveSoon(); renderZet(); }
+}
 function zetAutoHoliday(){   // zile de sărbătoare: Geht se completează automat (6:00 / 2:00 / 8:00 după Soll)
   if(!_zetData||_zetDirty.size||_zetSaveT) return; const y=_zetCur.getFullYear(), m=_zetCur.getMonth(), last=new Date(y,m+1,0).getDate(); const ch=new Set();
   zetPeople().forEach(p=>{ const hd=zetHdFor(p.id); if(hd==null) return; const emp=zetGetEmp(p.id);
@@ -11196,7 +11202,7 @@ function zetMarkLocked(key){ if(!key||_zetCtx!=="staff"||!_zetData) return; cons
 let _zetAct="", _zetActT=null;
 function zetRowDone(r){ return !!(r&&((r.k&&r.g)||r.a)); }
 function zetIsLocked(id,d,r){ return _zetCtx==="staff"&&zetRowDone(r)&&_zetAct!==id+"|"+d; }
-function zetPermRO(id,d,f,r){ const y=_zetCur.getFullYear(), m=_zetCur.getMonth(); if(new Date(y,m,d).getDay()===0) return true; return (f==="k"||f==="g"||f==="p")&&zetAbsType(r.a)==="UP"; }
+function zetPermRO(id,d,f,r){ const y=_zetCur.getFullYear(), m=_zetCur.getMonth(); if(new Date(y,m,d).getDay()===0) return true; if(f==="p"&&_zetCtx==="staff") return true; return (f==="k"||f==="g"||f==="p")&&zetAbsType(r.a)==="UP"; }
 function zetApplyLocks(){
   document.querySelectorAll("#zetSheetBox tr[id^=zr_]").forEach(tr=>{
     const ins=tr.querySelectorAll(".zs-in[data-d]"); if(!ins.length) return;
@@ -11244,6 +11250,13 @@ function zetLogOpen(){
   o.innerHTML=`<div style="background:var(--bg-elev);color:var(--text);border-radius:14px;width:min(720px,100%);max-height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5)"><div style="display:flex;gap:8px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--border)"><b style="font-size:16px">🔍 Modificări în Pontaj</b><span style="margin-left:auto"></span><button onclick="zetLogClear()" style="padding:6px 12px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;color:#dc2626">🗑 Șterge tot</button><button onclick="zetLogSeen()" style="padding:6px 12px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">✓ Marchează văzute</button><button onclick="document.getElementById('zetLogModal').remove()" style="padding:6px 12px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;color:var(--text)">✕</button></div><div id="zetLogBody" style="overflow-y:auto"></div></div>`;
   document.body.appendChild(o); zetLogRender();
 }
+function zetClearSundays(){
+  const y=_zetCur.getFullYear(), m=_zetCur.getMonth(), last=new Date(y,m+1,0).getDate(); const hit=[];
+  Object.keys(_zetData.emps).forEach(k=>{ const e=_zetData.emps[k]; for(let d=1;d<=last;d++){ if(new Date(y,m,d).getDay()===0&&e.days&&e.days[d]&&(e.days[d].k||e.days[d].g||e.days[d].p||e.days[d].a||e.days[d].b)) hit.push([k,d]); } });
+  if(!hit.length){ toast("Nu există nimic completat duminica în luna asta"); return; }
+  if(!confirm("Ștergi "+hit.length+" rânduri completate duminica în "+MONTHS[m]+" "+y+"?")) return;
+  const ids=new Set(); hit.forEach(([k,d])=>{ delete _zetData.emps[k].days[d]; ids.add(k); }); ids.forEach(k=>_zetDirty.add(k)); zetSaveSoon(); renderZet(); toast("✓ "+hit.length+" rânduri de duminică șterse");
+}
 async function zetLogClear(){
   if(!_zetLogRows.length||!confirm("Ștergi tot istoricul de modificări?")) return;
   try{ const ids=_zetLogRows.map(x=>x._id); for(let i=0;i<ids.length;i+=400){ const b=db.batch(); ids.slice(i,i+400).forEach(id=>b.delete(db.collection("zeiten_log").doc(id))); await b.commit(); } }catch(e){ toast("❌ "+(e.message||e),true); }
@@ -11259,8 +11272,10 @@ function zetSet(el){
   if(zetPermRO(id,d,f,emp.days[d]||{})){ toast(new Date(_zetCur.getFullYear(),_zetCur.getMonth(),d).getDay()===0?"Duminica nu se completează":"La concediu fără plată nu se completează ore",true); renderZet(); return; }
   const r=emp.days[d]=emp.days[d]||{};
   if(f==="k"||f==="g"||f==="p"){ const n=zetNormT(v,f==="p"); if(n===null){ toast("Oră invalidă: scrie de ex. 9:00, 930 sau 0:45",true); el.value=r[f]||""; return; } r[f]=n; }
-  else if(f==="a"){ r.a=zetAbsNorm(v); const ty=zetAbsType(r.a); if(ty==="UP"){ r.k=""; r.g=""; r.p=""; } else if((ty==="U"||ty==="K"||ty==="F")&&!r.k&&!r.g){ const hd=zetHdFor(id); r.g=zetHHMM(hd!=null?hd:480); } }
+  else if(f==="a"){ const oldTy=zetAbsType(r.a); r.a=zetAbsNorm(v); const ty=zetAbsType(r.a); if(!ty&&(oldTy==="U"||oldTy==="K"||oldTy==="F")&&!r.k&&!r.p){ r.g=""; } if(ty==="UP"){ r.k=""; r.g=""; r.p=""; } else if((ty==="U"||ty==="K"||ty==="F")&&!r.k&&!r.g){ const hd=zetHdFor(id); r.g=zetHHMM(hd!=null?hd:480); } }
   else r.b=v.slice(0,120);
+  if(r.k&&r.g&&!r.p&&zetAbsType(r.a)!=="UP") r.p="00:45";          // pauza se pune automat acolo unde sunt ore
+  else if(_zetCtx==="staff"&&!(r.k&&r.g)&&r.p==="00:45") r.p="";
   if(!r.k&&!r.g&&!r.p&&!r.a&&!r.b) delete emp.days[d];
   zetSaveSoon(id); renderZet(nextIdx);
 }
@@ -11288,6 +11303,7 @@ function renderZet(focusIdx){
     <span id="zetSaved" style="font-size:12px;color:var(--sal-green,#10b981)"></span>
     <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
       ${_zetCtx==="admin"?`<button onclick="document.getElementById('zetFile').click()" style="padding:8px 16px;border:none;border-radius:999px;background:linear-gradient(135deg,var(--sal-em,#10b981),#0ea5a4);color:#fff;font-weight:800;cursor:pointer">📥 Încarcă Excel (toate persoanele)</button>`:""}
+      ${_zetCtx==="admin"?`<button onclick="zetClearSundays()" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🧹 Șterge duminicile</button>`:""}
       ${_zetCtx==="admin"?`<button onclick="zetLogOpen()" id="zetLogBtn" style="padding:8px 14px;border:1px solid #dc2626;border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:800;color:#dc2626">🔍 Modificări${_zetLogUnseen()?" ("+_zetLogUnseen()+" noi)":""}</button>`:""}
       ${zetNoExp()?"":`<button onclick="zetExportClick('all')" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">📤 Export Excel (toți)</button>
       <button onclick="zetPrint('all')" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🖨 Toți (completate)</button>
@@ -17076,7 +17092,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-112802';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261106-113619';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17162,6 +17178,9 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
+
 
 
 
