@@ -4911,10 +4911,9 @@ function initApp(userKey){
       unsubListeners.push(unsub);
     });
   } else if(userKey==="mihaela"){
-    // Mihaela nu are propriul document — citește read-only din "tania" (lista completă)
-    // pentru a putea afișa corect panoul "În concediu astăzi"
+    // Mihaela lucrează pe documentul Ralucăi (aceleași persoane ca Raluca); ce poate vedea/edita se decide din Permisiuni
     let first = true;
-    const unsub = db.collection(concediiColl()).doc("tania").onSnapshot(snap=>{
+    const unsub = db.collection(concediiColl()).doc("raluca").onSnapshot(snap=>{
       if(snap.exists){
         state = snap.data();
         if(!state.drivers) state.drivers=[];
@@ -5431,7 +5430,7 @@ async function saveDriversNow(){
         db.collection(concediiColl()).doc("tania").set({drivers:byDoc.tania,thresholds:state.thresholds}),
       ]);
     } else {
-      await db.collection(concediiColl()).doc(uk).set(JSON.parse(JSON.stringify(state)));
+      await db.collection(concediiColl()).doc(uk==="mihaela"?"raluca":uk).set(JSON.parse(JSON.stringify(state)));
       try{
         const tSnap = await db.collection(concediiColl()).doc("tania").get();
         if(tSnap.exists){
@@ -17200,7 +17199,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261107-095414';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261107-100631';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17286,6 +17285,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
