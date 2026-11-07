@@ -1437,6 +1437,7 @@
     </div>
     
     <div id="calendarView" class="calendar">
+      <div id="calRemList" style="display:none"></div>
       <div class="cal-grid" id="calGrid"></div>
     </div>
     
@@ -7953,15 +7954,20 @@ function renderDrivers(){
   if(!filtered.length){list.innerHTML="<div class=\"empty\">Nicio persoană</div>";return;}
   list.innerHTML=filtered.map(dr=>{
     const viewedYear=currentDate.getFullYear();
-    const used=usedDaysThisYear(dr,"leaves",viewedYear);
+    const usedRaw=usedDaysThisYear(dr,"leaves",viewedYear);
+    // zile împrumutate din anul viitor: nu se afișează ca depășire (ex. 27/27), contorul anului următor apare mic dedesubt
+    const borrowedOut=(dr.borrowedDays||[]).filter(b=>b.fromYear===viewedYear&&b.toYear>viewedYear).reduce((a,b)=>a+(Number(b.days)||0),0);
+    const used=borrowedOut>0?Math.max(0,usedRaw-borrowedOut):usedRaw;
     const maxDays=getEffectiveMaxDays(dr,viewedYear)+getCarryOverForYear(dr,viewedYear);
+    const nyY=viewedYear+1;
+    const nyHtml=borrowedOut>0?`<div title="Zile luate în avans din ${nyY}" style="font-size:9px;color:var(--text-dim);margin-top:2px">↪ ${nyY}: ${borrowedOut+usedDaysThisYear(dr,"leaves",nyY)} / ${getEffectiveMaxDays(dr,nyY)} zile</div>`:"";
     const over=maxDays>0&&used>maxDays;
     const warn=maxDays>0&&used>=maxDays*0.8&&!over;
     const color=over?"var(--red)":warn?"var(--orange)":"var(--green)";
     const pct=maxDays>0?Math.min(100,Math.round(used/maxDays*100)):0;
     let quotaHtml="";
     if(maxDays>0){
-      quotaHtml=`<div style="margin-top:4px"><div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;color:var(--text-dim)"><span style="color:${color};font-weight:600">${used} / ${maxDays} zile</span><span>${pct}%</span></div><div style="background:var(--bg);border-radius:3px;height:4px;overflow:hidden"><div style="width:${pct}%;background:${color};height:100%;border-radius:3px"></div></div></div>`;
+      quotaHtml=`<div style="margin-top:4px"><div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;color:var(--text-dim)"><span style="color:${color};font-weight:600">${used} / ${maxDays} zile</span><span>${pct}%</span></div><div style="background:var(--bg);border-radius:3px;height:4px;overflow:hidden"><div style="width:${pct}%;background:${color};height:100%;border-radius:3px"></div></div></div>${nyHtml}`;
     } else {
       quotaHtml=used>0?`<div style="margin-top:3px;font-size:10px;color:var(--text-dim)">${used} zile folosite</div>`:"";
     }
@@ -8330,6 +8336,20 @@ function renderHolidayBanner(){
   banner.textContent="🎉 Sărbători în "+MONTHS[m]+": "+holidays.map(h=>h.date.getDate()+" "+h.name.split("(")[0].trim()).join(" · ");
 }
 
+
+// Mihaela: lista reminderelor (de la Raluca/Paul) chiar deasupra calendarului — punctele de pe zile pot trece neobservate
+function renderCalRemList(){
+  const box=document.getElementById("calRemList"); if(!box) return;
+  const uk=window.activeUserKey||"";
+  if(uk!=="mihaela"){ box.style.display="none"; box.innerHTML=""; return; }
+  const t=new Date(); t.setHours(0,0,0,0);
+  const from=fmtDate(t);
+  const list=(_calendarReminders||[]).filter(r=>r.dateStr>=from && canSeeReminder(r,uk)).sort((a,b)=>a.dateStr<b.dateStr?-1:a.dateStr>b.dateStr?1:0);
+  if(!list.length){ box.style.display="none"; box.innerHTML=""; return; }
+  box.style.display="block";
+  box.innerHTML='<div style="background:rgba(94,234,212,.08);border:1px solid rgba(94,234,212,.35);border-radius:10px;padding:10px 12px;margin-bottom:10px"><div style="font-size:11px;font-weight:800;color:#2dd4bf;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📌 Remindere</div>'
+   +list.map(r=>`<div onclick="openDayDetail('${r.dateStr}')" style="font-size:12.5px;padding:3px 0;cursor:pointer"><b>${formatDateRO(r.dateStr)}</b> · <span style="opacity:.75">${escapeHtml(reminderAuthorDisplayName(r.author))}</span>: ${escapeHtml(r.text)}</div>`).join("")+'</div>';
+}
 function renderCalendar(){
   const y=currentDate.getFullYear(),m=currentDate.getMonth();
   document.getElementById("monthLabel").textContent=MONTHS[m];
@@ -8344,6 +8364,7 @@ function renderCalendar(){
   while(cells.length%7!==0){const last=cells[cells.length-1].d;cells.push({d:new Date(last.getFullYear(),last.getMonth(),last.getDate()+1),otherMonth:true});}
   html+=cells.map(({d,otherMonth})=>renderCalDay(d,otherMonth,today)).join("");
   document.getElementById("calGrid").innerHTML=html;
+  renderCalRemList();
   renderHolidayBanner();
   const onLeaveToday=driversOnDate(today).length;
   document.getElementById("statToday").textContent=onLeaveToday;setStatLevel("statTodayBox",onLeaveToday);
@@ -17179,7 +17200,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261107-072413';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261107-095414';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17265,6 +17286,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
