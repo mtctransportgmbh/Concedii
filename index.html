@@ -1481,7 +1481,7 @@
 
       <!-- Panou concedii ieri/azi/mâine — vizibil pentru Mihaela -->
       <div id="todayLeavePanel" style="display:none;margin-bottom:12px">
-        <div style="font-size:11px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;display:flex;align-items:center;gap:6px">🏖️ Concedii — Ruhstorf</div>
+        <div id="todayLeaveHead" style="font-size:11px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;display:flex;align-items:center;gap:6px">🏖️ Concedii — Ruhstorf</div>
         <div id="todayLeaveList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;color:var(--text)">—</div>
         <div id="todayLeaveReminders" style="display:none"></div>
       </div>
@@ -13080,8 +13080,16 @@ function updateTodayLeavePanel(){
   const hasConc = isAdmin()||hasModuleView(uk,"concedii");
   // Panou util doar pentru cei cu acces la Sortatori dar FĂRĂ acces complet la Concedii
   // (altfel au deja informația completă acolo)
-  if(!hasSort || hasConc){ panel.style.display="none"; return; }
-  panel.style.display="block";
+  const _hd=document.getElementById("todayLeaveHead");
+  if(!hasSort || hasConc){
+    // Mihaela: remindere de la Raluca/Admin se văd mereu, chiar dacă panoul de concedii nu e afișat
+    if(uk==="mihaela"){
+      panel.style.display="block"; list.style.display="none"; if(_hd) _hd.style.display="none";
+      renderTodayLeaveReminders(reminderWindowDates(), uk);
+    } else panel.style.display="none";
+    return;
+  }
+  panel.style.display="block"; list.style.display="grid"; if(_hd) _hd.style.display="flex";
 
   const today = new Date(); today.setHours(0,0,0,0);
   // Săptămâna calendaristică curentă (Luni → Duminică), nu doar 3 zile fixe
@@ -13154,7 +13162,13 @@ function updateTodayLeavePanel(){
 
   // Remindere vizibile pentru acest user — Mihaela nu vede calendarul mare de
   // Concedii (unde apar normal), deci le arătăm și aici, în panoul ei dedicat.
-  renderTodayLeaveReminders(weekDates, uk);
+  renderTodayLeaveReminders(reminderWindowDates(), uk);
+}
+// remindere: de luni din săptămâna curentă până peste 6 săptămâni (nu doar săptămâna asta)
+function reminderWindowDates(){
+  const t=new Date(); t.setHours(0,0,0,0);
+  const mon=new Date(t); mon.setDate(t.getDate()-((t.getDay()+6)%7));
+  return Array.from({length:42},(_,i)=>{ const d=new Date(mon); d.setDate(mon.getDate()+i); return d; });
 }
 
 async function renderTodayLeaveReminders(weekDates, uk){
@@ -13203,7 +13217,7 @@ async function renderTodayLeaveReminders(weekDates, uk){
     </div>`;
   }).join("");
 
-  el.innerHTML = `<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-dim);margin:10px 0 6px">📌 Remindere săptămâna asta</div>` + dayCards;
+  el.innerHTML = `<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-dim);margin:10px 0 6px">📌 Remindere (următoarele săptămâni)</div>` + dayCards;
 }
 
 function copySortatoriFromPrevMonth(){
@@ -17165,7 +17179,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261106-162244';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261107-072413';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17251,6 +17265,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
