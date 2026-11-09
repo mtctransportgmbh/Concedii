@@ -8788,11 +8788,11 @@ function getReminderGroupForUser(uk){
 // Admin vede DOAR Raluca+Admin, Raluca vede Raluca+Admin, Mihaela vede
 // Admin+Raluca. Doar Tania rămâne cu vizibilitate completă.
 const REMINDER_VISIBLE_AUTHORS = {
-  admin:    ["raluca","admin"],
-  raluca:   ["raluca","admin"],
+  admin:    ["raluca","admin","mihaela"],
+  raluca:   ["raluca","admin","mihaela"],
   madalina: ["madalina"],
   corina:   ["corina"],
-  mihaela:  ["admin","raluca"],
+  mihaela:  ["admin","raluca","mihaela"],   // Mihaela își vede și propriile remindere
 };
 
 function canSeeReminder(reminder, uk){
@@ -17269,7 +17269,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261109-124653';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261109-143641';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17355,6 +17355,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
