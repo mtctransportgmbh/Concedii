@@ -1516,6 +1516,7 @@
       <div id="libereHiddenBar"></div>
       <div id="libereStats" style="margin-bottom:10px"></div>
       <div id="libereFreeRecommendation" style="display:none;margin-bottom:10px"></div>
+      <div id="libereSaturdays" style="display:none;margin-bottom:10px"></div>
       <!-- Timeline Libere -->
       <div class="timeline-wrap">
         <div class="timeline" id="libereTimeline"></div>
@@ -1567,7 +1568,7 @@
       </div>
       <div id="salTblWrap" style="border:1px solid var(--border);border-radius:10px;background:var(--bg-elev)"><table id="salTable" style="width:100%;border-collapse:collapse;font-size:13px"></table></div>
       <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5">
-        <b>●</b> verde = sincronizat din Angajați, ○ = nelegat. <b>Formule:</b> Pachete = pachete×0,66 + sortat×22 + (zile concediu + Feiertag + Krank)×66 − chirie · Doar sortator și Salar fix = salar + sortat×22 + sumele lunare scrise de tine la Concediu/Feiertag/Krank − chirie. <b>Salar fix</b>: nu preia concediu / Feiertag / Krank (salariul rămâne mereu cel scris de tine). <b>Alte rețineri</b> (sumă + observație, ex. „reclamație x, Rechnung x”) se scad din total la toți. Zilele de concediu/Feiertag/Krank se calculează la toți cu 66 € / zi; la cei fără pachete poți suprascrie suma scriind-o în căsuța de sub zile. Zilele de sortat (din modulul Sortatori), concediu, Krank și Feiertag se preiau automat; poți suprascrie manual (apare ↺ pentru revenire).
+        <b>●</b> verde = sincronizat din Angajați, ○ = nelegat. <b>Formule:</b> Pachete = pachete×0,60 (poți schimba pe fiecare persoană) + sortat×22 + (zile concediu + Feiertag + Krank)×66 − chirie · Doar sortator și Salar fix = salar + sortat×22 + sumele lunare scrise de tine la Concediu/Feiertag/Krank − chirie. <b>Salar fix</b>: nu preia concediu / Feiertag / Krank (salariul rămâne mereu cel scris de tine). <b>Alte rețineri</b> (sumă + observație, ex. „reclamație x, Rechnung x”) se scad din total la toți. Zilele de concediu/Feiertag/Krank se calculează la toți cu 66 € / zi; la cei fără pachete poți suprascrie suma scriind-o în căsuța de sub zile. Zilele de sortat (din modulul Sortatori), concediu, Krank și Feiertag se preiau automat; poți suprascrie manual (apare ↺ pentru revenire).
       </div>
       </div>
       <div id="salViewPkg" style="display:none">
@@ -9906,7 +9907,7 @@ async function salPinSubmit(){
 // Firestore: salarii/angajati  { emps:[{id,name,type,rate,active}] }
 //            salarii/m_YYYY-MM { rows:{ [empId]:{salar,sortat,chirie,alte,alteObs,type,rate,ovC,ovF,ovK} } }
 // ============================================================
-const SAL_PKG_RATE = 0.66, SAL_SORT_RATE = 22, SAL_DEFAULT_DAY_RATE = 66;
+const SAL_PKG_RATE = 0.60, SAL_SORT_RATE = 22, SAL_DEFAULT_DAY_RATE = 66;
 const SAL_TYPES = {fix:"Salar fix", pachete:"Din pachete", sortat:"Doar sortator"};
 let salEmps = [];
 let salMonthData = {rows:{},lma:null};
@@ -10044,14 +10045,16 @@ function salRowCalc(emp){
   const salar=hasSal?salNum(rd.salar):(fromDef?salNum(emp.fixSalar):0), chirie=salNum(rd.chirie), alte=salNum(rd.alte), alteObs=String(rd.alteObs||"");
   const sortat=sortOv?salNum(rd.sortat):aS.n;
   let base;
-  if(type==="pachete") base=salar*SAL_PKG_RATE+sortat*SAL_SORT_RATE;
+  const pkgRateOv=rd.pkgRate!=null&&rd.pkgRate!==""&&isFinite(Number(rd.pkgRate));
+  const pkgRate=pkgRateOv?Number(rd.pkgRate):SAL_PKG_RATE;   // 0,60 implicit; se poate suprascrie pe persoană
+  if(type==="pachete") base=salar*pkgRate+sortat*SAL_SORT_RATE;
   else base=salar+sortat*SAL_SORT_RATE;
   const hasAmt=v=>v!=null&&v!=="";
   const aC=isFix?0:((!isPk&&hasAmt(rd.amtC))?salNum(rd.amtC):dC*rate), aF=isFix?0:((!isPk&&hasAmt(rd.amtF))?salNum(rd.amtF):dF*rate), aK=isFix?0:((!isPk&&hasAmt(rd.amtK))?salNum(rd.amtK):dK*rate);
   const vors=salVorsCalc(emp.id,salMk());
   const live=base+aC+aF+aK-chirie-alte-vors.ded;
   const paid=rd.paid&&rd.paid.at?rd.paid:null;
-  return {rd,type,isFix,fromDef,rate,a,aS,sortOv,dC,dF,dK,aC,aF,aK,salar,sortat,chirie,alte,alteObs,base,vors,vDed:vors.ded,live,paid,total:paid&&paid.total!=null?salNum(paid.total):live};
+  return {rd,type,isFix,fromDef,rate,pkgRate,pkgRateOv,a,aS,sortOv,dC,dF,dK,aC,aF,aK,salar,sortat,chirie,alte,alteObs,base,vors,vDed:vors.ded,live,paid,total:paid&&paid.total!=null?salNum(paid.total):live};
 }
 
 // ---- randare ----
@@ -10088,7 +10091,7 @@ function renderSalarii(){
     body.push(`<tr style="border-top:1px solid var(--border)">
       <td style="padding:4px 8px;font-weight:600;${salLma()?"":"white-space:nowrap"}">${salDot(!!e.angajatiId)}${escapeHtml(e.name)}${c.a.linked?"":` <span title="Nu există în Concedii — zilele de concediu/krank nu pot fi preluate automat. Folosește 👥 Angajați → Creează în Concedii." style="color:#ef4444;cursor:help">⚠️</span>`}${salTourCell(e,c,ed)}</td>
       <td style="padding:4px 6px"><select ${ed?"":"disabled"} onchange="salSet('${e.id}','type',this.value)" style="padding:3px 4px;font-size:12px;border:1px solid ${tcol};border-radius:5px;background:var(--bg-elev-2);color:var(--text)">${Object.keys(SAL_TYPES).map(t=>`<option value="${t}" ${t===c.type?"selected":""}>${SAL_TYPES[t]}</option>`).join("")}</select></td>
-      <td style="padding:4px 6px;text-align:right">${inp("salar",(c.rd.salar!=null&&c.rd.salar!=="")?c.rd.salar:(c.fromDef?c.salar:""),80)}${c.rd.salManual&&ed?` <button onclick="salRevertAuto('${e.id}')" title="Revino la valoarea calculată automat" style="padding:2px 6px;font-size:11px;border:1px solid var(--sal-amber);border-radius:5px;background:transparent;color:var(--sal-amber);cursor:pointer">↺ automat</button>`:""}<div style="font-size:10px;color:var(--text-dim)">${c.fromDef?"⚙ implicit · ":""}${c.rd.salManual?"✎ scris de mână · ":""}${c.type==="pachete"?(c.rd.tourAuto?"din ture · ":"")+"pachete → "+salFmt(c.salar*SAL_PKG_RATE):(c.type==="sortat"?"sumă":"sumă fixă")}</div></td>
+      <td style="padding:4px 6px;text-align:right">${inp("salar",(c.rd.salar!=null&&c.rd.salar!=="")?c.rd.salar:(c.fromDef?c.salar:""),80)}${c.rd.salManual&&ed?` <button onclick="salRevertAuto('${e.id}')" title="Revino la valoarea calculată automat" style="padding:2px 6px;font-size:11px;border:1px solid var(--sal-amber);border-radius:5px;background:transparent;color:var(--sal-amber);cursor:pointer">↺ automat</button>`:""}<div style="font-size:10px;color:var(--text-dim)">${c.fromDef?"⚙ implicit · ":""}${c.rd.salManual?"✎ scris de mână · ":""}${c.type==="pachete"?(c.rd.tourAuto?"din ture · ":"")+"pachete × <input type=\"text\" inputmode=\"decimal\" value=\""+c.pkgRate+"\" "+(ed?"":"disabled")+" title=\"Suma pe pachet (implicit "+SAL_PKG_RATE+" €). Scrie altă valoare ca să o schimbi doar la această persoană.\" onchange=\"salSet('"+e.id+"','pkgRate',this.value)\" style=\"width:38px;padding:1px 3px;text-align:right;font-size:10px;border:1px solid "+(c.pkgRateOv?"var(--sal-amber)":"var(--border)")+";border-radius:4px;background:var(--bg-elev-2);color:var(--text)\">"+(c.pkgRateOv?"<span title=\"Suprascris manual — click pentru revenire la "+SAL_PKG_RATE+"\" onclick=\"salSet('"+e.id+"','pkgRate','')\" style=\"cursor:pointer;color:var(--sal-amber)\"> ↺</span>":"")+" → "+salFmt(c.salar*c.pkgRate):(c.type==="sortat"?"sumă":"sumă fixă")}</div></td>
       <td style="padding:4px 6px;text-align:right"><input type="text" inputmode="decimal" value="${c.sortat||""}" placeholder="0" ${ed?"":"disabled"} onchange="salSet('${e.id}','sortat',this.value)" style="width:50px;padding:3px 5px;text-align:right;border:1px solid ${c.sortOv?'var(--sal-amber)':'var(--border)'};border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:12px">${c.sortOv?`<span title="Suprascris manual (automat din Sortatori: ${c.aS.n}) — click pentru revenire" onclick="salSet('${e.id}','sortat','')" style="cursor:pointer;color:var(--sal-amber)"> ↺</span>`:""}<div style="font-size:10px;color:var(--text-dim)">${c.aS.found||c.sortOv?"zile → "+salFmt(c.sortat*SAL_SORT_RATE):"nu e în Sortatori"}</div></td>
       ${dayCell("c","ovC",c.dC,c.aC,c.a.c)}${dayCell("f","ovF",c.dF,c.aF,c.a.f)}${dayCell("k","ovK",c.dK,c.aK,c.a.k)}
       <td style="padding:4px 6px;text-align:right">${inp("chirie",c.rd.chirie,70)}</td>
@@ -12592,6 +12595,7 @@ function renderLibere(){
   // ── Statistici ──
   renderLibereStats(persons, statsPerPerson, mk, y, m);
   renderLibereFreeRecommendation(persons, mk, y, m);
+  try{ renderLibereSaturdays(); }catch(e){ console.warn('sambete',e); }
 }
 
 // ============================================================
@@ -12728,6 +12732,91 @@ function renderLibereFreeRecommendation(persons, mk, y, m){
   }
 
   container.innerHTML = html;
+}
+
+// ── Sâmbete: cine a lucrat/a fost liber în ultimele 2 luni + recomandare pentru sâmbăta următoare ──
+function libereSatFmt(d){ return String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0"); }
+function libereSaturdayStats(){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const from=new Date(today); from.setDate(from.getDate()-61);
+  const sats=[];
+  for(let d=new Date(from); d<today; d.setDate(d.getDate()+1)){ if(d.getDay()===6 && !getHoliday(d)) sats.push(new Date(d)); }
+  let next=new Date(today); next.setDate(next.getDate()+1);
+  for(let i=0;i<30;i++){ if(next.getDay()===6 && !getHoliday(next)) break; next.setDate(next.getDate()+1); }
+  const groupKey = libereView==="eiselfing" ? "madalina" : "raluca";
+  const monthKeys=[...new Set([...sats,next].map(d=>libereMonthKey(d)))];
+  const nameSet=new Set();
+  monthKeys.forEach(k=>getLiberePersons(k).forEach(n=>nameSet.add(n)));
+  const names=[], noSat=[];
+  [...nameSet].forEach(name=>{
+    const dr=state.drivers.find(d=>d.name===name);
+    if(!dr || dr.archived) return;
+    const inGroup = dr.group ? dr.group===libereView : (dr.visibleTo && dr.visibleTo.length ? dr.visibleTo.includes(groupKey) : isAdmin());
+    if(!inGroup) return;
+    if(dr.noSaturday){ noSat.push(name); return; }
+    names.push(name);
+  });
+  names.sort((a,b)=>a.localeCompare(b,"ro"));
+  const rows={}; let unmarked=0, marked=0;
+  const freePerSat=sats.map(()=>0), markedPerSat=sats.map(()=>0);
+  names.forEach(name=>{
+    const dr=state.drivers.find(d=>d.name===name);
+    const cells=[]; let worked=0, free=0, abs=0, lastFree=null, streak=0;
+    sats.forEach((d,i)=>{
+      const mk=libereMonthKey(d), dn=d.getDate();
+      if(!getLiberePersons(mk).includes(name) || !isDriverActiveOnDay(dr,d)){ cells.push("na"); return; }
+      const auto=getAutoStatus(name,dn,d.getFullYear(),d.getMonth());
+      if(auto){ cells.push("abs"); abs++; return; }
+      const man=(((libereState.days||{})[mk]||{})[name]||{})[String(dn)];
+      if(man==="liber"){ cells.push("liber"); free++; lastFree=d; freePerSat[i]++; markedPerSat[i]++; marked++; }
+      else { cells.push("lucrat"); worked++; if(man==="lucrat"){ markedPerSat[i]++; marked++; } else unmarked++; }
+    });
+    for(let i=cells.length-1;i>=0;i--){ if(cells[i]==="lucrat") streak++; else if(cells[i]==="liber") break; }
+    rows[name]={cells,worked,free,abs,lastFree,streak};
+  });
+  // Câți liberi sunt de obicei într-o sâmbătă (doar sâmbetele în care s-a marcat ceva)
+  const used=sats.map((d,i)=>i).filter(i=>markedPerSat[i]>0);
+  const avgFree = used.length ? used.reduce((a,i)=>a+freePerSat[i],0)/used.length : 1;
+  const nFree = Math.max(1, Math.round(avgFree));
+  // Cine poate fi liber sâmbăta următoare
+  const mkN=libereMonthKey(next);
+  const elig = names.length ? computeLibereFreeRecommendation(names, mkN, next.getFullYear(), next.getMonth()) : {eligible:[],ineligible:[]};
+  const blocked=new Set(elig.ineligible.map(r=>r.name));
+  const absentNext=new Set(names.filter(n=>getAutoStatus(n,next.getDate(),next.getFullYear(),next.getMonth())));
+  const candidates=names.filter(n=>!blocked.has(n)&&!absentNext.has(n)).sort((a,b)=>{
+    const A=rows[a],B=rows[b];
+    if(A.free!==B.free) return A.free-B.free;
+    if((A.lastFree===null)!==(B.lastFree===null)) return A.lastFree===null?-1:1;
+    if(A.lastFree && B.lastFree && A.lastFree-B.lastFree) return A.lastFree-B.lastFree;
+    if(A.streak!==B.streak) return B.streak-A.streak;
+    return B.worked-A.worked;
+  });
+  return {sats,next,names,noSat,rows,candidates,blocked:[...blocked],absentNext:[...absentNext],nFree,avgFree,unmarked,marked,freePerSat};
+}
+function renderLibereSaturdays(){
+  const el=document.getElementById("libereSaturdays"); if(!el) return;
+  if(!(isAdmin()||canEditLibere())){ el.style.display="none"; return; }
+  const S=libereSaturdayStats();
+  if(!S.names.length){ el.style.display="none"; return; }
+  el.style.display="block";
+  const open = el.dataset.open==="1";
+  const cellH=(c)=>{
+    const m={lucrat:["#10b981","✓"],liber:["#ef4444","✗"],abs:["rgba(251,191,36,.7)","U"],na:["transparent","–"]}[c];
+    return `<td style="text-align:center;padding:3px 6px;border:1px solid var(--border);background:${m[0]};color:${c==="na"?"var(--text-dim)":"#fff"};font-weight:700">${m[1]}</td>`;
+  };
+  let tbl=`<div style="overflow-x:auto;margin-top:8px"><table style="border-collapse:collapse;font-size:11px"><thead><tr style="background:var(--bg-elev-2)"><th style="text-align:left;padding:4px 8px;border:1px solid var(--border)">Persoană</th>${S.sats.map(d=>`<th style="padding:4px 6px;border:1px solid var(--border)">${libereSatFmt(d)}</th>`).join("")}<th style="padding:4px 8px;border:1px solid var(--border);color:#10b981">Lucrat</th><th style="padding:4px 8px;border:1px solid var(--border);color:#ef4444">Liber</th></tr></thead><tbody>`;
+  S.names.forEach(n=>{ const r=S.rows[n]; tbl+=`<tr><td style="padding:3px 8px;border:1px solid var(--border);font-weight:600;white-space:nowrap">${escapeHtml(n)}</td>${r.cells.map(cellH).join("")}<td style="text-align:center;border:1px solid var(--border);font-weight:700;color:#10b981">${r.worked}</td><td style="text-align:center;border:1px solid var(--border);font-weight:700;color:#ef4444">${r.free}</td></tr>`; });
+  tbl+=`</tbody></table></div><div style="font-size:10px;color:var(--text-dim);margin-top:4px">✓ lucrat · ✗ liber · U concediu/absent · – nu era în program. Sâmbetele cu sărbătoare legală nu se numără.${S.unmarked?` ${S.unmarked} celule nemarcate în Libere sunt numărate ca „lucrat”.`:""}${S.noSat.length?` Nu lucrează sâmbăta (excluși): ${S.noSat.map(escapeHtml).join(", ")}.`:""}</div>`;
+  const pick=S.candidates.slice(0,S.nFree), rest=S.candidates.slice(S.nFree,S.nFree+4);
+  const why=n=>{ const r=S.rows[n]; const tot=r.worked+r.free; return `${escapeHtml(n)} <span style="font-weight:400;color:var(--text-dim)">— lucrat ${r.worked} din ${tot} sâmbete, liber ${r.free}${r.lastFree?", ultima dată liber pe "+libereSatFmt(r.lastFree):", niciodată liber în ultimele 2 luni"}${r.streak>1?", "+r.streak+" sâmbete la rând lucrate":""}</span>`; };
+  let rec=`<div style="margin-top:10px;padding:8px 12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:8px">
+    <div style="font-size:12px;font-weight:800;color:#10b981">💡 Sâmbăta ${libereSatFmt(S.next)}: ar trebui să fie liber${pick.length>1?"i":""}</div>
+    ${pick.length?pick.map(n=>`<div style="font-size:13px;font-weight:800;margin-top:3px">${why(n)}</div>`).join(""):'<div style="font-size:12px;color:var(--text-dim)">Nicio persoană eligibilă.</div>'}
+    <div style="font-size:11px;color:var(--text-dim);margin-top:4px">În ultimele 2 luni au fost în medie ${S.avgFree.toFixed(1).replace(".",",")} liberi pe sâmbătă, deci recomand ${S.nFree}.</div>
+    ${rest.length?`<div style="font-size:11px;color:var(--text-dim);margin-top:3px">Următorii în ordine: ${rest.map(n=>escapeHtml(n)+" ("+S.rows[n].free+" libere)").join(", ")}</div>`:""}
+    ${S.blocked.length||S.absentNext.length?`<div style="font-size:11px;color:#f59e0b;margin-top:3px">Excluși: ${[...S.absentNext.map(n=>escapeHtml(n)+" (absent atunci)"),...S.blocked.filter(n=>!S.absentNext.includes(n)).map(n=>escapeHtml(n)+" (concediu recent/angajat nou)")].join(", ")}</div>`:""}
+  </div>`;
+  el.innerHTML=`<details ${open?"open":""} ontoggle="document.getElementById('libereSaturdays').dataset.open=this.open?'1':'0'" style="border:1px solid var(--border);border-radius:8px;padding:8px 12px;background:var(--bg-elev)"><summary style="cursor:pointer;font-size:12px;font-weight:800;color:var(--text-dim);text-transform:uppercase">📅 Sâmbete — ultimele 2 luni și recomandare</summary>${rec}${tbl}</details>`;
 }
 
 function isWorkday(d,dr){ return !isSunday(d)&&!getHoliday(d)&&!(dr&&dr.noSaturday&&d.getDay()===6); }
@@ -17180,7 +17269,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261107-114506';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261109-124653';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17266,6 +17355,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
