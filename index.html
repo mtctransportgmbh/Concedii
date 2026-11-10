@@ -6810,7 +6810,26 @@ function reconcileBorrowedDays(dr, year){
   return changed;
 }
 
+// PREVIZUALIZARE report (nu scrie nimic): pentru anii după anul de bază, cât timp reportul nu a fost confirmat (buton 🔄 sau editare manuală),
+// se afișează reportul calculat live din concediile anului precedent. Se salvează abia când apeși butonul.
+let _carryPrev={year:0,map:null,loading:false,cache:new Map()};
+function carryPreviewFor(dr, year){
+  if(year<=BASE_YEAR || _carryPrev.year!==year || !_carryPrev.map) return undefined;
+  if(dr.carryOverByYear && dr.carryOverByYear[String(year)+"ok"]) return undefined;   // confirmat → valoarea salvată
+  const key=dr.id+"|"+dr.startDate+"|"+dr.maxDays+"|"+dr.maxDaysOverride+"|"+dr.noSaturday+"|"+(dr.borrowedDays||[]).length;
+  if(_carryPrev.cache.has(key)) return _carryPrev.cache.get(key);
+  let v; try{ const c=carryCalcFor(dr,year-1,year,_carryPrev.map); v=c?c.remaining:undefined; }catch(e){ v=undefined; }
+  _carryPrev.cache.set(key,v); return v;
+}
+function ensureCarryPreview(){
+  const y=activeYear;
+  if(y<=BASE_YEAR || _carryPrev.loading || _carryPrev.year===y) return;
+  _carryPrev.loading=true;
+  loadPrevYearDriversMap(y-1).then(m=>{ _carryPrev={year:y,map:m,loading:false,cache:new Map()}; if(m.size){ renderMain(); try{ toast("👁 Previzualizare report din "+(y-1)+" (nesalvat până apeși 🔄 Calculează report)"); }catch(e){} } })
+    .catch(()=>{ _carryPrev={year:y,map:null,loading:false,cache:new Map()}; });
+}
 function getCarryOverForYear(dr, year){
+  const pv=carryPreviewFor(dr, year); if(pv!==undefined) return pv;
   if(dr.carryOverByYear && dr.carryOverByYear[String(year)] !== undefined)
     return dr.carryOverByYear[String(year)]; // deja finalizat definitiv (calculat la trecerea de an)
   // Nu s-a finalizat încă anul — dar poate exista deja un împrumut ANTICIPAT,
@@ -7616,7 +7635,8 @@ function saveCarryOver(){
   const val=parseInt(document.getElementById("leaveCarryInput").value)||0;
   const y=String(currentDate.getFullYear());
   if(!dr.carryOverByYear) dr.carryOverByYear={};
-  dr.carryOverByYear[y]=val;
+  dr.carryOverByYear[y]=val; dr.carryOverByYear[y+"ok"]=1;
+  _carryPrev.cache=new Map();
   dr.carryOverDays=val; // keep legacy field in sync
   openLeaveModal(leaveDriverId,"leaves");scheduleSave();
 }
@@ -9536,45 +9556,64 @@ async function consolidateBorrowedDays(driverId){
   renderBorrowReport();
 }
 
-function runCarryOverCalculation(){
+// Concediile fiecărui an sunt într-o colecție separată (concedii, concedii_2027 …) — reportul se calculează din colecția anului precedent.
+async function loadPrevYearDriversMap(fromYear){
+  const coll=fromYear===BASE_YEAR?"concedii":"concedii_"+fromYear;
+  const map=new Map();
+  const snaps=await Promise.all(["raluca","madalina","corina","tania"].map(k=>db.collection(coll).doc(k).get()));
+  snaps.forEach(sn=>{ if(sn.exists)(sn.data().drivers||[]).forEach(d=>{ if(d&&d.id) map.set(d.id,d); }); });
+  return map;
+}
+function carryCalcFor(dr, fromYear, toYear, prevMap){
+  const effMax = getEffectiveMaxDays(dr, fromYear);
+  if(!effMax || effMax===0) return null;
+  const prev = prevMap && prevMap.get(dr.id);
+  if(prevMap && prevMap.size && !prev) return null;      // persoană care nu exista în anul precedent
+  const src = prev || dr;
+  const used = (src.leaves||[]).reduce((sum,l)=>{
+    const s=parseDate(l.start),e=parseDate(l.end);
+    if(e.getFullYear()<fromYear||s.getFullYear()>fromYear)return sum;
+    const ys=new Date(fromYear,0,1),ye=new Date(fromYear,11,31);
+    const from=s<ys?ys:s,to=e>ye?ye:e;
+    return sum+countWorkdays(from,to,dr);
+  },0);
+  const prevCarry = (src.carryOverByYear && src.carryOverByYear[String(fromYear)]!==undefined) ? src.carryOverByYear[String(fromYear)] : (src.carryOverDays||0);
+  const alreadyBorrowed = getBorrowedDaysForYear(src, toYear);
+  return {remaining: effMax + prevCarry - used - alreadyBorrowed, effMax, prevCarry, used, alreadyBorrowed};
+}
+async function runCarryOverCalculation(){
   if(!isAdmin()){toast("Doar Admin poate calcula reportul",true);return;}
   const toYear = currentDate.getFullYear();
   const fromYear = toYear-1;
+  let prevMap;
+  try{ prevMap = await loadPrevYearDriversMap(fromYear); }
+  catch(e){ toast("Nu am putut citi concediile din "+fromYear+": "+(e.message||e),true); return; }
+  if(!prevMap.size){ toast("Nu găsesc datele din "+fromYear+" — nu calculez reportul.",true); return; }
 
   // Preview: cine ar fi afectat și cu ce valoare, ÎNAINTE de orice scriere
   const preview = [];
   state.drivers.forEach(dr=>{
     if(dr.archived) return;
-    const effMax = getEffectiveMaxDays(dr, fromYear);
-    if(!effMax || effMax===0) return;
-    if(dr.carryOverByYear && dr.carryOverByYear[String(toYear)]!==undefined) return; // deja calculat
-    const usedInFromYear = (dr.leaves||[]).reduce((sum,l)=>{
-      const s=parseDate(l.start),e=parseDate(l.end);
-      if(e.getFullYear()<fromYear||s.getFullYear()>fromYear)return sum;
-      const ys=new Date(fromYear,0,1),ye=new Date(fromYear,11,31);
-      const from=s<ys?ys:s,to=e>ye?ye:e;
-      return sum+countWorkdays(from,to,dr);
-    },0);
-    const prevCarry = (dr.carryOverByYear && dr.carryOverByYear[String(fromYear)]!==undefined) ? dr.carryOverByYear[String(fromYear)] : (dr.carryOverDays||0);
-    const alreadyBorrowed = getBorrowedDaysForYear(dr, toYear);
-    const remaining = effMax + prevCarry - usedInFromYear - alreadyBorrowed;
-    const noStartDate = !dr.startDate;
-    preview.push({name:dr.name, remaining, noStartDate});
+    const c = carryCalcFor(dr, fromYear, toYear, prevMap); if(!c) return;
+    const cur = dr.carryOverByYear && dr.carryOverByYear[String(toYear)];
+    const okFlag = dr.carryOverByYear && dr.carryOverByYear[String(toYear)+"ok"];
+    if(cur!==undefined && cur===c.remaining && okFlag) return;            // deja corect și confirmat
+    preview.push({name:dr.name, remaining:c.remaining, old:cur, noStartDate:!dr.startDate, detail:c.effMax+(c.prevCarry?(c.prevCarry>0?" + ":" − ")+Math.abs(c.prevCarry)+" report":"")+" − "+c.used+" luate"+(c.alreadyBorrowed?" − "+c.alreadyBorrowed+" împrumutate":"")});
   });
 
-  if(!preview.length){ toast("Nimic de calculat — toate persoanele au deja reportul stabilit pentru "+toYear,true); return; }
+  if(!preview.length){ toast("Nimic de calculat — reportul pentru "+toYear+" e deja corect la toate persoanele.",true); return; }
 
   const warnings = preview.filter(p=>p.noStartDate);
-  let msg = "🔄 Calculează reportul din "+fromYear+" → "+toYear+"?\n\n"+preview.length+" persoane vor fi afectate:\n\n";
-  msg += preview.slice(0,15).map(p=>"  • "+p.name+": "+(p.remaining>=0?"+":"")+p.remaining+" zile"+(p.noStartDate?" ⚠️":"")).join("\n");
+  let msg = "🔄 Calculează reportul din "+fromYear+" → "+toYear+"?\n(Concediile luate în "+fromYear+" sunt citite din anul "+fromYear+".)\n\n"+preview.length+" persoane:\n\n";
+  msg += preview.slice(0,15).map(p=>"  • "+p.name+": "+(p.remaining>=0?"+":"")+p.remaining+" zile ("+p.detail+")"+(p.old!==undefined?" — înlocuiește "+p.old:"")+(p.noStartDate?" ⚠️":"")).join("\n");
   if(preview.length>15) msg += "\n  ... și încă "+(preview.length-15)+" persoane";
   if(warnings.length){
-    msg += "\n\n⚠️ "+warnings.length+" persoane NU au dată de angajare (startDate) setată — pentru ele se presupune că au fost active tot anul "+fromYear+". Dacă au fost angajate DOAR în "+toYear+", verifică și corectează manual după calcul.";
+    msg += "\n\n⚠️ "+warnings.length+" persoane NU au dată de angajare (startDate) setată — pentru ele se presupune că au fost active tot anul "+fromYear+". Dacă au fost angajate DOAR în "+toYear+", verifică și corectează manual reportul lor după calcul.";
   }
   msg += "\n\nContinui?";
 
   if(!confirm(msg)) return;
-  autoCalculateCarryOver(fromYear, toYear);
+  autoCalculateCarryOver(fromYear, toYear, prevMap);
 }
 
 function changeMonth(delta){
@@ -9621,36 +9660,23 @@ async function initYearFromBase(uk, year){
   initApp(uk);
 }
 
-function autoCalculateCarryOver(fromYear, toYear){
+function autoCalculateCarryOver(fromYear, toYear, prevMap){
   // Stocăm carry-over per an: dr.carryOverByYear = {2026: 5, 2027: -3}
   // Poate fi și NEGATIV — dacă persoana a depășit cota (a "împrumutat" zile),
   // anul următor pornește cu mai puține zile disponibile, reflectând datoria.
   let updated = 0;
   state.drivers.forEach(dr=>{
-    const effMax = getEffectiveMaxDays(dr, fromYear);
-    if(!effMax || effMax===0) return;
+    if(dr.archived) return;
+    const c = carryCalcFor(dr, fromYear, toYear, prevMap); if(!c) return;
     if(!dr.carryOverByYear) dr.carryOverByYear = {};
-    // Nu recalcula dacă există deja pentru acest toYear
-    if(dr.carryOverByYear[String(toYear)] !== undefined) return;
-    const usedInFromYear = (dr.leaves||[]).reduce((sum,l)=>{
-      const s=parseDate(l.start),e=parseDate(l.end);
-      if(e.getFullYear()<fromYear||s.getFullYear()>fromYear)return sum;
-      const ys=new Date(fromYear,0,1),ye=new Date(fromYear,11,31);
-      const from=s<ys?ys:s,to=e>ye?ye:e;
-      return sum+countWorkdays(from,to,dr);
-    },0);
-    // prevCarry (reportul intrat în fromYear) NU include vreun împrumut al lui
-    // fromYear→toYear (acela ține de toYear, nu de fromYear) — citim direct
-    // din carryOverByYear ca să evităm orice suprapunere cu împrumutul curent.
-    const prevCarry = (dr.carryOverByYear[String(fromYear)] !== undefined) ? dr.carryOverByYear[String(fromYear)] : (dr.carryOverDays||0);
-    const totalAvailable = effMax + prevCarry;
-    const alreadyBorrowed = getBorrowedDaysForYear(dr, toYear); // împrumut ANTICIPAT ales explicit în cursul lui fromYear
-    const remaining = totalAvailable - usedInFromYear - alreadyBorrowed;
-    dr.carryOverByYear[String(toYear)] = remaining;
+    dr.carryOverByYear[String(toYear)+"ok"] = 1;
+    if(dr.carryOverByYear[String(toYear)] === c.remaining){ updated++; return; }
+    dr.carryOverByYear[String(toYear)] = c.remaining;
     updated++;
   });
   if(updated > 0){
     scheduleSave();
+    renderMain();
     toast("✓ "+updated+" persoane: sold din "+fromYear+" reportat în "+toYear+" (inclusiv eventualele depășiri/împrumuturi)");
   }
 }
@@ -9668,7 +9694,7 @@ function updateThresholdLegend(){
   document.getElementById("legWarn").textContent=3;document.getElementById("legWarn1").textContent=2;
   document.getElementById("legCrit").textContent=5;document.getElementById("legCrit1").textContent=4;
 }
-function renderMain(){if(view==="calendar")renderCalendar();else renderTimeline();}
+function renderMain(){ try{ ensureCarryPreview(); }catch(e){} if(view==="calendar")renderCalendar();else renderTimeline();}
 
 // ============================================================
 // SORTATORI MODULE — complet rescris
@@ -9908,7 +9934,7 @@ async function salPinSubmit(){
 //            salarii/m_YYYY-MM { rows:{ [empId]:{salar,sortat,chirie,alte,alteObs,type,rate,ovC,ovF,ovK} } }
 // ============================================================
 const SAL_PKG_RATE = 0.60, SAL_SORT_RATE = 22, SAL_DEFAULT_DAY_RATE = 66;
-const SAL_SORT_WARN_OVER = 26, SAL_SORT_CAP = 25;   // peste 26 zile de sortat → se plătesc automat maxim 25
+const SAL_SORT_WARN_OVER = 25, SAL_SORT_CAP = 25;   // peste 25 de zile de sortat (deci de la 26) → se plătesc automat maxim 25
 const SAL_TYPES = {fix:"Salar fix", pachete:"Din pachete", sortat:"Doar sortator"};
 let salEmps = [];
 let salMonthData = {rows:{},lma:null};
@@ -17232,7 +17258,7 @@ function resetCarryOverYear(){
   let count=0;
   state.drivers.forEach(dr=>{
     if(dr.carryOverByYear && dr.carryOverByYear[y] !== undefined){
-      delete dr.carryOverByYear[y];
+      delete dr.carryOverByYear[y]; delete dr.carryOverByYear[y+"ok"];
       count++;
     }
     if(y === String(new Date().getFullYear()) || !dr.carryOverByYear || Object.keys(dr.carryOverByYear).length===0){
@@ -17273,7 +17299,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261110-102122';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261110-104803';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17359,6 +17385,9 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
+
 
 
 
