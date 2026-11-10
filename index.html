@@ -1005,6 +1005,21 @@
   #salStick{ position:sticky; top:var(--sal-top-h,64px); z-index:4; background:#f2faf7; padding-top:2px; box-shadow:0 6px 8px -6px rgba(14,42,38,.25) }
   #salTblWrap{ overflow-x:clip }
   @media (max-width:900px){ #salStick{ position:static; box-shadow:none } #salTblWrap{ overflow-x:auto } }
+  /* tabel Salarii: rânduri-card cu linii între coloane și evidențiere la mouse */
+  #salTable{ border-collapse:separate !important; border-spacing:0 7px !important }
+  #salTable thead th+th{ border-left:1px solid #e3eeea }
+  #salTable tbody tr{ background:#fff; box-shadow:0 1px 2px rgba(14,42,38,.08); transition:background .12s,box-shadow .12s }
+  #salTable tbody td{ padding:9px 10px !important; vertical-align:middle; border-top:1px solid var(--border); border-bottom:1px solid var(--border) }
+  #salTable tbody td+td{ border-left:1px solid #e3eeea }
+  #salTable tbody td:first-child{ border-left:4px solid var(--border); border-radius:10px 0 0 10px }
+  #salTable tbody td:last-child{ border-right:1px solid var(--border); border-radius:0 10px 10px 0 }
+  #salTable tbody tr:hover{ background:#e6f6ef; box-shadow:0 4px 14px rgba(5,150,105,.22) }
+  #salTable tbody tr:hover td{ border-top-color:#9fd8c2; border-bottom-color:#9fd8c2 }
+  #salTable tbody tr:hover td+td{ border-left-color:#bfe3d3 }
+  #salTable tbody tr:hover td:first-child{ border-left:4px solid var(--sal-em) }
+  #salTable tbody tr:hover td:last-child{ border-right-color:#9fd8c2 }
+  #salTable .sal-nosort{ display:inline-flex; align-items:center; gap:3px; font-size:10px; color:var(--text-dim); margin-top:3px; cursor:pointer; white-space:nowrap }
+  #salTable .sal-nosort input{ width:11px; height:11px; margin:0 }
   .sal-tour{ display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin-top:3px }
   .sal-tchip{ font-size:11px; padding:2px 7px; border-radius:999px; background:rgba(99,102,241,.14); color:#4f46e5; font-weight:700; white-space:nowrap }
   .sal-tchip b{ cursor:pointer; margin-left:5px; color:#ef4444 }
@@ -1566,7 +1581,7 @@
       <div id="salNotice" style="margin-bottom:8px"></div>
       <div id="salSummary" style="margin-bottom:8px"></div>
       </div>
-      <div id="salTblWrap" style="border:1px solid var(--border);border-radius:10px;background:var(--bg-elev)"><table id="salTable" style="width:100%;border-collapse:collapse;font-size:13px"></table></div>
+      <div id="salTblWrap" style="border:1px solid var(--border);border-radius:10px;background:var(--bg-elev);padding:0 8px"><table id="salTable" style="width:100%;font-size:13px"></table></div>
       <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5">
         <b>●</b> verde = sincronizat din Angajați, ○ = nelegat. <b>Formule:</b> Pachete = pachete×0,60 (poți schimba pe fiecare persoană) + sortat×22 + (zile concediu + Feiertag + Krank)×66 − chirie · Doar sortator și Salar fix = salar + sortat×22 + sumele lunare scrise de tine la Concediu/Feiertag/Krank − chirie. <b>Salar fix</b>: nu preia concediu / Feiertag / Krank (salariul rămâne mereu cel scris de tine). <b>Alte rețineri</b> (sumă + observație, ex. „reclamație x, Rechnung x”) se scad din total la toți. Zilele de concediu/Feiertag/Krank se calculează la toți cu 66 € / zi; la cei fără pachete poți suprascrie suma scriind-o în căsuța de sub zile. Zilele de sortat (din modulul Sortatori), concediu, Krank și Feiertag se preiau automat; poți suprascrie manual (apare ↺ pentru revenire).
       </div>
@@ -6825,7 +6840,7 @@ function ensureCarryPreview(){
   const y=activeYear;
   if(y<=BASE_YEAR || _carryPrev.loading || _carryPrev.year===y) return;
   _carryPrev.loading=true;
-  loadPrevYearDriversMap(y-1).then(m=>{ _carryPrev={year:y,map:m,loading:false,cache:new Map()}; if(m.size){ renderMain(); try{ toast("👁 Previzualizare report din "+(y-1)+" (nesalvat până apeși 🔄 Calculează report)"); }catch(e){} } })
+  loadPrevYearDriversMap(y-1).then(m=>{ _carryPrev={year:y,map:m,loading:false,cache:new Map()}; if(m.size){ renderAll(); try{ toast("👁 Previzualizare report din "+(y-1)+" (nesalvat până apeși 🔄 Calculează report)"); }catch(e){} } })
     .catch(()=>{ _carryPrev={year:y,map:null,loading:false,cache:new Map()}; });
 }
 function getCarryOverForYear(dr, year){
@@ -10118,11 +10133,11 @@ function renderSalarii(){
       return `<td style="padding:4px 6px;text-align:right;white-space:nowrap"><input type="text" inputmode="decimal" value="${days||""}" placeholder="0" ${ed?"":"disabled"} onchange="salSet('${e.id}','${field}',this.value)" style="width:42px;padding:3px 4px;text-align:right;border:1px solid ${ov?'var(--sal-amber)':'var(--border)'};border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:12px">${ov?`<span title="Suprascris manual (automat: ${auto}) — click pentru revenire" onclick="salSet('${e.id}','${field}','')" style="cursor:pointer;color:var(--sal-amber)"> ↺</span>`:""}${c.type==="pachete"?`<div style="font-size:10px;color:var(--text-dim)">${days?salFmt(amt):""}</div>`:`<div><input type="text" inputmode="decimal" value="${c.rd[field.replace("ov","amt")]||""}" placeholder="${days?salFmt(amt):"€"}" title="Suma se calculează automat: zile × 66 €. Scrie o sumă aici doar ca s-o suprascrii." ${ed?"":"disabled"} onchange="salSet('${e.id}','${field.replace("ov","amt")}',this.value)" style="width:62px;margin-top:2px;padding:2px 4px;text-align:right;border:1px solid var(--border);border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:11px"></div>`}</td>`;
     };
     const tcol=c.type==="pachete"?"#6366f1":c.type==="sortat"?"var(--sal-em)":"var(--sal-amber)";
-    body.push(`<tr style="border-top:1px solid var(--border)">
+    body.push(`<tr>
       <td style="padding:4px 8px;font-weight:600;${salLma()?"":"white-space:nowrap"}">${salDot(!!e.angajatiId)}${escapeHtml(e.name)}${c.a.linked?"":` <span title="Nu există în Concedii — zilele de concediu/krank nu pot fi preluate automat. Folosește 👥 Angajați → Creează în Concedii." style="color:#ef4444;cursor:help">⚠️</span>`}${salTourCell(e,c,ed)}</td>
       <td style="padding:4px 6px"><select ${ed?"":"disabled"} onchange="salSet('${e.id}','type',this.value)" style="padding:3px 4px;font-size:12px;border:1px solid ${tcol};border-radius:5px;background:var(--bg-elev-2);color:var(--text)">${Object.keys(SAL_TYPES).map(t=>`<option value="${t}" ${t===c.type?"selected":""}>${SAL_TYPES[t]}</option>`).join("")}</select></td>
       <td style="padding:4px 6px;text-align:right">${inp("salar",(c.rd.salar!=null&&c.rd.salar!=="")?c.rd.salar:(c.fromDef?c.salar:""),80)}${c.rd.salManual&&ed?` <button onclick="salRevertAuto('${e.id}')" title="Revino la valoarea calculată automat" style="padding:2px 6px;font-size:11px;border:1px solid var(--sal-amber);border-radius:5px;background:transparent;color:var(--sal-amber);cursor:pointer">↺ automat</button>`:""}<div style="font-size:10px;color:var(--text-dim)">${c.fromDef?"⚙ implicit · ":""}${c.rd.salManual?"✎ scris de mână · ":""}${c.type==="pachete"?(c.rd.tourAuto?"din ture · ":"")+"pachete × <input type=\"text\" inputmode=\"decimal\" value=\""+c.pkgRate+"\" "+(ed?"":"disabled")+" title=\"Suma pe pachet (implicit "+SAL_PKG_RATE+" €). Scrie altă valoare ca să o schimbi doar la această persoană.\" onchange=\"salSet('"+e.id+"','pkgRate',this.value)\" style=\"width:38px;padding:1px 3px;text-align:right;font-size:10px;border:1px solid "+(c.pkgRateOv?"var(--sal-amber)":"var(--border)")+";border-radius:4px;background:var(--bg-elev-2);color:var(--text)\">"+(c.pkgRateOv?"<span title=\"Suprascris manual — click pentru revenire la "+SAL_PKG_RATE+"\" onclick=\"salSet('"+e.id+"','pkgRate','')\" style=\"cursor:pointer;color:var(--sal-amber)\"> ↺</span>":"")+" → "+salFmt(c.salar*c.pkgRate):(c.type==="sortat"?"sumă":"sumă fixă")}</div></td>
-      <td style="padding:4px 6px;text-align:right">${c.noSort?`<div style="font-size:11px;color:var(--text-dim)">— fără sortat —</div>`:""}<input type="text" inputmode="decimal" value="${c.sortat||""}" placeholder="0" ${ed?"":"disabled"} onchange="salSet('${e.id}','sortat',this.value)" style="${c.noSort?'display:none;':''}width:50px;padding:3px 5px;text-align:right;border:1px solid ${c.sortOv?'var(--sal-amber)':'var(--border)'};border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:12px">${c.sortOv?`<span title="Suprascris manual (automat din Sortatori: ${c.aS.n}) — click pentru revenire" onclick="salSet('${e.id}','sortat','')" style="cursor:pointer;color:var(--sal-amber)"> ↺</span>`:""}${c.noSort?"":`<div style="font-size:10px;color:var(--text-dim)">${c.aS.found||c.sortOv?"zile → "+salFmt(c.sortat*SAL_SORT_RATE):"nu e în Sortatori"}</div>`}${c.sortCapped?`<div style="font-size:10px;font-weight:700;color:#ef4444" title="Peste ${SAL_SORT_WARN_OVER} de zile de sortat se plătesc maxim ${SAL_SORT_CAP}. Dacă vrei altă valoare, scrie-o în căsuță.">⚠ a realizat ${c.sortReal} zile → plătite automat ${SAL_SORT_CAP}</div>`:""}<label style="display:block;font-size:10px;color:var(--text-dim);cursor:pointer;white-space:nowrap" title="Bifat: zilele de sortat nu se calculează la această persoană (ex. sortează gratuit), salariul rămâne cel setat de tine."><input type="checkbox" ${c.noSort?"checked":""} ${ed?"":"disabled"} onchange="salEmpSet('${e.id}','noSort',this.checked)" style="vertical-align:middle"> fără sortat</label></td>
+      <td style="padding:4px 6px;text-align:right">${c.noSort?`<div style="font-size:10px;color:var(--text-dim)">— fără sortat —</div>`:""}<input type="text" inputmode="decimal" value="${c.sortat||""}" placeholder="0" ${ed?"":"disabled"} onchange="salSet('${e.id}','sortat',this.value)" style="${c.noSort?'display:none;':''}width:50px;padding:3px 5px;text-align:right;border:1px solid ${c.sortOv?'var(--sal-amber)':'var(--border)'};border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:12px">${c.sortOv?`<span title="Suprascris manual (automat din Sortatori: ${c.aS.n}) — click pentru revenire" onclick="salSet('${e.id}','sortat','')" style="cursor:pointer;color:var(--sal-amber)"> ↺</span>`:""}${c.noSort?"":`<div style="font-size:10px;color:var(--text-dim)">${c.aS.found||c.sortOv?"zile → "+salFmt(c.sortat*SAL_SORT_RATE):"nu e în Sortatori"}</div>`}${c.sortCapped?`<div style="font-size:10px;font-weight:700;color:#ef4444" title="Peste ${SAL_SORT_WARN_OVER} de zile de sortat se plătesc maxim ${SAL_SORT_CAP}. Dacă vrei altă valoare, scrie-o în căsuță.">⚠ a realizat ${c.sortReal} zile → plătite automat ${SAL_SORT_CAP}</div>`:""}<label class="sal-nosort" title="Bifat: zilele de sortat nu se calculează la această persoană (ex. sortează gratuit), salariul rămâne cel setat de tine."><input type="checkbox" ${c.noSort?"checked":""} ${ed?"":"disabled"} onchange="salEmpSet('${e.id}','noSort',this.checked)"> fără sortat</label></td>
       ${dayCell("c","ovC",c.dC,c.aC,c.a.c)}${dayCell("f","ovF",c.dF,c.aF,c.a.f)}${dayCell("k","ovK",c.dK,c.aK,c.a.k)}
       <td style="padding:4px 6px;text-align:right">${inp("chirie",c.rd.chirie,70)}</td>
       <td style="padding:4px 6px;text-align:right">${inp("alte",c.rd.alte,70)}<div><input type="text" value="${escapeHtml(c.alteObs).replace(/"/g,"&quot;")}" placeholder="observație (ex: reclamație x, Rechnung x)" ${ed?"":"disabled"} onchange="salSet('${e.id}','alteObs',this.value)" style="width:170px;margin-top:3px;padding:3px 5px;text-align:left;border:1px solid var(--border);border-radius:5px;background:var(--bg-elev-2);color:var(--text);font-size:11px"></div></td>
@@ -17299,7 +17314,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261110-104803';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261110-110851';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17385,6 +17400,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
