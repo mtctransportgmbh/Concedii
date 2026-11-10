@@ -6884,6 +6884,15 @@ function getVisibleDrivers(ignoreMonthFilter){
   // Fără nicio excepție hardcodată: dacă Admin nu a acordat acces la Concedii, nu vede nimic.
   if(!hasModuleView(uk,"concedii")) return [];
   let grantedGroups = permFor(uk,"concedii").groups||[];
+  // Corina: filtru extra „DPD” — persoanele cu DPD bifat în Angajați (dr.dpd), pe lângă grupul ei
+  if(uk==="corina"){
+    const dpdOk=dr=>!dr.archived&&dr.dpd;
+    const own=dr=>{ if(dr.archived) return false; if(dr.group) return grantedGroups.includes(dr.group); const ak=grantedGroups.map(g=>({eiselfing:"madalina",ruhstorf:"raluca",camion:"corina",paketshop:"raluca",sortat:"raluca"}[g])).filter(Boolean); return !!(dr.visibleTo&&dr.visibleTo.length&&ak.some(k=>dr.visibleTo.includes(k))); };
+    const pick = activeGroup==="dpd" ? dpdOk : (activeGroup&&activeGroup!=="total"&&grantedGroups.includes(activeGroup)) ? (dr=>!dr.archived&&(dr.group?dr.group===activeGroup:own(dr))) : (dr=>own(dr)||dpdOk(dr));
+    const dl=state.drivers.filter(pick);
+    if(ignoreMonthFilter) return dl.filter(dr=>!isDriverDeparted(dr));
+    return dl.filter(dr=>isDriverActiveInMonth(dr,y,m));
+  }
   // Dacă userul a selectat un grup specific din bara de filtre (nu "Total"),
   // restrângem la DOAR acel grup — dar numai dacă chiar îl are acordat.
   if(activeGroup && activeGroup!=="total" && grantedGroups.includes(activeGroup)){
@@ -7533,7 +7542,7 @@ function openLeaveModal(id, leaveType){
     const color=used>total?"var(--red)":used>=total*0.8?"var(--orange)":"var(--green)";
     quotaBar.style.display="block";
     quotaBar.innerHTML=`<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
-      <span style="color:var(--text-dim)">Folosite ${new Date().getFullYear()}</span>
+      <span style="color:var(--text-dim)">Folosite ${viewYear}</span>
       <span style="font-weight:700;color:${color}">${used} / ${total} zile${carry>0?" (incl. +"+carry+" reportate)":""}</span>
     </div>
     <div style="background:var(--bg-elev-2);border-radius:4px;height:8px;overflow:hidden">
@@ -8029,7 +8038,7 @@ function setStatLevel(id,count){const el=document.getElementById(id);el.classLis
 // ============================================================
 // GROUP FILTER (Tania/Admin)
 // ============================================================
-const GROUP_LABELS = {eiselfing:"📍 Eiselfing", ruhstorf:"📍 Ruhstorf", camion:"🚚 Camion", paketshop:"📦 Paketshop", sortat:"🗂️ Sortat"};
+const GROUP_LABELS = {eiselfing:"📍 Eiselfing", ruhstorf:"📍 Ruhstorf", camion:"🚚 Camion", paketshop:"📦 Paketshop", sortat:"🗂️ Sortat", dpd:"📦 DPD"};
 
 function updateGroupFilterBar(userKey, isAdm, canConcedii){
   const bar = document.getElementById("groupFilterBar");
@@ -8039,6 +8048,7 @@ function updateGroupFilterBar(userKey, isAdm, canConcedii){
   const allGroups = ["eiselfing","ruhstorf","camion","paketshop","sortat"];
   let myGroups = isAdm ? allGroups : (permFor(userKey,"concedii").groups||[]).filter(g=>allGroups.includes(g));
 
+  if(!isAdm&&userKey==="corina"&&myGroups.length>0) myGroups=myGroups.concat(["dpd"]);   // filtru extra la Corina: persoanele cu DPD bifat în Angajați
   if(myGroups.length===0){ bar.style.display="none"; return; }
 
   // "Total" apare doar dacă are sens (admin, sau non-admin cu 2+ grupuri acordate)
@@ -9576,13 +9586,13 @@ async function loadPrevYearDriversMap(fromYear){
   const coll=fromYear===BASE_YEAR?"concedii":"concedii_"+fromYear;
   const map=new Map();
   const snaps=await Promise.all(["raluca","madalina","corina","tania"].map(k=>db.collection(coll).doc(k).get()));
-  snaps.forEach(sn=>{ if(sn.exists)(sn.data().drivers||[]).forEach(d=>{ if(d&&d.id) map.set(d.id,d); }); });
+  snaps.forEach(sn=>{ if(sn.exists)(sn.data().drivers||[]).forEach(d=>{ if(d&&d.id){ map.set(d.id,d); if(d.name) map.set('n:'+normalizeForSearch(String(d.name).trim()),d); } }); });
   return map;
 }
 function carryCalcFor(dr, fromYear, toYear, prevMap){
   const effMax = getEffectiveMaxDays(dr, fromYear);
   if(!effMax || effMax===0) return null;
-  const prev = prevMap && prevMap.get(dr.id);
+  const prev = prevMap && (prevMap.get(dr.id) || prevMap.get('n:'+normalizeForSearch(String(dr.name||'').trim())));
   if(prevMap && prevMap.size && !prev) return null;      // persoană care nu exista în anul precedent
   const src = prev || dr;
   const used = (src.leaves||[]).reduce((sum,l)=>{
@@ -10473,11 +10483,13 @@ function salRenameEverywhere(pairs){
   if(cPlan) try{ savePlanState(); }catch(e){}
   try{ logActivity("✏️ Redenumire din Angajați",pairs.map(p=>p[0]+" → "+p[1]).join("; ").slice(0,200),"sincronizare","concedii"); }catch(e){}
 }
-function salCoordVis(c,g){ // coordonatorul din Angajați; dacă e „neatribuit”, cădem pe grupa persoanei (Ruhstorf→Raluca, Eiselfing→Mădălina, Camion→Corina)
+function salCoordVis(c,g,dpd){ // coordonatorul din Angajați; dacă e „neatribuit”, cădem pe grupa persoanei (Ruhstorf→Raluca, Eiselfing→Mădălina, Camion→Corina)
   c=String(c||"").toLowerCase().trim();
-  if(["raluca","madalina","corina"].includes(c)) return [c,"tania"];
-  const byG={ruhstorf:"raluca",eiselfing:"madalina",camion:"corina"}[g||""];
-  return byG?[byG,"tania"]:["tania"];
+  let r;
+  if(["raluca","madalina","corina"].includes(c)) r=[c,"tania"];
+  else { const byG={ruhstorf:"raluca",eiselfing:"madalina",camion:"corina"}[g||""]; r=byG?[byG,"tania"]:["tania"]; }
+  if(dpd&&!r.includes("corina")) r.splice(r.length-1,0,"corina");   // persoanele cu DPD bifat în Angajați apar și la Corina
+  return r;
 }
 function salGroupFor(it){ // grupa în Concedii: din coordonator, apoi din rol/depozit
   const c=String(it.coord||"").toLowerCase(); if(c==="madalina") return "eiselfing"; if(c==="raluca") return "ruhstorf"; if(c==="corina") return "camion";
@@ -10486,7 +10498,8 @@ function salGroupFor(it){ // grupa în Concedii: din coordonator, apoi din rol/d
 }
 function salNewDriver(it,item){
   const g=salGroupFor(it);
-  const nd={id:uid(),name:item.name,leaves:[],krankLeaves:[],unpaidLeaves:[],specialLeaves:[],maxDays:24,carryOverDays:0,visibleTo:salCoordVis(it.coord,g),group:g,angajatiId:item.aid,autoSync:true};
+  const nd={id:uid(),name:item.name,leaves:[],krankLeaves:[],unpaidLeaves:[],specialLeaves:[],maxDays:24,carryOverDays:0,visibleTo:salCoordVis(it.coord,g,(it.firme||[]).includes("DPD")),group:g,angajatiId:item.aid,autoSync:true};
+  if((it.firme||[]).includes("DPD")) nd.dpd=true;
   if(item.start) nd.startDate=item.start;
   if(item.end) nd.endDate=item.end; else if(item.inactive){ nd.archived=true; nd.archivedAt=new Date().toISOString(); }
   return nd;
@@ -10518,7 +10531,8 @@ function salProcessSync(){
           const effEnd=(item.end&&!(item.start&&item.end<item.start))?item.end:"";
           if((dr.endDate||"")!==effEnd){ if(effEnd) dr.endDate=effEnd; else delete dr.endDate; chD=true; } }
         if(dr.archived&&active&&(dr.archivedBySync||dr.angajatiId)){ dr.archived=false; delete dr.archivedAt; delete dr.archivedBySync; chD=true; } // era arhivată de sincronizare, acum e din nou în Angajați
-        if(dr.autoSync&&!dr.visManual){ const vis=salCoordVis(it.coord,dr.group||salGroupFor(it)); if(!same(dr.visibleTo,vis)){ dr.visibleTo=vis; chD=true; } }
+        if(Array.isArray(it.firme)){ const dpd=it.firme.includes("DPD"); if(!!dr.dpd!==dpd){ if(dpd) dr.dpd=true; else delete dr.dpd; chD=true; } }   // DPD bifat în Angajați
+        if(dr.autoSync&&!dr.visManual){ const vis=salCoordVis(it.coord,dr.group||salGroupFor(it),!!dr.dpd); if(!same(dr.visibleTo,vis)){ dr.visibleTo=vis; chD=true; } }
         if(dr.name!==name&&!(state.drivers||[]).some(d=>d!==dr&&d.name===name)){ renames.push([dr.name,name]); dr.name=name; chD=true; }
       }
       if(!emp&&active){ emp={id:uid(),name:dr.name,type:"fix",active:true,angajatiId:aid}; salEmps.push(emp); chE=true; }
@@ -17314,7 +17328,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261110-110851';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261110-111611';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17400,6 +17414,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
