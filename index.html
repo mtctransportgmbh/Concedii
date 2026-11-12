@@ -5219,10 +5219,11 @@ function finishInit(){
     }
   }
   updateThresholdLegend();
-  renderAll();
-  if(isAdmin()) checkExcelImportReminder();
-  renderPlanificareWarningsBanner();
-  loadCalendarReminders().then(()=>renderAll()); // markerele de reminder devin vizibile odată încărcate
+  // Reminderele se încarcă ÎNAINTE de orice randare, ca o eroare la randare (ex. la un utilizator cu drepturi limitate) să nu le mai blocheze
+  try{ loadCalendarReminders().then(()=>{ try{ renderAll(); }catch(e){ console.error("renderAll după remindere:",e); } }); }catch(e){ console.error("loadCalendarReminders:",e); }
+  try{ renderAll(); }catch(e){ console.error("renderAll (finishInit) eroare:",e); }
+  try{ if(isAdmin()) checkExcelImportReminder(); }catch(e){ console.error("checkExcelImportReminder:",e); }
+  try{ renderPlanificareWarningsBanner(); }catch(e){ console.error("renderPlanificareWarningsBanner:",e); }
   checkAnnouncementIfNeeded();
   lastSavedAt = new Date();
   saveLocalBackup();
@@ -17328,7 +17329,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261110-111611';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261112-104712';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17414,6 +17415,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
