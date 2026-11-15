@@ -12087,7 +12087,16 @@ function salBaniDel(entryId){
   if(!confirm("Ștergi mișcarea din "+salDateRo(x.date)+" ("+(x.kind==="inainte"?"sold dinainte":x.kind==="dat"?"dat":"primit")+" "+salFmt(salNum(x.amount))+" €) pentru "+salEmpName(x.empId)+"?")) return;
   salBaniHist("del",x); salBani.entries=salBani.entries.filter(e=>e.id!==entryId); salBaniSaveSoon(); renderBani();
 }
-function salBaniSelect(id){ _salBaniSel=(_salBaniSel===id?"":id); renderBani(); }
+function salBaniSelect(id){ _salBaniSel=id; renderBani(); }
+function salBaniCloseDetail(){ _salBaniSel=""; const o=document.getElementById("salBaniDetOv"); if(o) o.classList.remove("show"); }
+// Detaliul persoanei se deschide ÎN FEREASTRĂ (nu mai depinde de cât de jos e pe pagină)
+function salBaniShowDetail(html){
+  let o=document.getElementById("salBaniDetOv");
+  if(!o){ o=document.createElement("div"); o.id="salBaniDetOv"; o.className="modal-bg"; o.onclick=e=>{ if(e.target===o) salBaniCloseDetail(); };
+    const m=document.getElementById("salBaniModal"); if(m&&m.parentNode) m.parentNode.insertBefore(o,m); else document.body.appendChild(o); }   // înaintea ferestrei de editare, ca aceea să apară deasupra
+  o.innerHTML='<div class="modal" style="max-width:980px;width:96%;max-height:90vh;overflow:auto;padding:16px 18px"><div style="text-align:right;margin:-4px 0 6px"><button class="btn btn-secondary" onclick="salBaniCloseDetail()">✕ Închide</button></div>'+html+'</div>';
+  o.classList.add("show");
+}
 function renderBani(){
   const tb=document.getElementById("salBaniTable"); if(!tb) return;
   const q=normalizeForSearch((document.getElementById("salBaniSearch")||{}).value||"");
@@ -12111,13 +12120,13 @@ function renderBani(){
       <td style="padding:8px">${salDateRo(r.c.last)}</td>
       <td style="text-align:right;padding:8px;white-space:nowrap">${bt(r.id,"inainte","📂","Adaugă sold dinainte")} ${bt(r.id,"dat","＋ dat","Am dat")} ${bt(r.id,"primit","＋ primit","Am primit")}</td></tr>`).join("")
     ||`<tr><td colspan="9" style="padding:26px;text-align:center;color:var(--text-dim)">Nicio persoană încă. Apasă <b>＋ Adaugă mișcare</b> (alege „Sold dinainte” pentru sumele mai vechi).</td></tr>`}</tbody>`;
-  const dv=document.getElementById("salBaniDetail"); const sel=_salBaniSel;
-  if(!sel||!allRows.some(r=>r.id===sel)){ dv.innerHTML=""; return; }
+  const dv=document.getElementById("salBaniDetail"); const sel=_salBaniSel; if(dv) dv.innerHTML="";
+  if(!sel||!allRows.some(r=>r.id===sel)){ const o=document.getElementById("salBaniDetOv"); if(o) o.classList.remove("show"); return; }
   const c=salBaniCalc(sel), list=salBani.entries.filter(x=>x.empId===sel).sort((a,b)=>(b.date||"0000").localeCompare(a.date||"0000")||(b.at||"").localeCompare(a.at||""));
   const vlist=((salVEmp(sel).adv)||[]).filter(a=>a&&salNum(a.amount)>0).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   const kl={inainte:"📂 sold dinainte",dat:"💸 dat",primit:"✅ primit"};
   const card=(l,v,col)=>`<div class="vs-card"><div class="l">${l}</div><div class="v"${col?` style="color:${col}"`:""}>${salFmt(v)} €</div></div>`;
-  dv.innerHTML=`<div style="border:1px solid var(--border);border-radius:14px;background:var(--bg-elev);padding:14px 16px">
+  salBaniShowDetail(`<div style="padding:0">
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><b style="font-size:15px">📒 ${escapeHtml(salEmpName(sel))}</b>
       <span style="font-size:12px;color:var(--text-dim)">Total = dinainte + Vorschuss + dat − primit − reținut din salariu. Nu se scade nicăieri din salariu; e doar o evidență.</span></div>
     <div class="vs-cards">${card("Dinainte",c.prev)}${card("Vorschuss (auto)",c.vg)}${card("Dat manual",c.dat)}${card("Primit",c.pri,"var(--sal-green)")}${card("Reținut din salariu",c.vd,"var(--sal-green)")}${card("TOTAL de recuperat",c.sold,c.sold>0.005?"var(--sal-amber)":"var(--sal-green)")}</div>
@@ -12127,7 +12136,7 @@ function renderBani(){
       <td style="padding:6px 10px;text-align:right;white-space:nowrap"><button onclick="salBaniOpenAdd('','','${x.id}')" style="border:none;background:none;cursor:pointer" title="Modifică">✎</button> <button onclick="salBaniDel('${x.id}')" style="border:none;background:none;cursor:pointer;color:#ef4444" title="Șterge">🗑</button></td></tr>`).join("")}
     ${vlist.map(a=>`<tr style="border-top:1px solid var(--border);background:rgba(99,102,241,.06)"><td style="padding:6px 10px">${salDateRo(a.date)}</td><td style="padding:6px 10px">🧾 vorschuss <small style="color:var(--text-dim)">(automat)</small></td><td style="padding:6px 10px;text-align:right;font-weight:700">${salFmt(salNum(a.amount))} €</td><td style="padding:6px 10px;color:var(--text-dim)">${escapeHtml(a.note||"")}</td><td style="padding:6px 10px;color:var(--text-dim);font-size:12px">din tabelul Vorschuss</td><td></td></tr>`).join("")}
     ${(!list.length&&!vlist.length)?'<tr><td colspan="6" style="padding:14px;text-align:center;color:var(--text-dim)">Nicio mișcare.</td></tr>':""}
-    </tbody></table></div>`;
+    </tbody></table></div>`);
 }
 function salBaniExport(){
   const kn={inainte:"sold dinainte",dat:"dat",primit:"primit"};
@@ -17396,7 +17405,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261115-110910';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261115-111316';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17482,6 +17491,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
 
 
 
