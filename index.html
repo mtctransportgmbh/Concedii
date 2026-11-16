@@ -1549,6 +1549,7 @@
       <div class="sal-top">
         <button class="sal-back" onclick="setAppMode('concedii')">← Înapoi la Concedii</button>
         <div class="sal-title">🕘 Stundenzettel</div>
+        <button class="sal-lock" onclick="salArchOpen()" title="Versiunile salvate ale salariilor și Stundenzettel (nu se pot modifica)">📜 Arhivă</button>
         <button class="sal-lock" onclick="salLockNow(false)" title="Blochează acum">🔒 Blochează</button>
       </div>
       <input type="file" id="zetFile" accept=".xlsx,.xls,.ods,.xlsm" style="display:none" onchange="zetImportFile(this)">
@@ -1560,6 +1561,7 @@
         <button class="sal-back" onclick="setAppMode('concedii')">← Înapoi la Concedii</button>
         <div class="sal-title">💶 Salarii</div>
         <div class="sal-tabs"><button id="salTabMain" class="sal-tab on" onclick="salShowView('main')">Salarii</button><button id="salTabVors" class="sal-tab" onclick="salShowView('vors')">🧾 Vorschuss</button><button id="salTabPkg" class="sal-tab" onclick="salShowView('pkg')">📦 Pachete</button><button id="salTabStat" class="sal-tab" onclick="salShowView('stat')">📊 Statistică</button></div>
+        <button class="sal-lock" onclick="salArchOpen()" title="Versiunile salvate ale salariilor și Stundenzettel (nu se pot modifica)">📜 Arhivă</button>
         <button class="sal-lock" onclick="salLockNow(false)" title="Blochează Salarii acum">🔒 Blochează</button>
       </div>
       <div id="salViewMain">
@@ -10305,7 +10307,7 @@ async function salLockNow(auto,noNav){
   if(auto && was) toast("🔒 Salarii blocat — redeschide cu PIN-ul");
 }
 function salStartSession(){
-  _salUnlocked=true; _salLastAct=Date.now(); salTouch(); loadVorschuss(); loadBani();
+  _salUnlocked=true; _salLastAct=Date.now(); salTouch(); loadVorschuss(); loadBani(); salArchSoon("unlock");
   clearInterval(_salRenewTimer);
   _salRenewTimer=setInterval(async()=>{
     if(!_salUnlocked) return;
@@ -10791,6 +10793,68 @@ function renderVors(){
 }
 
 // ---- Plătit: blochează persoana pentru luna curentă; redeschidere doar cu PIN-ul de Salarii ----
+// ============ 📜 ARHIVA SALARII (proiect Firebase separat; versiuni care nu se pot modifica; citire doar cu PIN-ul Salarii deschis) ============
+let _salArchT=null;
+function salArchSoon(reason){   // arhivare în fundal (deblocare / „Plătit”); eșecul nu deranjează pe nimeni — apare în Arhivă dacă nu merge
+  if(window._simUser) return; clearTimeout(_salArchT);
+  _salArchT=setTimeout(()=>{ if(!_salUnlocked) return; callFn("salArchiveNow",{reason}).catch(e=>console.warn("arhivă",e&&e.message)); },reason==="paid"?4500:3000);
+}
+function _saMonth(mk){ const m=/^(\d{4})-(\d{2})$/.exec(mk||""); return m?(MONTHS[+m[2]-1]||m[2])+" "+m[1]:String(mk||""); }
+function _saLabel(s){ if(s.kind==="month") return "Salarii — "+_saMonth(String(s.id).slice(2)); if(s.kind==="zs") return "Stundenzettel (Soll / Saldo / tarif) — "+_saMonth(s.id); return {angajati:"Lista de angajați (Salarii)",vorschuss:"Vorschuss",bani:"Bani"}[s.id]||s.id; }
+function _saWhen(iso){ if(!iso) return "—"; const d=new Date(iso); if(isNaN(d)) return String(iso); const p=n=>String(n).padStart(2,"0"); return p(d.getDate())+"."+p(d.getMonth()+1)+"."+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes()); }
+function _saVal(v){ if(v===null||v===undefined) return "<i>—</i>"; if(typeof v==="number") return _cEsc(v.toLocaleString("ro-RO",{maximumFractionDigits:2})); return _cEsc(String(v)); }
+function _saDelta(a,b){ if(typeof a==="number"&&typeof b==="number"){ const d=Math.round((b-a)*100)/100; if(!d) return ""; return " <b style='color:"+(d>0?"#16a34a":"#dc2626")+"'>("+(d>0?"+":"")+d.toLocaleString("ro-RO",{maximumFractionDigits:2})+")</b>"; } return ""; }
+function _saPath(p){
+  const seg=String(p).split(".");
+  if(seg.length>=2&&(seg[0]==="rows"||seg[0]==="emps")){ const k=seg[1]; const e=(typeof salEmps!=="undefined"?salEmps:[]).find(x=>x.id===k||zetKey(x.name)===k); return "<b>"+_cEsc(e?e.name:k)+"</b> — "+_cEsc(seg.slice(2).join(" › ")||"(rând)"); }
+  return _cEsc(seg.join(" › "));
+}
+function _saErr(e){ const m=(e&&e.message)||String(e); if(/expirat/i.test(m)) return "Sesiunea Salarii a expirat — redeschide cu PIN-ul."; return /Arhiva nu răspunde|unavailable/i.test(m)?"Arhiva nu răspunde încă: proiectul separat nu e configurat sau permisiunile lipsesc (vezi PASI-ul de la Arhivă). "+_cEsc(m.slice(0,200)):_cEsc(m); }
+async function salArchOpen(){
+  if(!_salUnlocked){ toast("Deschide Salarii cu PIN-ul, apoi Arhiva",true); return; }
+  cModal("📜 Arhivă Salarii","<div style='padding:20px;text-align:center;color:var(--text-dim)'>⏳ Se încarcă…</div>");
+  try{ const r=await callFn("salArchiveList",{}); window._saSrc=r.sources||[]; salArchRender(); }
+  catch(e){ cModalBody('<div style="color:#ef4444">'+_saErr(e)+'</div>'); }
+}
+function salArchRender(){
+  const S=window._saSrc||[];
+  const row=s=>'<tr onclick="salArchSource(\''+s.sid+'\')" style="cursor:pointer;border-top:1px solid var(--border)"><td style="padding:6px"><b>'+_cEsc(_saLabel(s))+'</b>'+(s.postPaid?' <span style="color:#dc2626" title="Rând deja plătit, modificat după aceea">⚠ plătit modificat</span>':'')+(s.deleted?' <span style="color:#dc2626">șters</span>':'')+'</td><td>'+s.lastSeq+'</td><td style="white-space:nowrap">'+_saWhen(s.lastAt)+'</td><td>'+_cEsc(s.lastReason||"")+'</td></tr>';
+  const tbl=(t,arr)=>arr.length?'<h4 style="margin:14px 0 4px">'+t+'</h4><table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--text-dim)"><th style="padding:4px 6px">Document</th><th>Versiuni</th><th>Ultima</th><th>Motiv</th></tr></thead><tbody>'+arr.map(row).join("")+'</tbody></table>':"";
+  const by=k=>S.filter(s=>s.kind===k).sort((a,b)=>a.id<b.id?1:-1);
+  cModalBody('<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px"><button class="btn btn-small" onclick="salArchNow()">⏺ Arhivează acum</button><span style="color:var(--text-dim)">Versiunile se adaugă singure (la blocare, deblocare, „Plătit”, din oră în oră și noaptea). Nu se pot modifica sau șterge din aplicație.</span></div>'+
+    (S.length?tbl("Luni de salarii",by("month"))+tbl("Stundenzettel (Soll / Saldo / tarif)",by("zs"))+tbl("Alte documente",by("misc")):'<div style="padding:14px;color:var(--text-dim)">Arhiva e goală. Apasă „Arhivează acum” ca să se facă prima versiune a tuturor documentelor.</div>'));
+}
+async function salArchNow(){
+  cModalBody("<div style='padding:20px;text-align:center;color:var(--text-dim)'>⏳ Se arhivează…</div>");
+  try{ const r=await callFn("salArchiveNow",{reason:"manual"}); toast("✓ Arhivat: "+r.created+" versiuni noi din "+r.checked+" documente"); const l=await callFn("salArchiveList",{}); window._saSrc=l.sources||[]; salArchRender(); }
+  catch(e){ cModalBody('<div style="color:#ef4444">'+_saErr(e)+'</div><div style="margin-top:10px"><button class="btn btn-secondary btn-small" onclick="salArchOpen()">← Înapoi</button></div>'); }
+}
+async function salArchSource(sid){
+  cModalBody("<div style='padding:20px;text-align:center;color:var(--text-dim)'>⏳ Se încarcă…</div>");
+  try{
+    const r=await callFn("salArchiveList",{sid}); const s=(window._saSrc||[]).find(x=>x.sid===sid)||{kind:"",id:sid.split("__")[1]||sid}; window._saVers=r.versions||[]; window._saSid=sid;
+    cModalBody('<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><button class="btn btn-secondary btn-small" onclick="salArchRender()">← Toate documentele</button><b>'+_cEsc(_saLabel(s))+'</b><button class="btn btn-small" onclick="salArchVerify(\''+sid+'\')">🔗 Verifică lanțul</button><span id="saVerMsg" style="color:var(--text-dim)"></span></div>'+
+      '<div style="max-height:56vh;overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--text-dim)"><th style="padding:4px 6px">#</th><th>Când</th><th>Motiv</th><th>Cine</th><th>Schimbări</th><th>Amprentă</th></tr></thead><tbody>'+
+      (window._saVers.map(v=>'<tr onclick="salArchVersion(\''+sid+'\','+v.seq+')" style="cursor:pointer;border-top:1px solid var(--border);'+(v.postPaid?"background:rgba(239,68,68,.10)":"")+'"><td style="padding:5px 6px"><b>'+v.seq+'</b></td><td style="white-space:nowrap">'+_saWhen(v.at)+'</td><td>'+_cEsc(v.reason||"")+'</td><td>'+_cEsc(v.by||"")+'</td><td>'+(v.deleted?"<b style='color:#dc2626'>document șters</b>":(v.n||0))+(v.postPaid?' <span style="color:#dc2626" title="Rânduri deja plătite, modificate">⚠</span>':'')+'</td><td style="font-family:monospace;color:var(--text-dim)">'+_cEsc(String(v.hash||"").slice(0,10))+'</td></tr>').join("")||'<tr><td colspan="6" style="padding:12px;color:var(--text-dim)">Nicio versiune.</td></tr>')+'</tbody></table></div>');
+  }catch(e){ cModalBody('<div style="color:#ef4444">'+_saErr(e)+'</div>'); }
+}
+async function salArchVersion(sid,seq){
+  cModalBody("<div style='padding:20px;text-align:center;color:var(--text-dim)'>⏳ Se încarcă…</div>");
+  try{
+    const v=await callFn("salArchiveGet",{sid,seq}); const d=v.diff||[];
+    cModalBody('<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><button class="btn btn-secondary btn-small" onclick="salArchSource(\''+sid+'\')">← Versiuni</button><b>Versiunea #'+v.seq+'</b> · '+_saWhen(v.at)+' · '+_cEsc(v.reason||"")+' · '+_cEsc(v.by||"")+'</div>'+
+      (v.postPaid?'<div style="padding:8px 10px;margin-bottom:8px;border:1px solid #dc2626;border-radius:8px;color:#dc2626">⚠ În această versiune s-au modificat rânduri care erau deja marcate „Plătit”.</div>':'')+
+      (v.deleted?'<div style="padding:8px 10px;margin-bottom:8px;border:1px solid #dc2626;border-radius:8px;color:#dc2626">Documentul a dispărut din Salarii / Stundenzettel; versiunile vechi rămân în arhivă.</div>':'')+
+      '<div style="color:var(--text-dim);margin-bottom:6px">'+(v.n||0)+' câmpuri schimbate față de versiunea anterioară'+((v.n||0)>d.length?" (se arată primele "+d.length+")":"")+'. Amprenta: <span style="font-family:monospace">'+_cEsc(String(v.hash||"").slice(0,16))+'</span></div>'+
+      '<div style="max-height:56vh;overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--text-dim)"><th style="padding:4px 6px">Ce</th><th>Înainte</th><th>După</th></tr></thead><tbody>'+
+      (d.map(x=>'<tr style="border-top:1px solid var(--border)"><td style="padding:5px 6px">'+_saPath(x.p)+'</td><td>'+_saVal(x.a)+'</td><td>'+_saVal(x.b)+_saDelta(x.a,x.b)+'</td></tr>').join("")||'<tr><td colspan="3" style="padding:12px;color:var(--text-dim)">Prima versiune (nu există una anterioară) sau fără diferențe de arătat.</td></tr>')+'</tbody></table></div>');
+  }catch(e){ cModalBody('<div style="color:#ef4444">'+_saErr(e)+'</div>'); }
+}
+async function salArchVerify(sid){
+  const el=document.getElementById("saVerMsg"); if(el) el.textContent="se verifică…";
+  try{ const r=await callFn("salArchiveVerify",{sid}); if(el){ el.innerHTML=r.ok?'<b style="color:#16a34a">✓ lanț întreg ('+r.versions+' versiuni)</b>':'<b style="color:#dc2626">✗ lanț rupt la versiunea #'+r.bad.seq+': '+_cEsc(r.bad.why)+'</b>'; } }
+  catch(e){ if(el) el.innerHTML='<span style="color:#ef4444">'+_saErr(e)+'</span>'; }
+}
 function salMarkPaid(id){
   if(!canSalarii()) return;
   const emp=salEmps.find(e=>e.id===id); if(!emp) return;
@@ -10802,7 +10866,7 @@ function salMarkPaid(id){
   if(c.vors.hasAny&&!c.vors.manual){
     const e=salVors.emps[id]; if(e){ e.ded=e.ded||{}; e.ded[salMk()]=String(Math.round(c.vors.ded*100)/100); r.paid.vFrozen=true; salVorsSaveSoon(); }
   }
-  salSaveMonthSoon(); renderSalarii();
+  salSaveMonthSoon(); renderSalarii(); salArchSoon("paid");
   try{ logActivity("✔ Salariu marcat plătit",salFmt(c.live)+" € · "+salMk(),emp.name,"salarii"); }catch(e){}
 }
 let _salReopenId=null;
@@ -11499,7 +11563,7 @@ let _zetUnsub=null, _zetMeta={}, _zetDirty=new Set();
 const zetKey=n=>salNameKey(n).replace(/\s+/g,"_");
 const zetBoxId=()=>_zetCtx==="staff"?"zeitBody":"zetBody";
 function zetStop(){ if(_zetUnsub){ try{ _zetUnsub(); }catch(e){} _zetUnsub=null; } }
-function zetReset(){ _zetBase={}; zetStop(); _zetData=null; _zetMk=""; _zetSel=""; _zetMeta={}; _zetDirty=new Set(); if(_zetSaveT){ clearTimeout(_zetSaveT); _zetSaveT=null; } }
+function zetReset(){ if(_zetSaveT){ clearTimeout(_zetSaveT); _zetSaveT=null; try{ _zPendWrite(); _zSaveNow().catch(()=>{}); }catch(e){} } _zetBase={}; zetStop(); _zetData=null; _zetMk=""; _zetSel=""; _zetMeta={}; _zMetaBase={}; _zetDirty=new Set(); }
 // Date: zeiten/{YYYY-MM} = {emps:{ [cheiePersoană]:{days:{...}} }}  (ore — scrise și de Raluca/Mădălina)
 //       stundenzettel/{YYYY-MM} = {emps:{ [cheiePersoană]:{soll,saldo,rate} }}  (doar Admin/Tania, cu PIN+2FA)
 let _zetBase={};   // starea pe server așa cum o știe pagina asta (ca să scriem DOAR zilele modificate, nu tot)
@@ -11512,6 +11576,7 @@ function zetBuild(zdays){
 }
 async function zetLoad(force){
   const mk=zetMk(); if(!force&&_zetMk===mk&&_zetData) return;
+  if(_zetData&&_zetMk){ try{ _zPendWrite(); if(_zetSaveT){ clearTimeout(_zetSaveT); _zetSaveT=null; } _zSaveNow().catch(()=>{}); }catch(e){} }   // ce ai tastat în luna veche se trimite oricum
   zetStop(); _zetData=null; _zetMk=""; renderZet();
   try{
     await zetHdLoad(); await zetHideLoad();
@@ -11519,11 +11584,13 @@ async function zetLoad(force){
     let first=true;
     _zetUnsub=db.collection("zeiten").doc(mk).onSnapshot(snap=>{
       if(zetMk()!==mk) return;
+      if(!snap.exists&&snap.metadata&&snap.metadata.fromCache&&_zetData) return;     // „nu există” doar din memoria locală ≠ nu există pe server
       const zd=(snap.exists&&snap.data().emps)||{};
-      if(_zetDirty.size||_zetSaveT){ if(!_zetData){ _zetData={emps:zetBuild(zd)}; _zetBase=zetDaysOf(zd); _zetMk=mk; renderZet(); } return; }   // nu suprascriem ce se scrie chiar acum
       const act=document.activeElement; const editing=act&&act.classList&&act.classList.contains("zs-in");
       if(_zetFsPrevMk!==mk){ _zetFsPrev=zetDaysOf(zd); _zetFsPrevMk=mk; }
-      _zetData={emps:zetBuild(zd)}; _zetBase=zetDaysOf(zd); _zetMk=mk; if(first||!editing) renderZet(); first=false; zetFsBackupSoon(); zetAutoHoliday(); zetAutoPause(); zetHdSync();
+      _zReconcile(zetDaysOf(zd)); _zetMk=mk;                                          // îmbină cu ce ai nesalvat pe ecran (nu mai suprascrie, nu mai ignoră)
+      if(first) _zPendRecover(mk);                                                    // modificări rămase nesalvate din sesiunea anterioară / luna anterioară
+      if(first||!editing) renderZet(); first=false; zetFsBackupSoon(); zetAutoHoliday(); zetAutoPause(); zetHdSync();
     },e=>{ if(zetMk()!==mk) return; toast("❌ Pontaj: "+(e.message||e.code),true); _zetData={emps:{},err:(e.code||"eroare")}; _zetMk=mk; renderZet(); });
   }catch(e){ if(zetMk()!==mk) return; toast("❌ Stundenzettel: "+(e.message||e.code),true); _zetData={emps:{},err:(e.code||"eroare")}; _zetMk=mk; renderZet(); }
 }
@@ -11541,44 +11608,193 @@ async function zetLoadMetaAdmin(mk){   // meta (Soll/Saldo/tarif) + migrare din 
       const docs=await Promise.all(ids.map(id=>db.collection("stundenzettel").doc(id).get().catch(()=>null)));
       docs.forEach(sn=>{ if(!sn||!sn.exists) return; const pr=sn.data().emps||{}; Object.keys(pr).forEach(rk=>{ const e=pr[rk]||{}; const emp=salEmps.find(x=>x.id===rk); const key=emp?zetKey(emp.name):rk; if(!need.includes(key)) return; const m0=meta[key]=meta[key]||{soll:null,saldo:0,rate:null};
         if(m0.soll==null&&e.soll!=null) m0.soll=e.soll; if(m0.rate==null&&e.rate!=null) m0.rate=e.rate; }); }); } }catch(e){ console.warn("carry soll",e); }
-  _zetMeta=meta;
+  _zetMeta=meta; _zMetaBase=_cClone(meta);
   if(legacy){
     for(const key of Object.keys(moveDays)){ await zetWriteDays(mk,key,moveDays[key],true); }
-    await db.collection("stundenzettel").doc(mk).set(JSON.parse(JSON.stringify({emps:meta,updatedAt:new Date().toISOString()})));
+    await db.collection("stundenzettel").doc(mk).set(JSON.parse(JSON.stringify(Object.assign({emps:meta},_zStamp(Object.keys(meta).length,0,"migrate")))));
   }
 }
-async function zetWriteDiff(mk,key,days){   // scrie doar zilele schimbate față de ce știa pagina → o pagină veche nu mai poate șterge/rescrie munca altora
-  const ref=db.collection("zeiten").doc(mk); const mine=JSON.parse(JSON.stringify(days||{})); const base=_zetBase[key]||{}; const DEL=firebase.firestore.FieldValue.delete();
-  const upd={}, setObj={}; Object.keys(Object.assign({},mine,base)).forEach(d=>{ const a=JSON.stringify(mine[d]||null), b=JSON.stringify(base[d]||null); if(a===b) return; if(mine[d]){ upd["emps."+key+".days."+d]=mine[d]; setObj[d]=mine[d]; } else upd["emps."+key+".days."+d]=DEL; });
-  if(!Object.keys(upd).length) return;
-  const stamp={updatedAt:new Date().toISOString(),by:window.activeUserKey||""};
-  try{ await ref.update(Object.assign(upd,stamp)); }
-  catch(e){ if(e&&e.code==="not-found"){ await ref.set(Object.assign({emps:{[key]:{days:setObj}}},stamp),{merge:true}); } else throw e; }
-  _zetBase[key]=mine;
-}
-async function zetWriteDays(mk,key,days,onlyIfMissing){
+async function zetWriteDays(mk,key,days,onlyIfMissing,kind){   // înlocuire a TUTUROR zilelor unei persoane (import din Excel / migrare) — marcată în jurnal
   const ref=db.collection("zeiten").doc(mk); const clean=JSON.parse(JSON.stringify(days||{}));
   if(onlyIfMissing){ const cur=await ref.get(); const ex=cur.exists&&cur.data().emps&&cur.data().emps[key]&&cur.data().emps[key].days; if(ex&&Object.keys(ex).length) return; }
-  const stamp={updatedAt:new Date().toISOString(),by:window.activeUserKey||""};
+  const stamp=_zStamp(Object.keys(clean).length,0,kind||(onlyIfMissing?"migrate":"import"));
   try{ await ref.update(Object.assign({["emps."+key+".days"]:clean},stamp)); }
   catch(e){ if(e&&e.code==="not-found"){ await ref.set(Object.assign({emps:{[key]:{days:clean}}},stamp),{merge:true}); } else throw e; }
 }
+/*Z_SAFE_BEGIN*/
+// ============ PONTAJ — SALVARE SIGURĂ (aceleași principii ca la Concedii) ============
+// (1) Scriu DOAR ce am schimbat EU (zile / câmpuri), într-o TRANZACȚIE, peste ce e acum pe server; ce au pus alții rămâne.
+// (2) O zi pe care o șterg și pe care altcineva a modificat-o între timp NU se șterge.
+// (3) Modificarea nesalvată stă pe disc (localStorage) și se retrimite singură: reîncercări, revenirea conexiunii, redeschiderea paginii, schimbarea lunii.
+// (4) Un snapshot de la altcineva nu mai poate șterge ce tocmai ai scris pe ecran (se îmbină local).
+// (5) Fiecare scriere poartă semnătura lw = {u, t, v (versiunea aplicației), n, d [, k]} — serverul (jurnal + regulă) se bazează pe ea.
+let _zChain=Promise.resolve(), _zRetryT=null, _zRetryN=0, _zOnlineBound=false, _zSaving=false, _zBlockToast=false, _zFailToast=false, _zMetaBase={}, _zSess=Date.now()+'_'+Math.random().toString(36).slice(2,8);
+const _zS=v=>_cStable(v===undefined?null:v);
+const _zEmptyDay=x=>!x||typeof x!=="object"||Object.keys(x).every(f=>x[f]===""||x[f]==null);
+const _zDay=x=>_zEmptyDay(x)?null:x;
+const _zMETA=["soll","saldo","rate"];
+// 3 părți pe câmpurile unei zile: b = ce știam, l = ce am acum eu, r = ce e pe server. Câmpul schimbat de mine câștigă; restul rămâne de pe server.
+function _zMergeDay(b,l,r){
+  r=_zDay(r); if(!r) return _cClone(l);                         // pe server nu mai e (șters de altcineva) sau nu a fost: păstrez ce am eu
+  const B=b||{}, out=_cClone(r);
+  new Set([...Object.keys(B),...Object.keys(l||{}),...Object.keys(r)]).forEach(f=>{
+    if(_zS(B[f])===_zS((l||{})[f])) return;                      // n-am schimbat câmpul → rămâne cel de pe server
+    if((l||{})[f]===undefined) delete out[f]; else out[f]=_cClone(l[f]);
+  });
+  return out;
+}
+// modificările mele = diferența dintre ecran și ce știu că e pe server (pe zile)
+function _zOpsOf(E,base){
+  const ops=[]; Object.keys(E||{}).forEach(k=>{ const L=(E[k]&&E[k].days)||{}, B=(base&&base[k])||{};
+    new Set([...Object.keys(L),...Object.keys(B)]).forEach(d=>{ const l=_zDay(L[d]), b=_zDay(B[d]); if(_zS(l)!==_zS(b)) ops.push({k,d:String(d),b:b?_cClone(b):null,l:l?_cClone(l):null}); }); });
+  return ops;
+}
+function _zMetaOps(){   // câmpurile Soll/Saldo/tarif schimbate de admin față de cum au fost încărcate
+  const o={}; if(_zetCtx!=="admin"||!_zetData) return o;
+  Object.keys(_zetData.emps||{}).forEach(k=>{ const e=_zetData.emps[k]||{}, b=_zMetaBase[k]||{}, ch={};
+    _zMETA.forEach(f=>{ if(e[f]===undefined) return; const bv=b[f]===undefined?null:b[f]; if(_zS(e[f])!==_zS(bv)) ch[f]=e[f]; });
+    if(Object.keys(ch).length) o[k]=ch; });
+  return o;
+}
+const _zStamp=(n,d,kind)=>{ const u=window.activeUserKey||""; return {updatedAt:new Date().toISOString(),by:u,lw:Object.assign({u,t:Date.now(),v:_cVer(),n:n||0,d:d||0},kind?{k:kind}:{})}; };
+// ---- coada de pe disc: {luna:{t,ctx,ops,meta}} pe utilizator ----
+const _zQKey=()=>"mtc_zpend_"+(window.activeUserKey||"x");
+function _zQRead(){ try{ return JSON.parse(localStorage.getItem(_zQKey())||"{}")||{}; }catch(e){ return {}; } }
+function _zQWrite(q){ try{ if(!Object.keys(q).length) localStorage.removeItem(_zQKey()); else localStorage.setItem(_zQKey(),JSON.stringify(q)); }catch(e){} }
+function _zPendWrite(){   // IMEDIAT pe disc (nu abia după 0,7 s)
+  try{ const mk=_zetMk; if(!mk||!_zetData) return; const q=_zQRead(); const ops=_zOpsOf(_zetData.emps,_zetBase), meta=_zMetaOps();
+    if(!ops.length&&!Object.keys(meta).length) delete q[mk]; else q[mk]={t:Date.now(),s:_zSess,ctx:_zetCtx,ops,meta};
+    _zQWrite(q); }catch(e){}
+}
+// ---- tranzacția pe zile ----
+async function _zTx(mk,ops){
+  const ref=db.collection("zeiten").doc(mk), DEL=firebase.firestore.FieldValue.delete(); let out=null;
+  await db.runTransaction(async tx=>{
+    out={applied:[],kept:[]};
+    const s=await tx.get(ref); const emps=(s.exists&&s.data().emps)||{}; const upd={}, nest={}; let nA=0,nD=0;
+    ops.forEach(op=>{
+      const r=_zDay((emps[op.k]&&emps[op.k].days&&emps[op.k].days[op.d])||null);
+      if(op.l){ const M=_zMergeDay(op.b,op.l,r); out.applied.push({k:op.k,d:op.d,sent:op.l,M}); if(_zS(M)!==_zS(r)){ upd["emps."+op.k+".days."+op.d]=M; (nest[op.k]=nest[op.k]||{})[op.d]=M; nA++; } }
+      else if(r&&_zS(r)!==_zS(op.b)){ out.kept.push({k:op.k,d:op.d,r}); }                       // altcineva a modificat ziua pe care o ștergeam → n-o șterg
+      else { out.applied.push({k:op.k,d:op.d,sent:null,M:null}); if(r){ upd["emps."+op.k+".days."+op.d]=DEL; nD++; } }
+    });
+    if(!Object.keys(upd).length) return;
+    const stamp=_zStamp(nA,nD);
+    if(s.exists) tx.update(ref,Object.assign(upd,stamp));
+    else tx.set(ref,Object.assign({emps:Object.fromEntries(Object.entries(nest).map(([k,days])=>[k,{days}]))},stamp));
+  });
+  return out;
+}
+// ---- tranzacția pe Soll / Saldo / tarif (doar admin): scrie câmpurile schimbate de mine + completează DOAR ce lipsește pe server ----
+function _zMetaWanted(){ const w={}; Object.keys(_zetData.emps||{}).forEach(k=>{ const e=_zetData.emps[k]||{}; w[k]={soll:e.soll,saldo:e.saldo,rate:e.rate}; }); return w; }
+async function _zTxMeta(mk,changed,wanted){
+  const ref=db.collection("stundenzettel").doc(mk); let written={};
+  await db.runTransaction(async tx=>{
+    written={}; const s=await tx.get(ref); const emps=(s.exists&&s.data().emps)||{}; const upd={}, nest={};
+    const put=(k,f,v)=>{ upd["emps."+k+"."+f]=v; (nest[k]=nest[k]||{})[f]=v; (written[k]=written[k]||{})[f]=v; };
+    new Set(Object.keys(changed||{}).concat(wanted?Object.keys(wanted):[])).forEach(k=>{ const r=emps[k]||{};
+      _zMETA.forEach(f=>{
+        if(changed&&changed[k]&&f in changed[k]){ const v=changed[k][f]; if(_zS(v)!==_zS(r[f]===undefined?null:r[f])) put(k,f,v); return; }
+        const w=wanted&&wanted[k]?wanted[k][f]:undefined; if(w!=null&&r[f]===undefined) put(k,f,w);      // completare doar dacă LIPSEȘTE pe server
+      }); });
+    if(!Object.keys(upd).length) return;
+    const stamp=_zStamp(Object.keys(written).length,0,"meta");
+    if(s.exists) tx.update(ref,Object.assign(upd,stamp)); else tx.set(ref,Object.assign({emps:nest},stamp));
+  });
+  return written;
+}
+// ---- o lună din coadă ----
+async function _zSaveMonth(mk,ent){
+  const cur=(mk===_zetMk&&!!_zetData); const ops=ent.ops||[], adm=(ent.ctx==="admin");
+  const res=ops.length?await _zTx(mk,ops):{applied:[],kept:[]};
+  let wrote=null;
+  if(adm&&(Object.keys(ent.meta||{}).length||ops.length)) wrote=await _zTxMeta(mk,ent.meta||{},cur?_zMetaWanted():null);
+  if(cur){
+    res.applied.forEach(a=>{
+      _zetBase[a.k]=_zetBase[a.k]||{}; if(a.M) _zetBase[a.k][a.d]=_cClone(a.M); else delete _zetBase[a.k][a.d];
+      const emp=_zetData.emps[a.k]; if(!emp||!emp.days) return; const now=_zDay(emp.days[a.d]);
+      if(_zS(now)===_zS(_zDay(a.sent))){ if(a.M) emp.days[a.d]=_cClone(a.M); else delete emp.days[a.d]; }          // neschimbat de la trimitere → iau rezultatul îmbinat
+      else if(a.M&&now){ emp.days[a.d]=_zMergeDay(a.sent,now,a.M); }                                               // am mai tastat între timp → îmbin peste rezultat (dacă între timp am șters ziua, rămâne ștearsă)
+    });
+    res.kept.forEach(x=>{ _zetBase[x.k]=_zetBase[x.k]||{}; _zetBase[x.k][x.d]=_cClone(x.r); const emp=_zetData.emps[x.k]; if(emp&&emp.days) emp.days[x.d]=_cClone(x.r); });
+    if(res.kept.length){ try{ toast("Nu am șters "+res.kept.length+" zi/zile din Pontaj — au fost modificate de altcineva între timp.",true); renderZet(); }catch(e){} }
+    if(wrote) Object.keys(wrote).forEach(k=>{ _zMetaBase[k]=Object.assign({},_zMetaBase[k]||{},wrote[k]); _zetMeta[k]=Object.assign({},_zetMeta[k]||{},wrote[k]); });
+    if(adm){ Object.keys(ent.meta||{}).forEach(k=>{ _zMetaBase[k]=Object.assign({},_zMetaBase[k]||{},ent.meta[k]); _zetMeta[k]=Object.assign({},_zetMeta[k]||{},ent.meta[k]); }); }
+    _zPendWrite();                                                                                                   // ce a rămas (modificări noi) rămâne în coadă
+  } else {
+    const q=_zQRead(); if(q[mk]&&_zS(q[mk].ops)===_zS(ent.ops)&&_zS(q[mk].meta)===_zS(ent.meta)){ delete q[mk]; _zQWrite(q); }
+  }
+}
+async function _zSaveOnce(){
+  if(window._simUser) return;
+  _zSaving=true; let blocked=false, fail=null;
+  try{
+    _zPendWrite();
+    const q=_zQRead();
+    for(const mk of Object.keys(q).sort()){
+      const ent=q[mk]; if(!ent||(!(ent.ops||[]).length&&!Object.keys(ent.meta||{}).length)){ delete q[mk]; _zQWrite(q); continue; }
+      if(ent.ctx==="admin"&&!_salUnlocked){ blocked=true; continue; }                 // sesiunea Salarii a expirat: modificarea rămâne pe disc
+      try{ await _zSaveMonth(mk,ent); }catch(e){ fail=fail||e; console.error("zet save "+mk,e); }
+    }
+    if(blocked){ if(!_zBlockToast){ toast("🔒 Blocat — modificarea e păstrată pe acest dispozitiv și se salvează după ce redeschizi cu PIN-ul.",true); _zBlockToast=true; } }
+    else _zBlockToast=false;
+    if(fail) throw fail;
+    if(blocked){ _zScheduleRetry(); return; }
+    _zRetryN=0; if(_zRetryT){ clearTimeout(_zRetryT); _zRetryT=null; } _zFailToast=false;
+    if(_zetData){ const left=new Set(_zOpsOf(_zetData.emps,_zetBase).map(o=>o.k)); _zetDirty=new Set([...left]); }
+    const el=document.getElementById("zetSaved"); if(el){ el.textContent="✓ salvat"; setTimeout(()=>{ if(el) el.textContent=""; },1500); }
+    zetFsBackupSoon();
+  }catch(e){
+    if(!_zFailToast){ toast("⚠ Pontaj nesalvat încă — modificările sunt păstrate pe acest dispozitiv și se retrimit singure.",true); _zFailToast=true; }
+    _zScheduleRetry(); throw e;
+  }
+  finally{ _zSaving=false; }
+}
+function _zScheduleRetry(){
+  if(_zRetryT) return;
+  if(!_zOnlineBound&&typeof window!=="undefined"&&window.addEventListener){ _zOnlineBound=true; window.addEventListener("online",()=>{ _zSaveNow().catch(()=>{}); }); }
+  const wait=[3000,8000,20000,45000,90000,180000,300000,600000][Math.min(_zRetryN++,7)];   // după a 8-a încercare rămâne la 10 min, fără să se oprească
+  _zRetryT=setTimeout(()=>{ _zRetryT=null; _zSaveNow().catch(()=>{}); },wait);
+}
+function _zSaveNow(){ const p=_zChain.then(_zSaveOnce); _zChain=p.catch(()=>{}); return p; }
 function zetSaveSoon(id){
   if(id) _zetDirty.add(id);
+  if(!_zetData||!_zetMk) return;
+  _zPendWrite(); zetFsBackupSoon();
   if(_zetSaveT) clearTimeout(_zetSaveT);
-  const mk=_zetMk; if(!_zetData||!mk) return;
-  _zetSaveT=setTimeout(async()=>{
-    _zetSaveT=null; const ids=Array.from(_zetDirty); _zetDirty=new Set();
-    if(_zetCtx==="admin"&&!_salUnlocked){ toast("🔒 Blocat — modificarea NU s-a salvat. Redeschide cu PIN-ul și repet-o.",true); return; }
-    try{
-      for(const k of ids){ const e=_zetData.emps[k]; if(!e) continue; await zetWriteDiff(mk,k,e.days);
-        if(_zetCtx==="admin") _zetMeta[k]={soll:e.soll,saldo:e.saldo,rate:e.rate}; }
-      if(_zetCtx==="admin"&&ids.length){ await db.collection("stundenzettel").doc(mk).set(JSON.parse(JSON.stringify({emps:_zetMeta,updatedAt:new Date().toISOString()}))); }
-      const el=document.getElementById("zetSaved"); if(el){ el.textContent="✓ salvat"; setTimeout(()=>{ if(el) el.textContent=""; },1500); }
-      zetFsBackupSoon();
-    }catch(e){ ids.forEach(k=>_zetDirty.add(k)); toast("❌ Eroare salvare Pontaj: "+(e.message||e.code),true); }
-  },700);
+  _zetSaveT=setTimeout(()=>{ _zetSaveT=null; _zSaveNow().catch(()=>{}); },700);
 }
+// ---- snapshot de la server: se îmbină cu ce ai nesalvat pe ecran (nu mai suprascrie și nu mai e ignorat) ----
+function _zReconcile(fresh){
+  const oldBase=_zetBase||{}, oldE=(_zetData&&_zetData.emps)||null; const days={};
+  new Set(Object.keys(fresh).concat(oldE?Object.keys(oldE):[])).forEach(k=>{
+    const F=fresh[k]||{}, B=oldBase[k]||{}, L=oldE&&oldE[k]?(oldE[k].days||{}):null, out=_cClone(F);
+    if(L) new Set([...Object.keys(L),...Object.keys(B)]).forEach(d=>{
+      const l=_zDay(L[d]), b=_zDay(B[d]); if(_zS(l)===_zS(b)) return;               // aici n-am nimic nesalvat → rămâne ce e pe server
+      const f=_zDay(F[d]);
+      if(l) out[d]=_zMergeDay(b,l,f);
+      else if(!(f&&_zS(f)!==_zS(b))) delete out[d];                                 // am șters eu; dacă între timp l-a schimbat altcineva, rămâne varianta lui
+    });
+    days[k]={days:out};
+  });
+  const emps=zetBuild(days);
+  if(oldE) Object.keys(emps).forEach(k=>{ const o=oldE[k]; if(o) _zMETA.forEach(f=>{ if(o[f]!==undefined) emps[k][f]=o[f]; }); });   // Soll/Saldo/tarif nu vin live: rămâne ce e local
+  _zetData={emps}; _zetBase=_cClone(fresh);
+}
+// ---- recuperare după reîncărcare / schimbarea lunii ----
+function _zPendRecover(mk){
+  try{ const ent=_zQRead()[mk]; if(!ent||!_zetData) return; if(ent.ctx&&ent.ctx!==_zetCtx) return; let n=0;
+    (ent.ops||[]).forEach(op=>{ const E=_zetData.emps; const emp=E[op.k]||(E[op.k]={days:{},soll:null,saldo:0,rate:null}); emp.days=emp.days||{};
+      const f=_zDay(_zetBase[op.k]&&_zetBase[op.k][op.d]), cur=_zDay(emp.days[op.d]);
+      if(op.l){ const M=_zMergeDay(op.b,op.l,f); if(_zS(M)!==_zS(cur)){ emp.days[op.d]=M; n++; } }
+      else if(!f||_zS(f)===_zS(op.b)){ if(cur){ delete emp.days[op.d]; n++; } }
+      _zetDirty.add(op.k); });
+    Object.keys(ent.meta||{}).forEach(k=>{ const e=_zetData.emps[k]; if(!e) return; Object.assign(e,ent.meta[k]); _zetDirty.add(k); n++; });
+    if(_zetDirty.size){ if(ent.s!==_zSess&&n) toast("↻ Am recuperat "+n+" modificări nesalvate din sesiunea anterioară și le trimit acum.",false); zetSaveSoon(); }
+  }catch(e){ console.warn("zet recover",e); }
+}
+/*Z_SAFE_END*/
+
 function zetChangeMonth(d){ _zetFitTop=true; _zetCur=new Date(_zetCur.getFullYear(),_zetCur.getMonth()+d,1); zetLoad(); }
 function zetGoToday(){ const n=new Date(); _zetCur=new Date(n.getFullYear(),n.getMonth(),1); zetLoad(); }
 
@@ -11813,6 +12029,40 @@ function zetClearSundays(){
   if(!confirm("Ștergi "+hit.length+" rânduri completate duminica în "+MONTHS[m]+" "+y+"?")) return;
   const ids=new Set(); hit.forEach(([k,d])=>{ delete _zetData.emps[k].days[d]; ids.add(k); }); ids.forEach(k=>_zetDirty.add(k)); zetSaveSoon(); renderZet(); toast("✓ "+hit.length+" rânduri de duminică șterse");
 }
+// ---- 📜 Jurnal Pontaj (Admin): ce a scris serverul în `zeiten_journal` — fiecare zi adăugată / ștearsă / modificată, + Soll/Saldo/tarif (fără valoarea tarifului) ----
+const ZJ_FLD={k:"Kommt",g:"Geht",p:"Pause",a:"Abwesenheit",b:"Bemerkung"};
+function _zjName(key){ const e=(typeof salEmps!=="undefined"?salEmps:[]).find(x=>zetKey(x.name)===key); return e?e.name:String(key||"?").split("_").filter(Boolean).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(" "); }
+function _zjVals(r){ const s=Object.keys(ZJ_FLD).filter(f=>r&&r[f]).map(f=>ZJ_FLD[f]+" "+r[f]).join(", "); return s||"—"; }
+function _zjDay(e){ const m=/^(\d{4})-(\d{2})$/.exec(e.mk||""); return m?String(e.day).padStart(2,"0")+"."+m[2]+"."+m[1]:(e.mk||"")+" ziua "+e.day; }
+function _zjText(e){
+  if(e.type==="bulk") return _cEsc(e.note||"modificare mare");
+  if(e.type==="person") return "<b>PERSOANĂ ȘTEARSĂ din Pontaj</b> "+_cEsc(e.mk||"")+" ("+e.n+" zile, "+e.done+" complete)";
+  if(e.type==="meta"){ const n=e.field==="rate"?"tarif modificat":(e.field==="soll"?"Soll":"Saldo")+": "+_cEsc(e.first?"setat":JSON.stringify(e.from))+" → "+_cEsc(JSON.stringify(e.to)); return (e.coll==="stundenzettel"?_cEsc(e.mk||"")+" — ":"")+n+(e.first?" <i>(prima setare)</i>":""); }
+  const d=_zjDay(e);
+  if(e.op==="remove") return d+" — <b>ȘTERS</b> "+(e.done?"rând complet":"rând")+": "+_cEsc(_zjVals(e.from));
+  if(e.op==="add") return d+" — adăugat: "+_cEsc(_zjVals(e.to));
+  return d+(e.locked?" <span style='color:#dc2626'>[rând blocat]</span>":"")+" — "+(e.changes||[]).map(c=>_cEsc((ZJ_FLD[c.f]||c.f)+" "+(c.from||"∅")+" → "+(c.to||"∅"))).join("; ");
+}
+async function zetJournalOpen(){
+  cModal("📜 Jurnal Pontaj","<div style='padding:20px;text-align:center;color:var(--text-dim)'>⏳ Se încarcă…</div>");
+  try{
+    const snap=await db.collection("zeiten_journal").orderBy("at","desc").limit(800).get();
+    const rows=[]; snap.forEach(d=>{ const e=d.data(); const t=e.at&&e.at.toDate?e.at.toDate():null; rows.push(Object.assign({},e,{_t:t})); });
+    window._zjRows=rows; zetJournalRender();
+  }catch(e){ cModalBody('<div style="color:#ef4444">Eroare: '+_cEsc(e.message||e)+'</div>'); }
+}
+function zetJournalRender(){
+  const rows=window._zjRows||[]; const q=((document.getElementById("zjQ")||{}).value||"").toLowerCase().trim(), op=(document.getElementById("zjOp")||{}).value||"";
+  const list=rows.filter(e=>{ if(q&&!(_zjName(e.person)).toLowerCase().includes(q)) return false; if(op==="remove"&&e.op!=="remove") return false; if(op==="change"&&!(e.op==="change"&&e.type==="day")) return false; if(op==="add"&&e.op!=="add") return false; if(op==="meta"&&e.type!=="meta") return false; return true; });
+  const pd=n=>String(n).padStart(2,"0");
+  const f=e=>e._t?pd(e._t.getDate())+"."+pd(e._t.getMonth()+1)+"."+e._t.getFullYear()+" "+pd(e._t.getHours())+":"+pd(e._t.getMinutes()):"—";
+  const sel=(v,t)=>'<option value="'+v+'"'+(op===v?" selected":"")+'>'+t+'</option>';
+  let h='<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input id="zjQ" placeholder="Caută persoană…" oninput="zetJournalRender()" value="'+_cEsc(q)+'" style="flex:1;min-width:160px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text)"><select id="zjOp" onchange="zetJournalRender()" style="padding:7px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text)">'+sel("","Tot")+sel("remove","Doar șterse")+sel("change","Doar modificate")+sel("add","Doar adăugate")+sel("meta","Soll / Saldo / tarif")+'</select></div>';
+  if(!rows.length) h+='<div style="padding:14px;color:var(--text-dim)">Jurnalul e gol. Se umple automat după publicarea funcțiilor noi; de atunci, fiecare zi adăugată, ștearsă sau modificată în Pontaj apare aici.</div>';
+  else h+='<div style="color:var(--text-dim);margin-bottom:6px">'+list.length+' evenimente (ultimele 800 din jurnal). Valoarea tarifului nu se păstrează aici — doar faptul că s-a schimbat.</div><div style="max-height:56vh;overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--text-dim)"><th style="padding:4px 6px">Când</th><th>Cine</th><th>Persoană</th><th>Ce</th></tr></thead><tbody>'+
+    list.map(e=>'<tr style="border-top:1px solid var(--border);'+(e.op==="remove"?"background:rgba(239,68,68,.08)":"")+'"><td style="padding:5px 6px;white-space:nowrap">'+f(e)+'</td><td>'+_cEsc(e.by||(e.legacy?"versiune veche?":"—"))+(e.kind?' <i style="color:var(--text-dim)">('+_cEsc(e.kind)+')</i>':"")+'</td><td><b>'+_cEsc(_zjName(e.person))+'</b></td><td>'+_zjText(e)+'</td></tr>').join("")+'</tbody></table></div>';
+  cModalBody(h);
+}
 async function zetLogClear(){
   if(!_zetLogRows.length||!confirm("Ștergi tot istoricul de modificări?")) return;
   try{ const ids=_zetLogRows.map(x=>x._id); for(let i=0;i<ids.length;i+=400){ const b=db.batch(); ids.slice(i,i+400).forEach(id=>b.delete(db.collection("zeiten_log").doc(id))); await b.commit(); } }catch(e){ toast("❌ "+(e.message||e),true); }
@@ -11864,7 +12114,7 @@ function zetSetMeta(id,f,v){
 }
 async function zetPropagate(id,f,val){   // Soll/tarif nou → și în lunile următoare deja existente
   if(window._simUser) return; const mk=zetMk();
-  try{ const snap=await db.collection("stundenzettel").get(); for(const d of snap.docs){ if(d.id<=mk) continue; try{ await d.ref.update({["emps."+id+"."+f]:val===undefined?null:val}); }catch(e){} } }catch(e){ console.warn("propagate",e&&e.code); }
+  try{ const snap=await db.collection("stundenzettel").get(); for(const d of snap.docs){ if(d.id<=mk) continue; try{ await d.ref.update(Object.assign({["emps."+id+"."+f]:val===undefined?null:val},_zStamp(1,0,"propagate"))); }catch(e){} } }catch(e){ console.warn("propagate",e&&e.code); }
 }
 function zetSelect(id){ _zetSel=id; renderZet(); }
 function zetFixClick(id,d,i){ const y=_zetCur.getFullYear(), m=_zetCur.getMonth(); const p=zetPeople().find(e=>e.id===id); if(!p) return; const W=zetWarnings(p,zetGetEmp(id),y,m); const w=(W.byDay[d]||[])[i]; if(w&&w.fix) zetFix(id,d,w.fix); }
@@ -11882,6 +12132,7 @@ function renderZet(focusIdx){
       ${_zetCtx==="admin"?`<button onclick="zetClearSundays()" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🧹 Șterge duminicile</button>`:""}
       ${isAdmin()?`<button onclick="zetHideOpen()" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🙈 Ascunde persoane${_zetHide.size?" ("+_zetHide.size+")":""}</button>`:""}
       ${_zetCtx==="admin"?`<button onclick="zetLogOpen()" id="zetLogBtn" style="padding:8px 14px;border:1px solid #dc2626;border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:800;color:#dc2626">🔍 Modificări${_zetLogUnseen()?" ("+_zetLogUnseen()+" noi)":""}</button>`:""}
+      ${_zetCtx==="admin"?`<button onclick="zetJournalOpen()" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:800">📜 Jurnal Pontaj</button>`:""}
       ${zetNoExp()?"":`<button onclick="zetExportClick('all')" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">📤 Export Excel (toți)</button>
       <button onclick="zetPrint('all')" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🖨 Toți (completate)</button>
       <button onclick="zetPrint('allblank')" style="padding:8px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-weight:700;color:var(--text)">🖨 Toți (goale)</button>`}
@@ -12090,7 +12341,7 @@ async function zetImportConfirm(){
     const ms=await db.collection("stundenzettel").doc(mk).get(); const meta=(ms.exists&&ms.data().emps)||{};
     for(const x of chosen){ await zetWriteDays(mk,x.key,x.s.days,false); const old=meta[x.key]||{};
       meta[x.key]={soll:x.s.soll!=null?x.s.soll:(old.soll!=null?old.soll:null),saldo:x.s.saldo!=null?x.s.saldo:(old.saldo||0),rate:x.s.rate!=null?x.s.rate:(old.rate!=null?old.rate:null)}; }
-    await db.collection("stundenzettel").doc(mk).set(JSON.parse(JSON.stringify({emps:meta,updatedAt:new Date().toISOString()})));
+    { const cm={}; chosen.forEach(x=>{ cm[x.key]=meta[x.key]; }); await db.collection("stundenzettel").doc(mk).set(JSON.parse(JSON.stringify(Object.assign({emps:cm},_zStamp(chosen.length,0,"import")))),{merge:true}); }
     _zetPendingImport=null; closeModal("zetImpModal");
     _zetCur=new Date(y,m-1,1); _zetSel=chosen[0].key; await zetLoad(true);
     toast("✓ "+chosen.length+" fișe încărcate pentru "+MONTHS[m-1]+" "+y);
@@ -12223,7 +12474,7 @@ function zetDiffLines(a,b){
 }
 function zetFsBackupSoon(){
   if(window.activeUserKey==="mihaela"||window._simUser||!ZET_FS_OK||_zetFsState.st!=="ok"||!_zetData) return;
-  if(_zetFsT) clearTimeout(_zetFsT); _zetFsT=setTimeout(()=>zetFsBackup(false),3000);
+  if(_zetFsT) clearTimeout(_zetFsT); _zetFsT=setTimeout(()=>zetFsBackup(false),1000);
 }
 async function zetFsBackup(force){
   _zetFsT=null; if(window._simUser||!_zetData) return;
@@ -12231,23 +12482,30 @@ async function zetFsBackup(force){
     const h=await zetIdbGet(zetFsKey()); if(!h) return; if((await h.queryPermission({mode:"readwrite"}))!=="granted"){ _zetFsState={st:"perm",name:h.name}; zetFsChipRefresh(); return; }
     const y=_zetCur.getFullYear(), m=_zetCur.getMonth(); const ps=zetPeople().filter(p=>_zetData.emps[p.id]&&zetCalc(_zetData.emps[p.id],y,m).any);
     if(!ps.length&&!force) return; if(!ps.length) return;
-    const wb=await zetBuildWorkbook(ps,y,m,false); const buf=await wb.xlsx.writeBuffer();
-    const write=async(dir,name)=>{ const fh=await dir.getFileHandle(name,{create:true}); const w=await fh.createWritable(); await w.write(buf); await w.close(); };
-    await write(h,zetFileName());
-    const day=new Date().toISOString().slice(0,10);
-    const ar=await h.getDirectoryHandle("arhiva",{create:true}); await write(ar,zetFileName().replace(/\.xlsx$/,"_"+day+".xlsx"));   // copia zilei se rescrie la fiecare modificare
-    { const hh=new Date().getHours(); await write(ar,zetFileName().replace(/\.xlsx$/,"_"+day+"_"+String(hh).padStart(2,"0")+"h.xlsx")); }   // câte o stare pe oră, ca să nu se piardă nimic
+    const writeData=async(dir,name,data)=>{ const fh=await dir.getFileHandle(name,{create:true}); const w=await fh.createWritable(); await w.write(data); await w.close(); };
+    const day=new Date().toISOString().slice(0,10), hh=String(new Date().getHours()).padStart(2,"0");
+    const ar=await h.getDirectoryHandle("arhiva",{create:true});
+    // 1) copia BRUTĂ (JSON): exact ce s-a introdus, pe persoane și zile — nu depinde de niciun modul extern; se scrie după fiecare modificare
+    const jn=zetFileName().replace(/\.xlsx$/,".json"); const raw=JSON.stringify({app:"mtc-pontaj",mk:zetMk(),user:window.activeUserKey||"",savedAt:new Date().toISOString(),version:_cVer(),emps:Object.fromEntries(ps.map(p=>[p.id,{name:p.name,days:_zetData.emps[p.id].days}]))},null,1);
+    await writeData(h,jn,raw); await writeData(ar,jn.replace(/\.json$/,"_"+day+".json"),raw); await writeData(ar,jn.replace(/\.json$/,"_"+day+"_"+hh+"h.json"),raw);   // câte o stare pe oră, ca să nu se piardă nimic
+    // 2) Excel (formatul Zeiterfassung)
+    let xErr=null;
+    try{ const wb=await zetBuildWorkbook(ps,y,m,false); const buf=await wb.xlsx.writeBuffer();
+      await writeData(h,zetFileName(),buf); await writeData(ar,zetFileName().replace(/\.xlsx$/,"_"+day+".xlsx"),buf); await writeData(ar,zetFileName().replace(/\.xlsx$/,"_"+day+"_"+hh+"h.xlsx"),buf);
+    }catch(e){ xErr=e; }
     _zetFsPrev=zetDaysOf(Object.fromEntries(Object.keys(_zetData.emps).map(k=>[k,{days:_zetData.emps[k].days}])));
-    _zetFsState={st:"ok",name:h.name,at:new Date().toLocaleTimeString("ro-RO",{hour:"2-digit",minute:"2-digit"})}; zetFsChipRefresh();
+    _zetFsState={st:"ok",name:h.name,at:new Date().toLocaleTimeString("ro-RO",{hour:"2-digit",minute:"2-digit"}),warn:xErr?("fișierul Excel nu s-a putut genera ("+((xErr&&xErr.message)||String(xErr))+"), dar copia brută JSON s-a salvat"):""}; zetFsChipRefresh();
   }catch(e){ _zetFsState={st:"err",msg:(e&&e.message)||String(e)}; zetFsChipRefresh(); }
 }
 function zetFsChipHtml(){
   const st=_zetFsState.st; const b=(t,f)=>`<button onclick="${f}" style="margin-left:8px;padding:3px 10px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-size:12px;color:var(--text)">${t}</button>`;
   const base='style="font-size:12.5px;padding:7px 12px;border-radius:10px;border:1px dashed var(--border);color:var(--text-dim)"';
-  if(st==="ok") return `<div ${base}>💾 Copie automată pe PC activă — folder „${zetEsc(_zetFsState.name||"")}”${_zetFsState.at?" · ultima: "+_zetFsState.at:""}${b("Schimbă folderul","zetFsPick()")}${b("Salvează acum","zetFsBackup(true)")}</div>`;
+  if(st==="ok") return `<div ${base}>💾 Copie automată pe PC activă — folder „${zetEsc(_zetFsState.name||"")}”${_zetFsState.at?" · ultima: "+_zetFsState.at:""}${_zetFsState.warn?`<div style="color:#b45309;margin-top:4px">⚠ ${zetEsc(_zetFsState.warn)}</div>`:""}${b("Schimbă folderul","zetFsPick()")}${b("Salvează acum","zetFsBackup(true)")}</div>`;
   if(st==="perm") return `<div ${base.replace("var(--text-dim)","#b45309")}>⚠ Copia pe PC e oprită până confirmi accesul la folderul „${zetEsc(_zetFsState.name||"")}” ${b("Reactivează","zetFsReauth()")}</div>`;
   if(st==="err") return `<div ${base.replace("var(--text-dim)","#ef4444")}>❌ Copia pe PC a eșuat: ${zetEsc(_zetFsState.msg||"")} ${b("Alege folderul din nou","zetFsPick()")}</div>`;
-  if(st==="unsupported") return `<div ${base}>💾 Copia automată pe PC merge doar în Chrome/Edge pe calculator. Aici folosește „📤 Export Excel” ca să-ți salvezi o copie.</div>`;
+  const staffWarn=base.replace("1px dashed var(--border)","2px solid #dc2626").replace("var(--text-dim)","#dc2626");
+  if(st==="unsupported") return zetNoExp()?`<div ${staffWarn}>⚠ Copia orelor pe PC merge doar în Chrome sau Edge pe calculator — deschide Pontajul din Chrome/Edge pe PC, ca orele completate să aibă o copie pe calculatorul tău.</div>`:`<div ${base}>💾 Copia automată pe PC merge doar în Chrome/Edge pe calculator. Aici folosește „📤 Export Excel” ca să-ți salvezi o copie.</div>`;
+  if(zetNoExp()) return `<div ${staffWarn}>⚠ Copia pe PC NU e activă — orele completate nu au încă o copie pe calculatorul tău. ${b("Alege folderul pentru copie","zetFsPick()")}</div>`;
   return `<div ${base}>💾 Nu ai activat copia automată pe PC ${b("Alege folderul pentru copie","zetFsPick()")}</div>`;
 }
 function zetFsChipRefresh(){ const el=document.getElementById("zetFsChip"); if(el) el.innerHTML=zetFsChipHtml(); }
@@ -17834,7 +18092,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 <script>window.MTC_AUTO_UPDATE=true;</script>
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261116-124355';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261116-143012';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17902,7 +18160,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
     // dacă aplicația are o salvare programată (Concedii/Pontaj), o pornește ACUM și așteaptă să se termine (max. 6 s)
     try{ if(typeof saveTimer!=='undefined' && saveTimer && typeof saveDriversNow==='function'){ clearTimeout(saveTimer); saveTimer=null; saveDriversNow().catch(function(){}); } }catch(e){}
     await wait(900);
-    try{ for(var i=0;i<24 && ((typeof isSaving!=='undefined' && isSaving) || (typeof _zetSaveT!=='undefined' && _zetSaveT));i++) await wait(250); }catch(e){}
+    try{ for(var i=0;i<24 && ((typeof isSaving!=='undefined' && isSaving) || (typeof _zetSaveT!=='undefined' && _zetSaveT) || (typeof _zSaving!=='undefined' && _zSaving));i++) await wait(250); }catch(e){}
     var n=tries(sv)+1; setTries(sv,n);
     say('Se șterge memoria veche…');
     try{ if(window.caches){ var ks=await caches.keys(); await Promise.all(ks.map(function(k){ return caches.delete(k); })); } }catch(e){}
@@ -17936,6 +18194,8 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
 
 
 
