@@ -4224,6 +4224,9 @@ function mcbToast(msg,isErr){
     <button class="btn btn-secondary btn-small" id="pinMgrBtn" onclick="openPinAdmin()" style="width:100%; margin-bottom:6px; display:none">🔐 Coduri PIN</button>
     <button class="btn btn-secondary btn-small" id="devMgrBtn" onclick="mtcOpenDevices()" style="width:100%; margin-bottom:6px; display:none; border-color:#60a5fa; color:#60a5fa">💻 Device-uri și profiluri</button>
     <button class="btn btn-secondary btn-small" id="loadBackupBtn" onclick="openBackupManager()" style="width:100%; margin-bottom:6px; display:none">🔄 Manager Backup / Restaurare</button>
+    <button class="btn btn-secondary btn-small" id="cExportBtn" onclick="cExportExcel()" style="width:100%; margin-bottom:6px; display:none; border-color:#16a34a; color:#16a34a">📗 Export Excel (zile concediu)</button>
+    <button class="btn btn-secondary btn-small" id="cJournalBtn" onclick="cJournalOpen()" style="width:100%; margin-bottom:6px; display:none; border-color:#ef4444; color:#ef4444">📜 Jurnal zile (adăugat / șters)</button>
+    <button class="btn btn-secondary btn-small" id="cCheckBtn" onclick="cCheckCoherence()" style="width:100%; margin-bottom:6px; display:none; border-color:#0ea5e9; color:#0ea5e9">🔍 Verificare coerență (copii)</button>
     <button class="btn btn-secondary btn-small" id="simBtn" onclick="openSimPicker()" style="width:100%; margin-bottom:6px; display:none; border-color:#a855f7; color:#a855f7">👁 Vezi ca un coleg (simulare)</button>
     <button class="btn btn-secondary btn-small" id="mcbBtn" onclick="mcbOpen()" style="width:100%; margin-bottom:6px; display:none; border-color:#10b981; color:#10b981">☁️ Backup pe module (Cloud)</button>
     <button class="btn btn-secondary btn-small" id="archiveBtn" onclick="openArchive()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">📦 Arhivă persoane</button>
@@ -4910,17 +4913,19 @@ function unsubAll(){ unsubListeners.forEach(u=>{try{u();}catch(e){}}); unsubList
 function initApp(userKey){
   setSaveStatus("saving","Se încarcă...");
   unsubAll();
+  _cReset();
   if(userKey==="tania"||userKey==="admin"){
     const docKeys = ["raluca","madalina","corina","tania"];
     const cache = {}; let loaded = 0;
     const rebuild = (live) => {
-      const byName = {};
-      // "tania" e doar o oglindă completă, scrisă de Admin/Tania; Corina/Raluca/Mădălina scriu NUMAI în documentul lor
-      // (nu au voie în „tania”) → documentul propriu e sursa de adevăr și trebuie să câștige, nu oglinda veche.
-      ["tania","madalina","corina","raluca"].forEach(dk=>{
-        if(cache[dk])(cache[dk].drivers||[]).forEach(d=>{byName[d.name]=d;});
-      });
-      state = {drivers:Object.values(byName), thresholds:{warn:3,crit:5}};
+      // "tania" e oglinda ultimei sincronizări, scrisă de Admin/Tania; Corina/Raluca/Mădălina scriu NUMAI în documentul lor
+      // (nu au voie în „tania”). Copiile se ÎMBINĂ (modificările fiecărui coordonator peste oglindă), nu câștigă una singură.
+      const D={}; C_DOCS.forEach(dk=>{ D[dk]=(cache[dk]&&cache[dk].drivers)||[]; });
+      const seenN=new Set(), merged=[];
+      ["tania","madalina","corina","raluca"].forEach(dk=>D[dk].forEach(d=>{ if(seenN.has(d.name)) return; seenN.add(d.name); const m=_cCopiesMerge(d,D); if(m) merged.push(m); }));
+      _cRaw=cache;
+      state = {drivers:_cReconcile(merged), thresholds:{warn:3,crit:5}};
+      _cMirrorKick();
       if(live){renderAll();saveLocalBackup();setSaveStatus("ok","Sincronizat ✓");}
     };
     docKeys.forEach(dk=>{
@@ -4935,13 +4940,8 @@ function initApp(userKey){
     // Mihaela lucrează pe documentul Ralucăi (aceleași persoane ca Raluca); ce poate vedea/edita se decide din Permisiuni
     let first = true;
     const unsub = db.collection(concediiColl()).doc("raluca").onSnapshot(snap=>{
-      if(snap.exists){
-        state = snap.data();
-        if(!state.drivers) state.drivers=[];
-        state.thresholds = {warn:3,crit:5};
-      } else {
-        state = {drivers:[], thresholds:{warn:3,crit:5}};
-      }
+      { const dt=snap.exists?snap.data():{};
+        state = Object.assign({},dt,{drivers:_cReconcile(dt.drivers||[]), thresholds:{warn:3,crit:5}}); }
       if(first){first=false;finishInit();updateTodayLeavePanel();}
       else{
         finishInit();
@@ -4955,12 +4955,14 @@ function initApp(userKey){
     let first = true;
     const unsub = db.collection(concediiColl()).doc(userKey).onSnapshot(snap=>{
       if(snap.exists){
-        state = snap.data();
-        if(!state.thresholds) state.thresholds = {warn:3,crit:5};
-        state.thresholds = {warn:3,crit:5};
+        const dt=snap.data();
+        state = Object.assign({},dt,{drivers:_cReconcile(dt.drivers||[]), thresholds:{warn:3,crit:5}});
       } else {
+        // Document inexistent în CACHE ≠ document inexistent pe server: nu creăm date implicite până nu răspunde serverul.
+        if(snap.metadata&&snap.metadata.fromCache){ setSaveStatus("saving","Se așteaptă serverul..."); return; }
         loadDefaultDrivers();
-        db.collection(concediiColl()).doc(userKey).set(JSON.parse(JSON.stringify(state)));
+        _cLoaded=true; _cSetBase([]);   // document nou: toate persoanele implicite se scriu prin salvarea normală
+        scheduleSave();
       }
       if(first){first=false;finishInit();}
       else{renderAll();saveLocalBackup();setSaveStatus("ok","Sincronizat ✓");}
@@ -5422,57 +5424,462 @@ async function renderPlanificareWarningsBanner(){
   banner.style.display="block";
 }
 
+/*C_SAFE_BEGIN*/
+// ============================================================
+// SALVARE SIGURĂ A CONCEDIILOR (v2) — zilele nu se mai pot pierde la salvare
+//  • Salvarea NU mai scrie documentele întregi. Citește documentul curent de pe server, într-o TRANZACȚIE,
+//    și înlocuiește DOAR persoanele modificate de tine; ce au pus alții rămâne neatins.
+//  • Îmbinare pe 3 părți (ce știam / ce am acum / ce e pe server): perioadele pe care le-ai ȘTERS tu se șterg,
+//    cele pe care le-ai ADĂUGAT tu se adaugă, perioadele adăugate de alții rămân. La dubiu se PĂSTREAZĂ zilele.
+//  • Aceeași persoană există în până la 4 documente: câștigă copia cea MAI NOUĂ (_m), nu „ultimul document”.
+//  • Dacă salvarea eșuează (offline etc.), modificările rămân și pe disc (localStorage) și se retrimit.
+//  • Înainte de orice scriere se verifică automat că nicio zi nu se pierde prin îmbinare; dacă se pierde, NU se scrie.
+// ============================================================
+const C_TYPES=["leaves","krankLeaves","unpaidLeaves","specialLeaves"];
+const C_DOCS=["raluca","madalina","corina","tania"];
+const C_PRIO=["tania","madalina","corina","raluca"];   // la egalitate de _m câștigă ultimul (ca până acum)
+function _cStable(v){
+  if(Array.isArray(v)) return "["+v.map(_cStable).join(",")+"]";
+  if(v&&typeof v==="object") return "{"+Object.keys(v).filter(k=>v[k]!==undefined).sort().map(k=>JSON.stringify(k)+":"+_cStable(v[k])).join(",")+"}";
+  return JSON.stringify(v===undefined?null:v);
+}
+function _cClone(o){ return JSON.parse(JSON.stringify(o)); }
+function _cNorm(p){ const q=_cClone(p); delete q._m; C_TYPES.forEach(f=>{ if(!Array.isArray(q[f])) q[f]=[]; }); return q; }
+function _cStr(p){ return _cStable(_cNorm(p)); }
+function _cKey(p){ return p.id ? "i:"+p.id : "n:"+p.name; }
+function _cFindIdx(arr,p){ let i=p.id?arr.findIndex(x=>x&&x.id===p.id):-1; if(i<0) i=arr.findIndex(x=>x&&x.name===p.name); return i; }
+function _cFind(arr,p){ const i=_cFindIdx(arr,p); return i<0?null:arr[i]; }
+
+// valoare cu 3 părți: b = baza (ce știam), l = local, r = server acum
+function _cMergeVal(b,l,r){
+  if(_cStable(b)===_cStable(l)) return r;                         // n-am schimbat nimic aici → rămâne ce e pe server
+  if(Array.isArray(l)||Array.isArray(b)){
+    const bA=Array.isArray(b)?b:[], lA=Array.isArray(l)?l:[], rA=Array.isArray(r)?r:[];
+    const bS=new Set(bA.map(_cStable)), lS=new Set(lA.map(_cStable));
+    const gone=new Set([...bS].filter(x=>!lS.has(x)));            // perioade șterse de mine
+    const out=[], seen=new Set();
+    rA.forEach(it=>{ const s=_cStable(it); if(gone.has(s)||seen.has(s)) return; seen.add(s); out.push(it); });
+    lA.forEach(it=>{ const s=_cStable(it); if(bS.has(s)||seen.has(s)) return; seen.add(s); out.push(it); });   // perioade adăugate de mine
+    return out;
+  }
+  if(l&&typeof l==="object"&&r&&typeof r==="object"&&!Array.isArray(r)){
+    const bo=(b&&typeof b==="object"&&!Array.isArray(b))?b:{}; const out=Object.assign({},r);
+    new Set([...Object.keys(bo),...Object.keys(l)]).forEach(k=>{ const v=_cMergeVal(bo[k],l[k],r[k]); if(v===undefined) delete out[k]; else out[k]=v; });
+    return out;
+  }
+  return l;
+}
+function _cMergePerson(b,l,r){
+  const L=_cNorm(l); if(!r) return L;
+  const R=_cNorm(r), B=b?_cNorm(b):{};
+  const out=Object.assign({},R);
+  new Set([...Object.keys(B),...Object.keys(L),...Object.keys(R)]).forEach(f=>{ const v=_cMergeVal(B[f],L[f],R[f]); if(v===undefined) delete out[f]; else out[f]=v; });
+  return out;
+}
+// Plasa de siguranță: dacă îmbinarea ar pierde o zi, aruncă eroare ÎNAINTE de scriere.
+function _cAssertMerge(b,l,r,M){
+  if(!r) return;
+  const B=b?_cNorm(b):{}, L=_cNorm(l), R=_cNorm(r);
+  C_TYPES.forEach(f=>{
+    const Ms=new Set((M[f]||[]).map(_cStable)), bS=new Set((B[f]||[]).map(_cStable)), lS=new Set((L[f]||[]).map(_cStable));
+    (L[f]||[]).forEach(it=>{ const s=_cStable(it); if(!bS.has(s)&&!Ms.has(s)) throw new Error("Verificare: lipsește o perioadă adăugată de tine ("+f+") — nu s-a scris nimic"); });
+    (R[f]||[]).forEach(it=>{ const s=_cStable(it); if(!(bS.has(s)&&!lS.has(s))&&!Ms.has(s)) throw new Error("Verificare: s-ar pierde o perioadă de pe server ("+f+") — nu s-a scris nimic"); });
+  });
+}
+
+// O persoană poate exista în până la 4 documente (tania = oglinda ultimei sincronizări de către Admin/Tania; raluca / madalina / corina = copiile coordonatorilor).
+// Copia unui coordonator aduce modificări DOAR dacă e mai nouă decât oglinda; modificările ei (adăugat / șters) se aplică peste oglindă,
+// deci două copii divergente se îmbină și nu se mai pierde nimic (în loc de „câștigă una singură”). Fără _m (date vechi) → se aplică (se păstrează zilele).
+function _cCopiesMerge(p,D){
+  const t=_cFind(D.tania||[],p), tm=t?(t._m||0):0, others=[];
+  ["madalina","corina","raluca"].forEach(dk=>{ const c=_cFind(D[dk]||[],p); if(c) others.push(c); });
+  others.sort((a,b)=>(a._m||0)-(b._m||0));
+  let M=t?_cClone(t):null, mx=tm;
+  others.forEach(c=>{
+    const cm=c._m||0; if(cm>mx) mx=cm;
+    if(t&&tm&&cm<tm) return;                                       // copie STRICT mai veche decât oglinda → întârziere, nu modificare (la egalitate se aplică: se păstrează zilele)
+    M=M?_cMergePerson(t,c,M):_cClone(c);
+  });
+  if(!M) return null;
+  M=_cNorm(M); M._m=mx; return M;
+}
+
+// ---- baza (ce știm că e pe server) ----
+let _cBase=new Map(), _cLoaded=false, _cChain=Promise.resolve(), _cRetryT=null, _cRetryN=0, _cOnlineBound=false, _cRaw=null, _cMirrorT=null, _cForce=new Set();
+function _cSetBase(arr){ _cBase=new Map(); (arr||[]).forEach(p=>{ _cBase.set(_cKey(p),_cNorm(p)); }); }
+function _cReset(){ _cBase=new Map(); _cLoaded=false; _cRetryN=0; _cRaw=null; if(_cRetryT){ clearTimeout(_cRetryT); _cRetryT=null; } if(_cMirrorT){ clearTimeout(_cMirrorT); _cMirrorT=null; } }
+// Admin/Tania: copii rămase în urmă (ex. coordonatorul a modificat o persoană doar în documentul lui; „tania” nu se actualizează de la el).
+// O copie e „în urmă” DOAR dacă are _m mai mic decât câștigătoarea și conținut diferit → se aliniază silențios la următoarea salvare.
+function _cMirrorStale(){
+  const uk=window.activeUserKey; if(!_cRaw||!(uk==="admin"||uk==="tania")||window._simUser) return [];
+  const out=[];
+  ((state&&state.drivers)||[]).forEach(p=>{
+    const wm=p._m||0; if(!wm) return;
+    for(const dk of C_DOCS){
+      const c=_cFind((_cRaw[dk]&&_cRaw[dk].drivers)||[],p); if(!c) continue;
+      if(!(dk==="tania"||(p.visibleTo||[]).includes(dk))) continue;
+      if(_cStr(c)!==_cStr(p)){ out.push(p); break; }
+    }
+  });
+  return out;
+}
+function _cMirrorKick(){ if(_cMirrorT||window._simUser||!_cLoaded) return; if(!_cMirrorStale().length) return; _cMirrorT=setTimeout(()=>{ _cMirrorT=null; saveDriversNow().catch(()=>{}); },4000); }
+function _cDiff(){
+  const local=(state&&state.drivers)||[]; const lk=new Set(local.map(_cKey));
+  const changed=local.filter(p=>{ const b=_cBase.get(_cKey(p)); return !b||_cStr(p)!==_cStr(b); });
+  const deleted=[..._cBase.entries()].filter(([k])=>!lk.has(k)).map(([k,b])=>b);
+  return {changed,deleted};
+}
+
+// ---- modificări nesalvate păstrate pe disc ----
+function _cPendKey(){ return "mtc_cpend_"+concediiColl()+"_"+(window.activeUserKey||"x"); }
+function _cPendWrite(changed,deleted){
+  try{
+    const k=_cPendKey();
+    if(!changed.length&&!deleted.length){ localStorage.removeItem(k); return; }
+    const p={},d={};
+    changed.forEach(l=>{ p[_cKey(l)]={b:_cBase.get(_cKey(l))||null,l:_cClone(l)}; });
+    deleted.forEach(b=>{ d[_cKey(b)]=_cClone(b); });
+    localStorage.setItem(k,JSON.stringify({t:Date.now(),p,d}));
+  }catch(e){}
+}
+function _cPendNow(){ if(window._simUser||!_cLoaded) return; const d=_cDiff(); _cPendWrite(d.changed,d.deleted); }
+function _cPendLoad(){ try{ const r=localStorage.getItem(_cPendKey()); return r?JSON.parse(r):null; }catch(e){ return null; } }
+
+// ---- ce se întâmplă când vin date noi de pe server (snapshot) ----
+// Nu mai înlocuiește pur și simplu memoria: modificările tale nesalvate se păstrează și se îmbină cu ce a venit.
+function _cReconcile(fresh){
+  // COPII separate: obiectele din memorie NU trebuie să fie aceleași cu cele din cache-ul snapshot-urilor
+  // (altfel o modificare nesalvată ar intra în „ce știm că e pe server” și n-ar mai fi trimisă niciodată).
+  fresh=fresh.map(_cClone);
+  fresh.forEach(f=>{ C_TYPES.forEach(t=>{ if(!Array.isArray(f[t])) f[t]=[]; }); });
+  const out=[];
+  if(!_cLoaded){
+    const pend=_cPendLoad(); let n=0;
+    const fkeys=new Set(fresh.map(_cKey));
+    fresh.forEach(f=>{
+      const k=_cKey(f), pe=pend&&pend.p&&pend.p[k], pd=pend&&pend.d&&pend.d[k];
+      if(pe){ out.push(_cMergePerson(pe.b,pe.l,f)); n++; }
+      else if(pd&&_cStr(f)===_cStr(pd)){ n++; }                    // ștergere rămasă în așteptare
+      else out.push(f);
+    });
+    if(pend&&pend.p) Object.keys(pend.p).forEach(k=>{ if(!fkeys.has(k)){ out.push(_cClone(pend.p[k].l)); n++; } });
+    _cLoaded=true; _cSetBase(fresh);
+    if(n){ setTimeout(()=>{ try{ toast("Am recuperat "+n+" modificări nesalvate din sesiunea anterioară și le trimit acum."); scheduleSave(); }catch(e){} },1500); }
+    return out;
+  }
+  const local=(state&&state.drivers)||[]; const used=new Set();
+  fresh.forEach(f=>{
+    const k=_cKey(f); used.add(k);
+    const b=_cBase.get(k), l=local.find(x=>_cKey(x)===k);
+    if(!b){ out.push(l?_cMergePerson(null,l,f):f); return; }
+    if(!l) return;                                                  // șters local, încă nesalvat → rămâne șters
+    out.push(_cStr(l)!==_cStr(b)?_cMergePerson(b,l,f):f);          // modificări locale nesalvate → se păstrează peste ce a venit
+  });
+  local.forEach(l=>{ const k=_cKey(l); if(used.has(k)) return; const b=_cBase.get(k); if(!b||_cStr(l)!==_cStr(b)) out.push(l); });  // adăugat local sau modificat local, dispărut de pe server → îl păstrăm
+  _cSetBase(fresh);
+  return out;
+}
+
+// ---- tranzacții ----
+// versiunea aplicației intră în semnătura fiecărei salvări: regula Firestore respinge scrierile fără ea (= versiuni vechi)
+function _cVer(){ try{ return (typeof MTC_APP_VERSION!=="undefined")?String(MTC_APP_VERSION):""; }catch(e){ return ""; } }
+async function _cTxAdmin(coll,changed,deleted,base,stamp,uk,mirror){
+  const refs={}; C_DOCS.forEach(d=>{ refs[d]=db.collection(coll).doc(d); });
+  let out=null;
+  await db.runTransaction(async tx=>{
+    out={merged:[],removed:[],kept:[]};
+    const data={},arr={},touched={};
+    for(const d of C_DOCS){ const s=await tx.get(refs[d]); data[d]=s.exists?s.data():{}; arr[d]=(data[d].drivers||[]).slice(); touched[d]=false; }
+    const remoteOf=p=>_cCopiesMerge(p,arr);
+    changed.forEach(p=>{
+      const k=_cKey(p), r=remoteOf(p), b=base.get(k)||null;
+      const M=_cMergePerson(b,p,r); _cAssertMerge(b,p,r,M); M._m=(mirror&&mirror.has(k)&&r&&r._m)?r._m:Math.max(stamp,((r&&r._m)||0)+1);   // mereu mai nou decât tot ce a citit
+      const vis=M.visibleTo||[];
+      C_DOCS.forEach(d=>{
+        const want=(d==="tania")||vis.includes(d); const i=_cFindIdx(arr[d],p);
+        if(want){ if(i>=0){ if(_cStr(arr[d][i])!==_cStr(M)){ arr[d][i]=M; touched[d]=true; } } else { arr[d].push(M); touched[d]=true; } }   // identică cu ce e deja acolo → nu rescriu
+        else if(i>=0){ arr[d].splice(i,1); touched[d]=true; }
+      });
+      out.merged.push(M);
+    });
+    deleted.forEach(b=>{
+      const r=remoteOf(b);
+      if(r&&_cStr(r)!==_cStr(b)){ out.kept.push(_cClone(r)); return; }     // altcineva a modificat-o între timp → nu o șterg
+      C_DOCS.forEach(d=>{ const i=_cFindIdx(arr[d],b); if(i>=0){ arr[d].splice(i,1); touched[d]=true; } });
+      out.removed.push(_cKey(b));
+    });
+    C_DOCS.forEach(d=>{ if(touched[d]) tx.set(refs[d],Object.assign({},data[d],{drivers:arr[d],thresholds:state.thresholds||{warn:3,crit:5},lw:Object.assign({u:uk,t:stamp,v:_cVer(),n:changed.length-(mirror?mirror.size:0),d:deleted.length},(mirror&&mirror.size&&mirror.size===changed.length&&!deleted.length)?{k:"mirror"}:{})})); });
+  });
+  return out;
+}
+async function _cTxUser(coll,docId,changed,deleted,base,stamp,uk){
+  const ref=db.collection(coll).doc(docId); let out=null;
+  await db.runTransaction(async tx=>{
+    out={merged:[],removed:[],kept:[]};
+    const s=await tx.get(ref); const data=s.exists?s.data():{}; const arr=(data.drivers||[]).slice(); let touched=false;
+    changed.forEach(p=>{
+      const k=_cKey(p), r=_cFind(arr,p), b=base.get(k)||null;
+      const M=_cMergePerson(b,p,r); _cAssertMerge(b,p,r,M);
+      const i=_cFindIdx(arr,p);
+      if(i>=0&&_cStr(arr[i])===_cStr(M)){ out.merged.push(_cClone(arr[i])); return; }   // identică cu ce e pe server: nu rescriu
+      M._m=Math.max(stamp,((r&&r._m)||0)+1); if(i>=0) arr[i]=M; else arr.push(M); touched=true; out.merged.push(M);
+    });
+    deleted.forEach(b=>{
+      const r=_cFind(arr,b);
+      if(r&&_cStr(r)!==_cStr(b)){ out.kept.push(_cClone(r)); return; }
+      const i=_cFindIdx(arr,b); if(i>=0){ arr.splice(i,1); touched=true; }
+      out.removed.push(_cKey(b));
+    });
+    if(touched) tx.set(ref,Object.assign({},data,{drivers:arr,thresholds:state.thresholds||{warn:3,crit:5},lw:{u:uk,t:stamp,v:_cVer(),n:changed.length,d:deleted.length}}));
+  });
+  return out;
+}
+function _cAssignInPlace(dst,src){ Object.keys(dst).forEach(k=>{ if(!(k in src)) delete dst[k]; }); Object.keys(src).forEach(k=>{ dst[k]=_cClone(src[k]); }); }
+
+async function _cSaveOnce(){
+  if(window._simUser) return;
+  if(!_cLoaded) return;                                              // nu salvăm nimic înainte să fi încărcat datele
+  isSaving=true;
+  try{
+    const uk=window.activeUserKey||"tania", coll=concediiColl();
+    const adm=(uk==="tania"||uk==="admin");
+    const base=new Map(_cBase);
+    const dd=_cDiff(); const deleted=dd.deleted;
+    _cPendWrite(dd.changed,deleted);
+    const ck=new Set(dd.changed.map(_cKey));
+    const mir=adm?_cMirrorStale().filter(p=>!ck.has(_cKey(p))):[];
+    if(adm&&_cForce.size){ (state.drivers||[]).forEach(p=>{ const k=_cKey(p); if(_cForce.has(k)&&!ck.has(k)&&!mir.some(m=>_cKey(m)===k)) mir.push(p); }); _cForce=new Set(); }
+    const changed=dd.changed.concat(mir), mirKeys=new Set(mir.map(_cKey));
+    if(!changed.length&&!deleted.length){ _cOkStatus(); return; }
+    const savedStr=new Map(changed.map(p=>[_cKey(p),_cStr(p)]));
+    const stamp=Date.now();
+    const res=adm?await _cTxAdmin(coll,changed,deleted,base,stamp,uk,mirKeys):await _cTxUser(coll,uk==="mihaela"?"raluca":uk,changed,deleted,base,stamp,uk);
+    if(!res) throw new Error("Tranzacția nu a returnat rezultat");
+    // după confirmarea serverului: baza + memoria locală (pe loc, ca ferestrele deschise să păstreze referințele)
+    res.merged.forEach(M=>{
+      const k=_cKey(M); _cBase.set(k,_cNorm(M));
+      const cur=(state.drivers||[]).find(x=>_cKey(x)===k);
+      if(cur&&_cStr(cur)===savedStr.get(k)) _cAssignInPlace(cur,M);
+    });
+    res.removed.forEach(k=>{ _cBase.delete(k); });
+    if(res.kept.length){
+      res.kept.forEach(r=>{ C_TYPES.forEach(t=>{ if(!Array.isArray(r[t])) r[t]=[]; }); state.drivers.push(r); _cBase.set(_cKey(r),_cNorm(r)); });
+      try{ toast("Nu am șters: "+res.kept.map(r=>r.name).join(", ")+" — a fost modificat de altcineva între timp.",true); renderAll(); }catch(e){}
+    }
+    const d2=_cDiff(); _cPendWrite(d2.changed,d2.deleted);
+    _cRetryN=0; if(_cRetryT){ clearTimeout(_cRetryT); _cRetryT=null; }
+    lastSavedAt=new Date();
+    const time=String(lastSavedAt.getHours()).padStart(2,"0")+":"+String(lastSavedAt.getMinutes()).padStart(2,"0");
+    saveLocalBackup();
+    setSaveStatus("ok","Salvat la "+time+" ✓");
+    triggerAutoBackup(time);
+    if(d2.changed.length||d2.deleted.length) scheduleSave();       // s-a mai modificat ceva cât se salva
+  }catch(e){
+    console.error("save",e);
+    setSaveStatus("error","Nesalvat încă — modificările sunt păstrate și se reîncearcă");
+    _cScheduleRetry();
+    throw e;
+  }
+  finally{ isSaving=false; }
+}
+function _cOkStatus(){ if(lastSavedAt){ const t=lastSavedAt; setSaveStatus("ok","Salvat la "+String(t.getHours()).padStart(2,"0")+":"+String(t.getMinutes()).padStart(2,"0")+" ✓"); } else setSaveStatus("ok","Sincronizat ✓"); }
+function _cScheduleRetry(){
+  if(_cRetryT) return;
+  if(!_cOnlineBound&&typeof window!=="undefined"&&window.addEventListener){ _cOnlineBound=true; window.addEventListener("online",()=>{ if(_cLoaded) saveDriversNow().catch(()=>{}); }); }
+  if(_cRetryN>=8){ setSaveStatus("error","Nu s-a putut salva — modificările sunt păstrate pe acest dispozitiv. Reîncarcă pagina."); return; }
+  const wait=[3000,8000,20000,45000,90000,180000,300000,600000][_cRetryN++];
+  _cRetryT=setTimeout(()=>{ _cRetryT=null; saveDriversNow().catch(()=>{}); },wait);
+}
+
 function scheduleSave(){
   if(saveTimer)clearTimeout(saveTimer);
   setSaveStatus("saving","Se salvează...");
-  saveTimer = setTimeout(()=>saveDriversNow(), 600);
+  try{ _cPendNow(); }catch(e){}                                      // modificarea e păstrată pe disc IMEDIAT, nu abia după 0,6 s
+  saveTimer = setTimeout(()=>{ saveDriversNow().catch(()=>{}); }, 600);
   scheduleActivityBackup();
 }
+// Salvare IMEDIATĂ (fără debounce); promisiunea se încheie abia când serverul a confirmat (folosită și la restaurări).
+function saveDriversNow(){ const p=_cChain.then(_cSaveOnce); _cChain=p.catch(()=>{}); return p; }
+/*C_SAFE_END*/
 
-// Salvare IMEDIATĂ (fără debounce) — folosită de scheduleSave() (prin timer)
-// și de orice altă funcție care are nevoie să aștepte finalizarea reală a
-// salvării (ex: restaurarea completă din backup).
-async function saveDriversNow(){
-  try{
-    isSaving = true;
-    const uk = window.activeUserKey||"tania";
-    if(uk==="tania"||uk==="admin"){
-      const byDoc = {raluca:[],madalina:[],corina:[],tania:[]};
-      state.drivers.forEach(dr=>{
-        const vis = dr.visibleTo||[];
-        if(vis.includes("raluca"))   byDoc.raluca.push(dr);
-        if(vis.includes("madalina")) byDoc.madalina.push(dr);
-        if(vis.includes("corina"))   byDoc.corina.push(dr);
-        byDoc.tania.push(dr);
-      });
-      await Promise.all([
-        db.collection(concediiColl()).doc("raluca").set({drivers:byDoc.raluca,thresholds:state.thresholds}),
-        db.collection(concediiColl()).doc("madalina").set({drivers:byDoc.madalina,thresholds:state.thresholds}),
-        db.collection(concediiColl()).doc("corina").set({drivers:byDoc.corina,thresholds:state.thresholds}),
-        db.collection(concediiColl()).doc("tania").set({drivers:byDoc.tania,thresholds:state.thresholds}),
-      ]);
-    } else {
-      await db.collection(concediiColl()).doc(uk==="mihaela"?"raluca":uk).set(JSON.parse(JSON.stringify(state)));
-      try{
-        const tSnap = await db.collection(concediiColl()).doc("tania").get();
-        if(tSnap.exists){
-          const tData = tSnap.data();
-          const myIds = new Set(state.drivers.map(d=>d.id));
-          const merged = (tData.drivers||[]).map(td=>myIds.has(td.id)?state.drivers.find(d=>d.id===td.id):td);
-          await db.collection(concediiColl()).doc("tania").set({drivers:merged,thresholds:state.thresholds});
-        }
-      }catch(e){console.warn("sync tania",e);}
-    }
-    lastSavedAt = new Date();
-    const t = lastSavedAt;
-    const time = String(t.getHours()).padStart(2,"0")+":"+String(t.getMinutes()).padStart(2,"0");
-    saveLocalBackup();
-    setSaveStatus("ok","Salvat la "+time+" ✓");
-    // Auto backup în Firestore la fiecare salvare
-    triggerAutoBackup(time);
-  }catch(e){ console.error("save",e); setSaveStatus("error","Eroare la salvare!"); throw e; }
-  finally { isSaving = false; }
+/*C_TOOLS_BEGIN*/
+// ============================================================
+// UNELTE ADMIN: Export Excel (zile concediu) · Verificare coerență (cele 4 copii) · Jurnal zile (ce s-a adăugat / șters)
+// ============================================================
+const C_LABEL={leaves:"Concediu",krankLeaves:"Medical (Krank)",unpaidLeaves:"Fără plată",specialLeaves:"Special"};
+function _cEsc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function _cD(s){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||""); return m?m[3]+"."+m[2]+"."+m[1]:String(s||""); }
+function _cDs(s,y){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||""); if(!m) return String(s||""); return (+m[1]===y)?m[3]+"."+m[2]+".":m[3]+"."+m[2]+"."+m[1]; }
+function _cPer(l,y){ const a=_cDs(l.start,y), b=_cDs(l.end,y); return (l.start===l.end?a:a+"–"+b)+(l.reason?" ("+l.reason+")":""); }
+function _cOverlap(l,y){ return !!(l&&l.start&&l.end&&l.end>=y+"-01-01"&&l.start<=y+"-12-31"); }
+function _cWd(l,y,dr){ const from=l.start<y+"-01-01"?y+"-01-01":l.start, to=l.end>y+"-12-31"?y+"-12-31":l.end; return countWorkdays(parseDate(from),parseDate(to),dr); }
+async function _cSha(str){ try{ const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str)); return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,"0")).join(""); }catch(e){ return "indisponibil"; } }
+function _cNow(){ const d=new Date(), p=n=>String(n).padStart(2,"0"); return {iso:d.toISOString(),txt:p(d.getDate())+"."+p(d.getMonth()+1)+"."+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes()),file:d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())}; }
+
+function cModal(title,html){
+  let m=document.getElementById("cToolModal");
+  if(!m){ m=document.createElement("div"); m.id="cToolModal"; m.className="modal-bg";
+    m.innerHTML='<div class="modal" style="max-width:900px;max-height:90vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h3 id="cToolTitle" style="margin:0"></h3><button class="btn btn-secondary btn-small" onclick="cModalClose()">✕ Închide</button></div><div id="cToolBody" style="margin-top:12px;font-size:13px"></div></div>';
+    document.body.appendChild(m); }
+  document.getElementById("cToolTitle").textContent=title; document.getElementById("cToolBody").innerHTML=html; m.classList.add("show");
 }
+function cModalBody(html){ const b=document.getElementById("cToolBody"); if(b) b.innerHTML=html; }
+function cModalClose(){ const m=document.getElementById("cToolModal"); if(m) m.classList.remove("show"); }
+
+// ---- citește cele 4 documente de pe server și le îmbină (aceeași regulă ca în aplicație) ----
+async function _cFetchServer(){
+  const coll=concediiColl(), D={};
+  for(const d of C_DOCS){ const s=await db.collection(coll).doc(d).get(); D[d]=s.exists?(s.data().drivers||[]):[]; }
+  const seen=new Set(), merged=[];
+  ["tania","madalina","corina","raluca"].forEach(dk=>D[dk].forEach(p=>{ if(seen.has(p.name)) return; seen.add(p.name); const m=_cCopiesMerge(p,D); if(m) merged.push(m); }));
+  return {D,merged};
+}
+// diferențele dintre cele 4 copii ale aceleiași persoane (doar între documentele în care există)
+function _cCopyDiffs(D){
+  const names=new Set(); C_DOCS.forEach(d=>D[d].forEach(p=>names.add(p.name)));
+  const out=[];
+  [...names].sort((a,b)=>a.localeCompare(b,"ro")).forEach(n=>{
+    const copies=C_DOCS.map(d=>[d,_cFind(D[d],{name:n})]).filter(x=>x[1]);
+    if(new Set(copies.map(([d,c])=>_cStr(c))).size<=1) return;
+    const lines=[];
+    C_TYPES.forEach(t=>{
+      const all=new Map();
+      copies.forEach(([d,c])=>(c[t]||[]).forEach(l=>{ const k=l.start+"|"+l.end+"|"+(l.reason||""); if(!all.has(k)) all.set(k,{l,docs:new Set()}); all.get(k).docs.add(d); }));
+      all.forEach(v=>{ const miss=copies.map(x=>x[0]).filter(d=>!v.docs.has(d)); if(miss.length) lines.push(C_LABEL[t]+" "+_cD(v.l.start)+(v.l.end!==v.l.start?"–"+_cD(v.l.end):"")+" — doar în: "+[...v.docs].join(", ")+" · lipsește în: "+miss.join(", ")); });
+    });
+    if(!lines.length) lines.push("alte câmpuri diferă (zile disponibile, date de angajare etc.)");
+    out.push({name:n,lines});
+  });
+  return out;
+}
+
+// ---------------- VERIFICARE COERENȚĂ ----------------
+async function cCheckCoherence(){
+  cModal("🔍 Verificare coerență","<div style='padding:20px;text-align:center;color:var(--text-dim)'>⏳ Se citesc cele 4 documente de pe server…</div>");
+  try{
+    const {D,merged}=await _cFetchServer();
+    const diffs=_cCopyDiffs(D);
+    const total=merged.length, cnt=d=>D[d].length;
+    let h='<div style="margin-bottom:10px;color:var(--text-dim)">Persoane: <b>'+total+'</b> · Tania: '+cnt("tania")+' · Raluca: '+cnt("raluca")+' · Mădălina: '+cnt("madalina")+' · Corina: '+cnt("corina")+'</div>';
+    if(!diffs.length) h+='<div style="padding:14px;border-radius:10px;background:rgba(16,185,129,.12);color:#10b981;font-weight:700">✔ Toate copiile sunt identice. Nu lipsește nicio zi nicăieri.</div>';
+    else{
+      h+='<div style="padding:12px;border-radius:10px;background:rgba(245,158,11,.14);margin-bottom:10px"><b>'+diffs.length+' persoane</b> au copii diferite între documente. De obicei e temporar (un coordonator a salvat și oglinda „tania” nu s-a actualizat încă) și se aliniază singură în câteva secunde, cât timp Admin sau Tania au aplicația deschisă. Nu se pierde nimic: la aliniere se UNESC zilele din toate copiile.</div>';
+      h+='<div style="max-height:46vh;overflow:auto">'+diffs.map(d=>'<div style="padding:8px 0;border-bottom:1px solid var(--border)"><b>'+_cEsc(d.name)+'</b><ul style="margin:4px 0 0 18px;padding:0">'+d.lines.map(l=>'<li>'+_cEsc(l)+'</li>').join("")+'</ul></div>').join("")+'</div>';
+      h+='<div style="margin-top:12px;display:flex;gap:8px"><button class="btn btn-action" onclick="cAlignNow()">🔧 Aliniază acum (unește zilele din toate copiile)</button><button class="btn btn-secondary" onclick="cCheckCoherence()">↻ Verifică din nou</button></div>';
+    }
+    cModalBody(h);
+  }catch(e){ cModalBody('<div style="color:#ef4444">Eroare la citire: '+_cEsc(e.message||e)+'</div>'); }
+}
+async function cAlignNow(){
+  try{
+    const {D,merged}=await _cFetchServer();
+    _cCopyDiffs(D).forEach(d=>{ const p=(state.drivers||[]).find(x=>x.name===d.name); if(p) _cForce.add(_cKey(p)); });
+    cModalBody("<div style='padding:20px;text-align:center'>⏳ Se aliniază…</div>");
+    await saveDriversNow(); await cCheckCoherence();
+  }catch(e){ cModalBody('<div style="color:#ef4444">Nu s-a putut alinia: '+_cEsc(e.message||e)+'</div>'); }
+}
+
+// ---------------- JURNAL ZILE ----------------
+async function cJournalOpen(){
+  cModal("📜 Jurnal zile","<div style='padding:20px;text-align:center;color:var(--text-dim)'>⏳ Se încarcă…</div>");
+  try{
+    const snap=await db.collection("concedii_journal").orderBy("at","desc").limit(600).get();
+    const rows=[]; snap.forEach(d=>{ const e=d.data(); const t=e.at&&e.at.toDate?e.at.toDate():null; rows.push(Object.assign({},e,{_t:t})); });
+    window._cJournalRows=rows; cJournalRender();
+  }catch(e){ cModalBody('<div style="color:#ef4444">Eroare: '+_cEsc(e.message||e)+'</div>'); }
+}
+function _cEvText(e){
+  if(e.type==="person") return (e.op==="remove"?"PERSOANĂ ȘTEARSĂ":"persoană adăugată");
+  if(e.type==="field") return _cEsc(e.field)+": "+_cEsc(JSON.stringify(e.from))+" → "+_cEsc(JSON.stringify(e.to));
+  if(e.type==="bulk") return _cEsc(e.note||"modificare mare");
+  return (e.op==="remove"?"ȘTERS ":"adăugat ")+_cEsc(C_LABEL[e.type]||e.type)+": "+_cEsc(_cD(e.start)+(e.end&&e.end!==e.start?" – "+_cD(e.end):"")+(e.reason?" ("+e.reason+")":""));
+}
+function cJournalRender(){
+  const rows=window._cJournalRows||[]; const q=((document.getElementById("cJq")||{}).value||"").toLowerCase().trim(), op=(document.getElementById("cJop")||{}).value||"";
+  const seen=new Set(), list=[];
+  rows.forEach(e=>{
+    if(q&&!((e.person&&e.person.name)||"").toLowerCase().includes(q)) return;
+    if(op&&e.op!==op) return;
+    const k=[(e.person&&e.person.name),e.type,e.op,e.start,e.end,e.reason,e.field,JSON.stringify(e.to||"")].join("|")+"|"+(e._t?Math.floor(e._t.getTime()/600000):0);
+    if(seen.has(k)) return; seen.add(k); list.push(e);
+  });
+  const pd=n=>String(n).padStart(2,"0");
+  const f=e=>e._t?pd(e._t.getDate())+"."+pd(e._t.getMonth()+1)+"."+e._t.getFullYear()+" "+pd(e._t.getHours())+":"+pd(e._t.getMinutes()):"—";
+  let h='<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input id="cJq" placeholder="Caută persoană…" oninput="cJournalRender()" value="'+_cEsc(q)+'" style="flex:1;min-width:160px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text)"><select id="cJop" onchange="cJournalRender()" style="padding:7px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text)"><option value="">Tot</option><option value="remove"'+(op==="remove"?" selected":"")+'>Doar șterse</option><option value="add"'+(op==="add"?" selected":"")+'>Doar adăugate</option><option value="change"'+(op==="change"?" selected":"")+'>Doar alte modificări</option></select></div>';
+  if(!rows.length) h+='<div style="padding:14px;color:var(--text-dim)">Jurnalul e gol. Se umple automat după publicarea funcțiilor noi; de atunci, fiecare zi adăugată sau ștearsă apare aici.</div>';
+  else h+='<div style="color:var(--text-dim);margin-bottom:6px">'+list.length+' evenimente (ultimele 600 din jurnal; evenimentele identice din documente diferite sunt contopite).</div><div style="max-height:56vh;overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--text-dim)"><th style="padding:4px 6px">Când</th><th>Cine</th><th>Persoană</th><th>Ce</th></tr></thead><tbody>'+
+    list.map(e=>'<tr style="border-top:1px solid var(--border);'+(e.op==="remove"?"background:rgba(239,68,68,.08)":"")+'"><td style="padding:5px 6px;white-space:nowrap">'+f(e)+'</td><td>'+_cEsc(e.by||(e.legacy?"versiune veche?":"—"))+'</td><td><b>'+_cEsc((e.person&&e.person.name)||"")+'</b></td><td>'+_cEvText(e)+'</td></tr>').join("")+'</tbody></table></div>';
+  cModalBody(h);
+}
+
+// ---------------- EXPORT EXCEL ----------------
+function _cExportRows(y){
+  return (state.drivers||[]).slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"","ro")).map(dr=>{
+    const per={}; C_TYPES.forEach(t=>{ per[t]=(dr[t]||[]).filter(l=>_cOverlap(l,y)).sort((a,b)=>a.start<b.start?-1:a.start>b.start?1:0); });
+    const days=t=>per[t].reduce((s,l)=>s+_cWd(l,y,dr),0);
+    const when=t=>per[t].map(l=>_cPer(l,y)+" ("+_cWd(l,y,dr)+" z)").join("; ");
+    const total=getEffectiveMaxDays(dr,y)+getCarryOverForYear(dr,y), used=usedDaysThisYear(dr,"leaves",y);
+    return {name:dr.name||"",grup:(dr.archived?"arhivat":(dr.group||"")),total,used,left:total-used,leavesWhen:when("leaves"),krankDays:days("krankLeaves"),krankWhen:when("krankLeaves"),unpaidDays:days("unpaidLeaves"),unpaidWhen:when("unpaidLeaves"),specialDays:days("specialLeaves"),specialWhen:when("specialLeaves"),n:{leaves:per.leaves.length,krankLeaves:per.krankLeaves.length,unpaidLeaves:per.unpaidLeaves.length,specialLeaves:per.specialLeaves.length}};
+  });
+}
+function _cSnap(){ const o={}; (state.drivers||[]).forEach(p=>{ const e={n:p.name}; C_TYPES.forEach(t=>{ e[t]=(p[t]||[]).map(l=>l.start+">"+l.end+(l.reason?"|"+l.reason:"")).sort(); }); o[_cKey(p)]=e; }); return o; }
+function _cSnapDiff(prev,cur){
+  const r={persAdded:[],persRemoved:[],added:[],removed:[]};
+  Object.keys(cur).forEach(k=>{ if(!prev[k]) r.persAdded.push(cur[k].n); });
+  Object.keys(prev).forEach(k=>{ if(!cur[k]) r.persRemoved.push(prev[k].n); });
+  Object.keys(cur).forEach(k=>{ const a=cur[k], b=prev[k]; if(!b) return; C_TYPES.forEach(t=>{
+    const as=new Set(a[t]), bs=new Set(b[t]);
+    a[t].forEach(x=>{ if(!bs.has(x)) r.added.push({n:a.n,t,p:x}); });
+    b[t].forEach(x=>{ if(!as.has(x)) r.removed.push({n:a.n,t,p:x}); });
+  }); });
+  return r;
+}
+const _cPfmt=x=>{ const [per,reason]=x.split("|"); const [s,e]=per.split(">"); return _cD(s)+(e&&e!==s?"–"+_cD(e):"")+(reason?" ("+reason+")":""); };
+async function cExportExcel(){
+  if(!isAdmin()){ toast("Doar Adminul poate exporta.",true); return; }
+  if(typeof XLSX==="undefined"){ toast("Biblioteca Excel nu s-a încărcat. Reîncarcă pagina.",true); return; }
+  if(!_cLoaded){ toast("Datele nu s-au încărcat încă.",true); return; }
+  try{
+    toast("Se pregătește exportul…");
+    await saveDriversNow();                                         // întâi se trimite orice nesalvat
+    const y=(typeof activeYear!=="undefined"?activeYear:BASE_YEAR), now=_cNow(), coll=concediiColl();
+    const rows=_cExportRows(y);
+    // verificare față de server (4 citiri): memoria locală trebuie să fie identică cu ce e salvat
+    let srvLine="", srvOk=true, mism=[];
+    try{ const {merged}=await _cFetchServer(); const sm=new Map(merged.map(p=>[_cKey(p),p]));
+      (state.drivers||[]).forEach(p=>{ const s=sm.get(_cKey(p)); if(!s||_cStr(s)!==_cStr(p)) mism.push(p.name); });
+      merged.forEach(s=>{ if(!(state.drivers||[]).some(p=>_cKey(p)===_cKey(s))) mism.push(s.name+" (doar pe server)"); });
+      srvOk=!mism.length; srvLine=srvOk?"✔ Identic cu serverul — "+merged.length+" persoane":"⚠ DIFERĂ de server la: "+mism.slice(0,12).join(", ")+(mism.length>12?" …":"");
+    }catch(e){ srvOk=false; srvLine="⚠ Nu s-a putut compara cu serverul: "+(e.message||e); }
+    // față de exportul anterior
+    const snap=_cSnap(), pk="mtc_cexp_"+coll; let prev=null; try{ prev=JSON.parse(localStorage.getItem(pk)||"null"); }catch(e){}
+    const sum=(k)=>rows.reduce((s,r)=>s+r.n[k],0);
+    const hash=await _cSha(JSON.stringify(snap));
+    const H=["Nume","Grup","Zile disponibile "+y,"Zile luate "+y,"Zile rămase","Concediu — când","Medical (Krank) — zile","Medical (Krank) — când","Fără plată — zile","Fără plată — când","Special — zile","Special — când"];
+    const A=[H].concat(rows.map(r=>[r.name,r.grup,r.total,r.used,r.left,r.leavesWhen,r.krankDays,r.krankWhen,r.unpaidDays,r.unpaidWhen,r.specialDays,r.specialWhen]));
+    const V=[["VERIFICARE EXPORT"],[],["Exportat la",now.txt],["Anul",y],["Colecția",coll],["Versiune aplicație",(typeof MTC_APP_VERSION!=="undefined"?MTC_APP_VERSION:"")],[],
+      ["Persoane în export",rows.length],["Perioade concediu",sum("leaves")],["Perioade medical",sum("krankLeaves")],["Perioade fără plată",sum("unpaidLeaves")],["Perioade speciale",sum("specialLeaves")],["Amprentă SHA-256 (toate datele, toți anii)",hash],[],["Comparație cu serverul",srvLine],[]];
+    if(!prev) V.push(["Față de exportul anterior","Primul export de pe acest calculator — nu există cu ce compara. De acum încolo, fiecare export va fi comparat cu precedentul."]);
+    else{
+      const df=_cSnapDiff(prev.snap||{},snap); const when=prev.txt||"";
+      V.push(["Față de exportul anterior ("+when+")",(df.persRemoved.length||df.removed.length)?"⚠ LIPSESC date față de exportul anterior — verifică dacă au fost șterse intenționat (vezi „Jurnal zile”)":"✔ Nu lipsește nimic. "+(df.added.length||df.persAdded.length?"S-au adăugat date noi (mai jos).":"Nicio modificare.")]);
+      df.persRemoved.forEach(n=>V.push(["⚠ PERSOANĂ LIPSĂ",n]));
+      df.removed.forEach(x=>V.push(["⚠ LIPSEȘTE",x.n+" — "+C_LABEL[x.t]+": "+_cPfmt(x.p)]));
+      df.persAdded.forEach(n=>V.push(["+ persoană nouă",n]));
+      df.added.forEach(x=>V.push(["+ adăugat",x.n+" — "+C_LABEL[x.t]+": "+_cPfmt(x.p)]));
+    }
+    const wb=XLSX.utils.book_new(), ws=XLSX.utils.aoa_to_sheet(A), wv=XLSX.utils.aoa_to_sheet(V);
+    ws["!cols"]=[{wch:26},{wch:11},{wch:12},{wch:11},{wch:11},{wch:60},{wch:12},{wch:44},{wch:12},{wch:44},{wch:10},{wch:34}];
+    wv["!cols"]=[{wch:44},{wch:110}];
+    XLSX.utils.book_append_sheet(wb,ws,"Concedii "+y); XLSX.utils.book_append_sheet(wb,wv,"Verificare");
+    XLSX.writeFile(wb,"Concedii_MTC_"+y+"_"+now.file+".xlsx");
+    try{ localStorage.setItem(pk,JSON.stringify({txt:now.txt,iso:now.iso,snap})); }catch(e){}
+    toast((srvOk?"Export gata ✔ ":"Export gata, dar verifică foaia „Verificare” ⚠ ")+rows.length+" persoane",!srvOk);
+  }catch(e){ console.error("export",e); toast("Export eșuat: "+(e.message||e),true); }
+}
+/*C_TOOLS_END*/
+
 
 // ============================================================
 // FETCH COMPLET DE PE SERVER — indiferent cine e logat, citește direct din
@@ -5510,10 +5917,13 @@ async function fetchCompleteServerState(activityLimit){
   const byName={};
   const knownDocs=["raluca","madalina","corina","tania"];
   const unexpectedDocs=[];
+  const Dcopies={};
   concSnap.forEach(doc=>{
     if(!knownDocs.includes(doc.id)) unexpectedDocs.push(doc.id);
-    (doc.data().drivers||[]).forEach(d=>{ byName[d.name]=d; });
+    Dcopies[doc.id]=doc.data().drivers||[];
   });
+  // copiile aceleiași persoane (tania + coordonatori) se ÎMBINĂ, ca în aplicație — backup-ul nu mai alege una singură
+  knownDocs.concat(Object.keys(Dcopies).filter(k=>!knownDocs.includes(k))).forEach(dk=>(Dcopies[dk]||[]).forEach(d=>{ if(byName[d.name]) return; byName[d.name]=_cCopiesMerge(d,Dcopies)||d; }));
   if(unexpectedDocs.length>0){
     console.warn("⚠️ Document(e) neașteptat(e) găsit(e) în colecția concedii:", unexpectedDocs, "— incluse oricum în backup, dar merită verificate manual în Firebase Console.");
   }
@@ -6460,6 +6870,7 @@ function enterApp(userKey){
   if(quickKrankBtn) quickKrankBtn.style.display = (canConcedii && canEdit()) ? "block" : "none";
 
   if(loadBackupBtn) loadBackupBtn.style.display = isAdm?"block":"none";
+  ["cExportBtn","cJournalBtn","cCheckBtn"].forEach(id=>{ const b=document.getElementById(id); if(b) b.style.display=isAdm?"block":"none"; });
   const archiveBtn = document.getElementById("archiveBtn");
   if(archiveBtn) archiveBtn.style.display = isAdm?"block":"none";
   const permissionsBtn2 = document.getElementById("permissionsBtn");
@@ -9666,10 +10077,16 @@ async function switchYear(year){
   const uk=window.activeUserKey||"tania";
   setSaveStatus("saving","Se încarcă "+year+"...");
   try{
-    const testSnap=await db.collection(concediiColl()).doc(uk==="admin"?"tania":uk).get();
+    // citire OBLIGATORIE de pe server: din memoria locală „nu există” nu înseamnă că nu există și pe server
+    const testSnap=await db.collection(concediiColl()).doc(uk==="admin"?"tania":uk).get({source:"server"});
     if(!testSnap.exists){ await initYearFromBase(uk,year); }
     else { initApp(uk); }
-  }catch(e){ await initYearFromBase(uk,year); }
+  }catch(e){
+    // eroare de rețea/permisiuni: NU creăm nimic (înainte, aici se rescriau documentele anului cu liste goale)
+    console.error("switchYear",e);
+    toast("⚠ Nu pot verifica anul "+year+" pe server (fără conexiune?). Nu am modificat nimic — încearcă din nou.",true);
+    initApp(uk);
+  }
   loadPresState(); loadSortState(); loadBackupInfoFromStorage(); loadLibereState(); loadPermOverrides();
   toast("📅 Schimbat la "+year);
 }
@@ -9686,9 +10103,13 @@ async function initYearFromBase(uk, year){
         byDoc[dk].push({id:d.id,name:d.name,visibleTo:d.visibleTo||[],maxDays:d.maxDays||0,carryOverDays:0,carryOverByYear:{},leaves:[],krankLeaves:[],unpaidLeaves:[],specialLeaves:[]});
       });
     });
-    const newColl=concediiColl();
-    await Promise.all(docKeys.map(dk=>db.collection(newColl).doc(dk).set({drivers:byDoc[dk],thresholds:{warn:3,crit:5}})));
-    toast("✨ An nou "+year+" inițializat cu persoanele din 2026");
+    const newColl=concediiColl(); let created=0;
+    // create-only: dacă documentul există deja (chiar și creat între timp de altcineva), NU se atinge
+    await Promise.all(docKeys.map(dk=>{ const ref=db.collection(newColl).doc(dk);
+      return db.runTransaction(async tx=>{ const s=await tx.get(ref); if(s.exists) return;
+        tx.set(ref,{drivers:byDoc[dk],thresholds:{warn:3,crit:5},lw:{u:uk,t:Date.now(),v:_cVer(),n:0,d:0,k:"init"}}); created++; })
+        .catch(e=>{ console.warn("initYear",dk,e&&e.code||e); }); }));
+    toast(created?("✨ An nou "+year+" inițializat cu persoanele din 2026"):("Anul "+year+" exista deja — nu am modificat nimic"));
   }catch(e){ console.error("initYearFromBase",e); }
   initApp(uk);
 }
@@ -12041,6 +12462,13 @@ function salBaniSave(){
   if(!(amt>0)){ err.textContent="Introdu o sumă mai mare ca 0"; return; }
   if(!(kind==="inainte"&&!date)&&!/^\d{4}-\d{2}-\d{2}$/.test(date)){ err.textContent="Alege data"; return; }
   const note=document.getElementById("salBaniNote").value.trim();
+  if(kind==="primit" && !_salBaniEdit){
+    // Reținerea din salariu se scade SINGURĂ din total (coloana „Reținut din salariu”) — introdusă și manual ar fi numărată de două ori
+    const cc=salBaniCalc(id);
+    if(cc.vd>0.005 && (/re[tț]inut|salar|vorschuss|avans/i.test(note) || amt<=cc.vd+0.005)){
+      if(!confirm("⚠ ATENȚIE — posibilă dublură!\n\n"+salEmpName(id)+" are deja „Reținut din salariu” = "+salFmt(cc.vd)+" € care se scade AUTOMAT din total.\nDacă acești "+salFmt(amt)+" € sunt tocmai reținerea din salariu, NU îi mai introduce manual (ar fi scăzuți de două ori).\n\nOK = îi introduc totuși (am primit banii separat, în mână/transfer)\nAnulare = nu salvez")) return;
+    }
+  }
   if(!_salBaniEdit && kind!=="inainte" && !confirm((kind==="primit"?"✅ AI PRIMIT ":"💸 AI DAT ")+salFmt(amt)+" € "+(kind==="primit"?"de la ":"lui ")+salEmpName(id)+" (data "+salDateRo(date)+")?\n\nOK = salvez · Anulare = nu salvez")) return;
   if(_salBaniEdit){ const x=salBani.entries.find(e=>e.id===_salBaniEdit); if(x){ const old={empId:x.empId,kind:x.kind,amount:salNum(x.amount),date:x.date||"",note:x.note||""}; Object.assign(x,{empId:id,kind,amount:amt,date,note,editedAt:new Date().toISOString(),editedBy:window.activeUserKey||""}); salBaniHist("edit",x,old); } }
   else { const ne={id:uid(),empId:id,kind,amount:amt,date,note,at:new Date().toISOString(),by:window.activeUserKey||""}; salBani.entries.push(ne); salBaniHist("add",ne); }
@@ -17403,9 +17831,10 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Schimbă tema" style="display:none">🌙</button>
 <div id="versionCorner" style="position:fixed;bottom:6px;right:10px;font-size:10px;color:#999;opacity:0.6;pointer-events:none;z-index:100">v2026.10.23-03</div>
 
+<script>window.MTC_AUTO_UPDATE=true;</script>
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261115-111316';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261116-124355';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -17450,6 +17879,18 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
       (n>=1?'<div style="font-size:12px;color:#b45309;margin-top:8px">'+(n>=3?'Actualizarea nu reușește. Închide complet aplicația și deschide-o din nou, sau apasă Ctrl+Shift+R (pe telefon: șterge datele site-ului din setările browserului).':'Prima încercare nu a ajuns complet. Apasă din nou — facem o curățare completă.')+'</div>':'')+
       '</div>';
     document.getElementById('mtc-upd-btn').onclick=function(){ force(sv); };
+    // Actualizare AUTOMATĂ (doar în aplicațiile care o cer: window.MTC_AUTO_UPDATE=true): după 8 secunde pornește singură.
+    // După 2 încercări eșuate rămâne manuală, ca să nu intre în buclă.
+    if(window.MTC_AUTO_UPDATE && n<2 && !window._mtcUpdAuto){
+      var left=8;
+      window._mtcUpdAuto=setInterval(function(){
+        if(busy){ clearInterval(window._mtcUpdAuto); return; }
+        var s=document.getElementById('mtc-upd-st');
+        if(left<=0){ clearInterval(window._mtcUpdAuto); force(sv); return; }
+        if(s) s.textContent='Se actualizează automat în '+left+' s…';
+        left--;
+      },1000);
+    }
   }
   async function force(sv){
     if(busy) return; busy=true;
@@ -17457,7 +17898,11 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
     function say(t){ if(st) st.textContent=t; }
     function wait(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
     if(btn){ btn.disabled=true; btn.style.opacity='.6'; }
-    say('Se salvează datele…'); await wait(900);
+    say('Se salvează datele…');
+    // dacă aplicația are o salvare programată (Concedii/Pontaj), o pornește ACUM și așteaptă să se termine (max. 6 s)
+    try{ if(typeof saveTimer!=='undefined' && saveTimer && typeof saveDriversNow==='function'){ clearTimeout(saveTimer); saveTimer=null; saveDriversNow().catch(function(){}); } }catch(e){}
+    await wait(900);
+    try{ for(var i=0;i<24 && ((typeof isSaving!=='undefined' && isSaving) || (typeof _zetSaveT!=='undefined' && _zetSaveT));i++) await wait(250); }catch(e){}
     var n=tries(sv)+1; setTries(sv,n);
     say('Se șterge memoria veche…');
     try{ if(window.caches){ var ks=await caches.keys(); await Promise.all(ks.map(function(k){ return caches.delete(k); })); } }catch(e){}
@@ -17491,6 +17936,9 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
+
 
 
 
