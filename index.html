@@ -4230,6 +4230,7 @@ function mcbToast(msg,isErr){
     <button class="btn btn-secondary btn-small" id="cJournalBtn" onclick="cJournalOpen()" style="width:100%; margin-bottom:6px; display:none; border-color:#ef4444; color:#ef4444">📜 Jurnal zile (adăugat / șters)</button>
     <button class="btn btn-secondary btn-small" id="cCheckBtn" onclick="cCheckCoherence()" style="width:100%; margin-bottom:6px; display:none; border-color:#0ea5e9; color:#0ea5e9">🔍 Verificare coerență (copii)</button>
     <button class="btn btn-secondary btn-small" id="simBtn" onclick="openSimPicker()" style="width:100%; margin-bottom:6px; display:none; border-color:#a855f7; color:#a855f7">👁 Vezi ca un coleg (simulare)</button>
+    <button class="btn btn-secondary btn-small" id="cbkBtn" onclick="cbkOpen()" style="width:100%; margin-bottom:6px; display:none; border-color:#0d9488; color:#0d9488">🔐 Copie criptată (PC)</button>
     <button class="btn btn-secondary btn-small" id="mcbBtn" onclick="mcbOpen()" style="width:100%; margin-bottom:6px; display:none; border-color:#10b981; color:#10b981">☁️ Backup pe module (Cloud)</button>
     <button class="btn btn-secondary btn-small" id="archiveBtn" onclick="openArchive()" style="width:100%; margin-bottom:6px; display:none; border-color:#8b5cf6; color:#8b5cf6">📦 Arhivă persoane</button>
     <button class="btn btn-secondary btn-small" id="permissionsBtn" onclick="openPermissionsPanel()" style="width:100%; margin-bottom:6px; display:none; border-color:#0ea5e9; color:#0ea5e9">🔑 Permisiuni acces</button>
@@ -5584,6 +5585,28 @@ function _cReconcile(fresh){
 }
 
 // ---- tranzacții ----
+// ---- declarația pentru gardianul de pe server: ce a cerut utilizatorul (restul schimbărilor dintr-un document sunt „neautorizate”) ----
+const C_GFIELDS=["maxDays","maxDaysOverride","carryOverDays","carryOverByYear","borrowedDays","startDate","endDate","archived","group","noSaturday","name"];
+function _cPK(x){ return [x&&x.start||"",x&&x.end||"",x&&x.reason||""].join("|"); }
+// k = cheia persoanei, b = baza (ce știam) sau null, l = varianta locală
+function _cDeclOne(k,b,l){
+  if(!b) return [k+"|P|+"];
+  const B=_cNorm(b), L=_cNorm(l), d=[];
+  C_TYPES.forEach(T=>{
+    const bs=new Set((B[T]||[]).map(_cPK)), ls=new Set((L[T]||[]).map(_cPK));
+    ls.forEach(x=>{ if(!bs.has(x)) d.push([k,"T",T,x,"+"].join("|")); });
+    bs.forEach(x=>{ if(!ls.has(x)) d.push([k,"T",T,x,"-"].join("|")); });
+  });
+  C_GFIELDS.forEach(f=>{ if(_cStable(B[f])!==_cStable(L[f])) d.push([k,"F",f].join("|")); });
+  return d;
+}
+// groups = [{k,toks}] → {id,d}; peste 300 de jetoane, persoanele cu cele mai multe devin „exceptate” (|*) ca declarația să încapă
+function _cPackDecl(groups,stamp){
+  let n=groups.reduce((s,g)=>s+g.toks.length,0);
+  if(n>300){ groups.slice().sort((a,b)=>b.toks.length-a.toks.length).forEach(g=>{ if(n>300&&g.toks.length>1){ n-=g.toks.length-1; g.toks=[g.k+"|*"]; } }); }
+  return {id:Number(stamp||Date.now()).toString(36)+Math.random().toString(36).slice(2,8),d:[].concat(...groups.map(g=>g.toks))};
+}
+
 // versiunea aplicației intră în semnătura fiecărei salvări: regula Firestore respinge scrierile fără ea (= versiuni vechi)
 function _cVer(){ try{ return (typeof MTC_APP_VERSION!=="undefined")?String(MTC_APP_VERSION):""; }catch(e){ return ""; } }
 async function _cTxAdmin(coll,changed,deleted,base,stamp,uk,mirror){
@@ -5593,10 +5616,13 @@ async function _cTxAdmin(coll,changed,deleted,base,stamp,uk,mirror){
     out={merged:[],removed:[],kept:[]};
     const data={},arr={},touched={};
     for(const d of C_DOCS){ const s=await tx.get(refs[d]); data[d]=s.exists?s.data():{}; arr[d]=(data[d].drivers||[]).slice(); touched[d]=false; }
-    const remoteOf=p=>_cCopiesMerge(p,arr);
+    const remoteOf=p=>_cCopiesMerge(p,arr); const groups=[];
     changed.forEach(p=>{
       const k=_cKey(p), r=remoteOf(p), b=base.get(k)||null;
       const M=_cMergePerson(b,p,r); _cAssertMerge(b,p,r,M); M._m=(mirror&&mirror.has(k)&&r&&r._m)?r._m:Math.max(stamp,((r&&r._m)||0)+1);   // mereu mai nou decât tot ce a citit
+      const tn=_cFind(arr.tania,p);                                    // diferența față de „tania” vine din ce a cerut omul DOAR dacă oglinda e identică cu îmbinarea copiilor și persoana exista deja
+      const star=(mirror&&mirror.has(k))||(tn&&(!r||_cStr(tn)!==_cStr(r)))||(!b&&tn)||(b&&!tn);   // aliniere de copii / persoană care exista deja într-o parte și lipsea în alta → exceptată
+      groups.push({k,toks:star?[k+"|*"]:(b?_cDeclOne(k,b,p):[k+"|P|+"])});
       const vis=M.visibleTo||[];
       C_DOCS.forEach(d=>{
         const want=(d==="tania")||vis.includes(d); const i=_cFindIdx(arr[d],p);
@@ -5609,9 +5635,10 @@ async function _cTxAdmin(coll,changed,deleted,base,stamp,uk,mirror){
       const r=remoteOf(b);
       if(r&&_cStr(r)!==_cStr(b)){ out.kept.push(_cClone(r)); return; }     // altcineva a modificat-o între timp → nu o șterg
       C_DOCS.forEach(d=>{ const i=_cFindIdx(arr[d],b); if(i>=0){ arr[d].splice(i,1); touched[d]=true; } });
-      out.removed.push(_cKey(b));
+      out.removed.push(_cKey(b)); groups.push({k:_cKey(b),toks:[_cKey(b)+"|P|-"]});
     });
-    C_DOCS.forEach(d=>{ if(touched[d]) tx.set(refs[d],Object.assign({},data[d],{drivers:arr[d],thresholds:state.thresholds||{warn:3,crit:5},lw:Object.assign({u:uk,t:stamp,v:_cVer(),n:changed.length-(mirror?mirror.size:0),d:deleted.length},(mirror&&mirror.size&&mirror.size===changed.length&&!deleted.length)?{k:"mirror"}:{})})); });
+    const chg=_cPackDecl(groups,stamp);
+    C_DOCS.forEach(d=>{ if(touched[d]) tx.set(refs[d],Object.assign({},data[d],{drivers:arr[d],thresholds:state.thresholds||{warn:3,crit:5},chg,lw:Object.assign({u:uk,t:stamp,v:_cVer(),n:changed.length-(mirror?mirror.size:0),d:deleted.length},(mirror&&mirror.size&&mirror.size===changed.length&&!deleted.length)?{k:"mirror"}:{})})); });
   });
   return out;
 }
@@ -5619,21 +5646,22 @@ async function _cTxUser(coll,docId,changed,deleted,base,stamp,uk){
   const ref=db.collection(coll).doc(docId); let out=null;
   await db.runTransaction(async tx=>{
     out={merged:[],removed:[],kept:[]};
-    const s=await tx.get(ref); const data=s.exists?s.data():{}; const arr=(data.drivers||[]).slice(); let touched=false;
+    const s=await tx.get(ref); const data=s.exists?s.data():{}; const arr=(data.drivers||[]).slice(); let touched=false; const groups=[];
     changed.forEach(p=>{
       const k=_cKey(p), r=_cFind(arr,p), b=base.get(k)||null;
       const M=_cMergePerson(b,p,r); _cAssertMerge(b,p,r,M);
       const i=_cFindIdx(arr,p);
       if(i>=0&&_cStr(arr[i])===_cStr(M)){ out.merged.push(_cClone(arr[i])); return; }   // identică cu ce e pe server: nu rescriu
       M._m=Math.max(stamp,((r&&r._m)||0)+1); if(i>=0) arr[i]=M; else arr.push(M); touched=true; out.merged.push(M);
+      groups.push({k,toks:(!b&&r)?[k+"|*"]:_cDeclOne(k,b,p)});
     });
     deleted.forEach(b=>{
       const r=_cFind(arr,b);
       if(r&&_cStr(r)!==_cStr(b)){ out.kept.push(_cClone(r)); return; }
       const i=_cFindIdx(arr,b); if(i>=0){ arr.splice(i,1); touched=true; }
-      out.removed.push(_cKey(b));
+      out.removed.push(_cKey(b)); groups.push({k:_cKey(b),toks:[_cKey(b)+"|P|-"]});
     });
-    if(touched) tx.set(ref,Object.assign({},data,{drivers:arr,thresholds:state.thresholds||{warn:3,crit:5},lw:{u:uk,t:stamp,v:_cVer(),n:changed.length,d:deleted.length}}));
+    if(touched) tx.set(ref,Object.assign({},data,{drivers:arr,thresholds:state.thresholds||{warn:3,crit:5},chg:_cPackDecl(groups,stamp),lw:{u:uk,t:stamp,v:_cVer(),n:changed.length,d:deleted.length}}));
   });
   return out;
 }
@@ -6872,7 +6900,8 @@ function enterApp(userKey){
   if(quickKrankBtn) quickKrankBtn.style.display = (canConcedii && canEdit()) ? "block" : "none";
 
   if(loadBackupBtn) loadBackupBtn.style.display = isAdm?"block":"none";
-  ["cExportBtn","cJournalBtn","cCheckBtn"].forEach(id=>{ const b=document.getElementById(id); if(b) b.style.display=isAdm?"block":"none"; });
+  ["cExportBtn","cJournalBtn","cCheckBtn","cbkBtn"].forEach(id=>{ const b=document.getElementById(id); if(b) b.style.display=isAdm?"block":"none"; });
+  if(isAdm){ try{ cbkStart(); cbkNagRefresh(); }catch(e){} }
   const archiveBtn = document.getElementById("archiveBtn");
   if(archiveBtn) archiveBtn.style.display = isAdm?"block":"none";
   const permissionsBtn2 = document.getElementById("permissionsBtn");
@@ -10295,12 +10324,15 @@ function salTouch(){ if(!_salUnlocked) return; _salLastAct=Date.now(); clearTime
 let _salTouchTs=0;
 ["mousemove","pointermove","scroll","wheel"].forEach(ev=>document.addEventListener(ev,()=>{ const n=Date.now(); if(n-_salTouchTs<1000) return; _salTouchTs=n; salTouch(); },{passive:true,capture:true}));
 async function salLockNow(auto,noNav){
+  const _sPend=_sCapture(k=>k!=="emps");        // ce e nesalvat se captează ACUM și se trimite înainte de salLock (memoria se șterge imediat)
   const was=_salUnlocked; _salUnlocked=false;
   clearTimeout(_salIdleTimer); clearInterval(_salRenewTimer); _salRenewTimer=null;
   if(_salUnsubMonth){ try{_salUnsubMonth();}catch(e){} _salUnsubMonth=null; }
+  _sReset();
   _salMonthLoadedKey=null; salMonthData={rows:{},lma:null}; _salPkgCache={}; _salPkgYear=null;
   if(_salUnsubBani){ try{_salUnsubBani();}catch(e){} _salUnsubBani=null; } salBani={entries:[],hist:[]}; if(_salBaniTimer){ clearTimeout(_salBaniTimer); _salBaniTimer=null; } _salBaniSel="";
   if(_salUnsubVors){ try{_salUnsubVors();}catch(e){} _salUnsubVors=null; } salVors={emps:{}}; if(_salVorsTimer){ clearTimeout(_salVorsTimer); _salVorsTimer=null; }
+  if(_sPend.length){ try{ await _sFlushCaptured(_sPend,5000,"la blocare",1); }catch(e){} }
   if(was){ try{ await callFn("salLock"); }catch(e){} }
   zetReset();
   if(!noNav && (appMode==="salarii"||appMode==="zet")) setAppMode("concedii");
@@ -10308,6 +10340,7 @@ async function salLockNow(auto,noNav){
 }
 function salStartSession(){
   _salUnlocked=true; _salLastAct=Date.now(); salTouch(); loadVorschuss(); loadBani(); salArchSoon("unlock");
+  try{ if(typeof cbkAuto==="function") setTimeout(cbkAuto,6000); }catch(e){}
   clearInterval(_salRenewTimer);
   _salRenewTimer=setInterval(async()=>{
     if(!_salUnlocked) return;
@@ -10421,11 +10454,203 @@ function salFuzzyEmps(name){ return salEmps.filter(e=>!e.angajatiId&&salFuzzyEq(
 function salNum(v){ const n=parseFloat(String(v==null?"":v).replace(",",".")); return isNaN(n)?0:n; }
 function salFmt(n){ return (Math.round(n*100)/100).toLocaleString("ro-RO",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
+/*SAL_SAFE_BEGIN*/
+// ============================================================
+// SALVARE SIGURĂ A SALARIILOR (m_AAAA-LL, angajați, vorschuss, bani) — nicio valoare nu se mai pierde la salvare
+//  • Salvarea NU mai scrie documentul din memoria paginii. Citește documentul curent de pe server într-o TRANZACȚIE și aplică DOAR ce ai schimbat tu
+//    (îmbinare pe 3 părți: ce știam / ce am acum / ce e pe server, pe câmpuri). Ce a modificat altcineva în alt loc rămâne neatins.
+//  • Dacă ai modificat tu și altcineva ACEEAȘI valoare, rămâne a ta și ești anunțat. Ce ai șters tu, dar altcineva a modificat între timp, NU se șterge.
+//  • Când sosește o schimbare de pe server cât ai modificări nesalvate, se îmbină local (înainte: snapshot-ul era ignorat, iar salvarea următoare suprascria).
+//  • Salvare eșuată (net, sesiune): se reîncearcă singură (2 s … 2 min), cu bandă roșie cât durează. Modificările NU se scriu pe disc (date salariale necriptate): rămân doar în memorie.
+//  • La blocare (inactivitate 5 minute / ecran de blocare) se încearcă o ultimă salvare înainte să se șteargă memoria.
+//  • Fiecare salvare poartă `lw = {u,t,v,n,d,c}` (cine, când, versiunea paginii, câte căi, conflicte): regula Firestore o poate cere (lacăt).
+// ============================================================
+function _sClone(o){ return o===undefined?undefined:JSON.parse(JSON.stringify(o)); }
+const _sIsObj=v=>v!==null&&typeof v==="object"&&!Array.isArray(v);
+const SAL_IDARR={emps:"id",entries:"id"};   // liste cu element unic după `id` (restul listelor = mulțimi de elemente)
+function _sMergeSet(B,l,r){
+  const cnt=a=>{ const m=new Map(); a.forEach(x=>{ const s=_cStable(x); m.set(s,(m.get(s)||0)+1); }); return m; };
+  const cb=cnt(B), cl=cnt(l), rem=new Map(), add=new Map();
+  new Set([...cb.keys(),...cl.keys()]).forEach(s=>{ const d=(cl.get(s)||0)-(cb.get(s)||0); if(d<0) rem.set(s,-d); else if(d>0) add.set(s,d); });
+  const out=[];
+  r.forEach(it=>{ const s=_cStable(it), n=rem.get(s)||0; if(n>0){ rem.set(s,n-1); return; } out.push(it); });   // ce am scos eu
+  l.forEach(it=>{ const s=_cStable(it), n=add.get(s)||0; if(n>0){ add.set(s,n-1); out.push(it); } });             // ce am adăugat eu
+  return out;
+}
+function _sMergeIdArr(B,l,r,idk,ctx,path){
+  if([...B,...l,...r].some(x=>!_sIsObj(x)||x[idk]==null)) return _sMergeSet(B,l,r);
+  const mp=a=>{ const m=new Map(); a.forEach(x=>m.set(String(x[idk]),x)); return m; };
+  const mb=mp(B), ml=mp(l), mr=mp(r), out=[];
+  r.forEach(re=>{
+    const id=String(re[idk]), be=mb.get(id), le=ml.get(id);
+    if(!le){
+      if(be&&_cStable(be)===_cStable(re)) return;                                   // am șters eu, serverul n-a modificat → se șterge
+      if(be) ctx.conflicts.push({p:path+"["+id+"]",k:"kept"});                       // am șters eu, dar altcineva a modificat între timp → rămâne
+      out.push(re); return;
+    }
+    if(be) out.push(_sMerge(be,le,re,ctx,path+"["+id+"]",null));
+    else if(_cStable(le)===_cStable(re)) out.push(re);
+    else { ctx.conflicts.push({p:path+"["+id+"]",k:"mine"}); out.push(le); }
+  });
+  l.forEach(le=>{
+    const id=String(le[idk]); if(mr.has(id)) return; const be=mb.get(id);
+    if(be&&_cStable(be)===_cStable(le)) return;                                    // l-a șters altcineva, eu nu l-am atins → rămâne șters
+    if(be) ctx.conflicts.push({p:path+"["+id+"]",k:"mine"});                         // l-a șters altcineva, dar l-am modificat eu → rămâne al meu
+    out.push(le);                                                                    // adăugat de mine
+  });
+  return out;
+}
+// b = baza (ce știam că e pe server), l = local acum, r = server acum
+function _sMerge(b,l,r,ctx,path,key){
+  const sb=_cStable(b), sl=_cStable(l);
+  if(sb===sl) return r;                                                // n-am schimbat nimic aici → rămâne ce e pe server
+  const sr=_cStable(r);
+  if(sr===sb||sr===sl) return l;                                       // serverul n-a schimbat, sau a ajuns deja la aceeași valoare
+  if(l===undefined){ ctx.conflicts.push({p:path,k:"kept"}); return r; }  // am șters eu, altcineva a modificat → rămâne ce a pus el
+  if(_sIsObj(l)&&_sIsObj(r)){
+    const B=_sIsObj(b)?b:{}, out=Object.assign({},r);
+    new Set([...Object.keys(B),...Object.keys(l),...Object.keys(r)]).forEach(k=>{ const v=_sMerge(B[k],l[k],r[k],ctx,path+"."+k,k); if(v===undefined) delete out[k]; else out[k]=v; });
+    return out;
+  }
+  if(Array.isArray(l)&&Array.isArray(r)){ const B=Array.isArray(b)?b:[], idk=SAL_IDARR[key]; return idk?_sMergeIdArr(B,l,r,idk,ctx,path):_sMergeSet(B,l,r); }
+  ctx.conflicts.push({p:path,k:"mine"}); return l;                    // aceeași valoare schimbată diferit în două locuri: rămâne a mea
+}
+function _sPaths(b,l,path,out){   // câte căi diferă (pentru semnătură)
+  if(out.n>=999) return;
+  if(_cStable(b)===_cStable(l)) return;
+  if(_sIsObj(l)&&_sIsObj(b)){ new Set([...Object.keys(b),...Object.keys(l)]).forEach(k=>_sPaths(b[k],l[k],path+"."+k,out)); return; }
+  out.n++;
+}
+let _sSaving=false;
+const _sBase={}, _sSt={};
+const SAL_RETRY=[2000,5000,15000,30000,60000,120000];
+function _sCfg(key){
+  if(key==="emps") return {path:"angajati",need:false,label:"angajați",pick:d=>({emps:Array.isArray(d.emps)?d.emps:[]}),get:()=>({emps:salEmps}),set:M=>{ salEmps=M.emps||[]; }};
+  if(key==="vors") return {path:"vorschuss",need:true,label:"vorschuss",pick:d=>({emps:_sIsObj(d.emps)?d.emps:{}}),get:()=>({emps:salVors.emps}),set:M=>{ salVors={emps:M.emps||{}}; }};
+  if(key==="bani") return {path:"bani",need:true,label:"bani",pick:d=>({entries:Array.isArray(d.entries)?d.entries:[],hist:Array.isArray(d.hist)?d.hist:[]}),
+    get:()=>({entries:salBani.entries,hist:salBani.hist||[]}),set:M=>{ salBani={entries:M.entries||[],hist:M.hist||[]}; },
+    post:M=>{ if(Array.isArray(M.hist)){ M.hist.sort((a,b)=>String((a&&a.ts)||"")<String((b&&b.ts)||"")?-1:String((a&&a.ts)||"")>String((b&&b.ts)||"")?1:0); M.hist=M.hist.slice(-3000); } return M; }};
+  if(/^m_\d{4}-\d{2}$/.test(key)){ const mk=key.slice(2);
+    return {path:key,need:true,label:"luna "+mk,pick:d=>({rows:_sIsObj(d.rows)?d.rows:{},lma:d.lma===undefined?null:d.lma}),
+      get:()=>_salMonthLoadedKey===mk?{rows:salMonthData.rows||{},lma:salMonthData.lma===undefined?null:salMonthData.lma}:null,
+      set:M=>{ if(_salMonthLoadedKey===mk){ salMonthData.rows=M.rows||{}; salMonthData.lma=M.lma===undefined?null:M.lma; } }}; }
+  return null;
+}
+function _sDirty(key){ const c=_sCfg(key), b=_sBase[key]; if(!c||!b) return false; const l=c.get(); return !!l&&_cStable(l)!==_cStable(b); }
+function _sKeys(){ const ks=["emps","vors","bani"]; if(_salMonthLoadedKey) ks.push("m_"+_salMonthLoadedKey); Object.keys(_sSt).forEach(k=>{ if(!ks.includes(k)) ks.push(k); }); return ks; }
+function _sUpd(){ _sSaving=Object.keys(_sSt).some(k=>_sSt[k].busy||_sSt[k].timer||_sSt[k].retryT)||_sKeys().some(_sDirty); }
+function _sBar(on){
+  try{
+    let el=document.getElementById("salUnsavedBar");
+    if(!on){ if(el) el.remove(); return; }
+    if(!el){ el=document.createElement("div"); el.id="salUnsavedBar"; el.style.cssText="position:fixed;top:0;left:0;right:0;z-index:99999;background:#dc2626;color:#fff;padding:8px 12px;text-align:center;font:600 13px system-ui,sans-serif"; document.body.appendChild(el); }
+    el.textContent="⚠ Salarii: ultimele modificări NU sunt încă salvate — se reîncearcă singur. Nu închide pagina și nu bloca Salarii.";
+  }catch(e){}
+}
+function _sConflictToast(c,conflicts){
+  if(!conflicts.length) return;
+  try{ const nm=p=>{ const m=/^\.rows\.([^.]+)\.(.+)$/.exec(p)||/^\.emps\[([^\]]+)\]/.exec(p); const e=m&&(salEmps||[]).find(x=>x.id===m[1]); return (e?e.name+" · ":"")+(m&&m[2]?m[2]:p); };
+    const mine=conflicts.filter(x=>x.k==="mine").map(x=>nm(x.p)), kept=conflicts.filter(x=>x.k==="kept").map(x=>nm(x.p));
+    if(mine.length) toast("⚠ "+c.label+": altcineva a modificat între timp aceeași valoare ("+mine.slice(0,3).join(", ")+(mine.length>3?" …":"")+") — s-a păstrat a ta.",true);
+    if(kept.length) toast("⚠ "+c.label+": nu am șters ("+kept.slice(0,3).join(", ")+(kept.length>3?" …":"")+") — a fost modificat de altcineva între timp.",true);
+  }catch(e){}
+}
+// salvare cu tranzacție: base/local = „conținutul” documentului (nu updatedAt/lw)
+async function _sTx(c,base,local,uk){
+  let out=null; const ref=db.collection("salarii").doc(c.path);
+  await db.runTransaction(async tx=>{
+    const s=await tx.get(ref), data=s.exists?s.data():{}, remote=c.pick(data), ctx={conflicts:[]};
+    let M=_sMerge(base,local,remote,ctx,"",null); M=_sClone(M); if(c.post) M=c.post(M);
+    const same=s.exists&&_cStable(M)===_cStable(remote);
+    const paths={n:0}; _sPaths(base,local,"",paths);
+    if(!same) tx.set(ref,Object.assign({},data,JSON.parse(JSON.stringify(M)),{updatedAt:new Date().toISOString(),lw:{u:uk,t:Date.now(),v:_cVer(),n:paths.n,d:0,c:ctx.conflicts.length}}));
+    out={M,remote,conflicts:ctx.conflicts,wrote:!same};
+  });
+  return out;
+}
+async function _sRun(key){
+  const st=_sSt[key]||(_sSt[key]={}); if(st.timer){ clearTimeout(st.timer); st.timer=null; }
+  if(st.busy){ st.again=true; return st.p||false; }
+  const c=_sCfg(key); if(!c) return true;
+  if(c.need&&!_salUnlocked){ if(_sDirty(key)) toast("🔒 Salarii e blocat — modificarea NU s-a salvat. Redeschide cu PIN-ul și repetă-o.",true); _sUpd(); return false; }
+  const base=_sBase[key];
+  if(!base){ st.timer=setTimeout(()=>_sRun(key),1000); _sUpd(); return false; }            // documentul încă nu s-a încărcat de pe server
+  const cur=c.get(); if(!cur){ _sUpd(); return true; }
+  const local=_sClone(cur);
+  if(_cStable(local)===_cStable(base)){ st.retryN=0; if(st.retryT){ clearTimeout(st.retryT); st.retryT=null; } if(!Object.keys(_sSt).some(k=>_sSt[k].retryT)) _sBar(false); _sUpd(); return true; }
+  st.busy=true; _sSaving=true;
+  st.p=(async()=>{
+    try{
+      const res=await _sTx(c,base,local,window.activeUserKey||"admin");
+      if(st.retryT){ clearTimeout(st.retryT); st.retryT=null; } st.retryN=0;
+      _sBase[key]=_sClone(res.M);
+      const nowL=c.get();
+      if(nowL){
+        const same=_cStable(nowL)===_cStable(local);
+        c.set(same?_sClone(res.M):_sClone(_sMerge(local,nowL,res.M,{conflicts:[]},"",null)));   // s-a mai modificat ceva cât se salva → se păstrează
+        if(_cStable(res.M)!==_cStable(local)){ try{ if(appMode==="salarii"){ if(key==="bani") renderBani(); else renderSalarii(); } }catch(e){} }   // au venit și schimbări de la altcineva
+      }
+      _sConflictToast(c,res.conflicts);
+      if(!Object.keys(_sSt).some(k=>k!==key&&_sSt[k].retryT)) _sBar(false);
+      return true;
+    }catch(e){
+      console.error("salvare salarii",key,e);
+      const n=(st.retryN=(st.retryN||0)+1); _sBar(true);
+      if(n===1) toast("❌ Eroare salvare "+c.label+": "+(e.message||e.code)+" — se reîncearcă singur.",true);
+      if(!st.retryT) st.retryT=setTimeout(()=>{ st.retryT=null; _sRun(key); },SAL_RETRY[Math.min(n-1,SAL_RETRY.length-1)]);
+      return false;
+    }
+    finally{ st.busy=false; _sUpd(); if(st.again){ st.again=false; _sSaveSoon(key,150); } }
+  })();
+  return st.p;
+}
+function _sSaveSoon(key,ms){ const st=_sSt[key]||(_sSt[key]={}); if(st.timer) clearTimeout(st.timer); st.timer=setTimeout(()=>{ st.timer=null; _sRun(key); },ms==null?600:ms); _sSaving=true; }
+function _sSaveNow(key){ return _sRun(key); }
+// snapshot de pe server: se îmbină cu modificările nesalvate, nu le ignoră
+function _sOnSnap(key,remote){
+  const c=_sCfg(key); if(!c) return;
+  const local=c.get(), b=_sBase[key];
+  if(b&&local){ const M=_sMerge(b,local,remote,{conflicts:[]},"",null); c.set(_sClone(M)); } else c.set(_sClone(remote));
+  _sBase[key]=_sClone(remote);
+  if(_sDirty(key)){ const st=_sSt[key]||(_sSt[key]={}); if(!st.timer&&!st.busy&&!st.retryT) _sSaveSoon(key,400); }
+  _sUpd();
+}
+// înainte de blocare / schimbarea lunii: ce e nesalvat se captează și se trimite (memoria se poate șterge imediat)
+function _sCapture(only){
+  const out=[];
+  _sKeys().forEach(k=>{ if(only&&!only(k)) return; const c=_sCfg(k), b=_sBase[k]; if(!c||!b) return; const l=c.get(); if(l&&_cStable(l)!==_cStable(b)) out.push({key:k,base:_sClone(b),local:_sClone(l),cfg:c}); });
+  return out;
+}
+async function _sFlushCaptured(list,ms,why,tries){
+  if(!list.length) return true;
+  list.forEach(x=>{ const st=_sSt[x.key]; if(st){ if(st.timer){ clearTimeout(st.timer); st.timer=null; } if(st.retryT){ clearTimeout(st.retryT); st.retryT=null; } } });
+  const job=Promise.all(list.map(x=>_sRunCap(x,tries||1)));
+  const ok=await Promise.race([job.then(r=>r.every(Boolean)),new Promise(r=>setTimeout(()=>r(false),ms||5000))]);
+  if(!ok&&(tries||1)<=1) toast("⚠ Salarii: modificări NESALVATE s-au pierdut "+(why||"")+" ("+list.map(x=>x.cfg.label).join(", ")+") — verifică și repetă-le.",true);
+  return ok;
+}
+async function _sRunCap(x,tries){
+  const wait=[0,2000,5000,15000,30000];
+  for(let i=0;i<(tries||1);i++){
+    if(wait[i]) await new Promise(r=>setTimeout(r,wait[i]));
+    try{ const res=await _sTx(x.cfg,x.base,x.local,window.activeUserKey||"admin"); _sConflictToast(x.cfg,res.conflicts); return true; }
+    catch(e){ console.error("salvare captată",x.key,e); if(i===(tries||1)-1){ if((tries||1)>1) toast("⚠ Salarii: modificările din "+x.cfg.label+" NU s-au putut salva după mai multe încercări — repetă-le.",true); return false; } }
+  }
+  return false;
+}
+function _sReset(){   // la blocare: documentele protejate de PIN se șterg din memorie; lista de angajați (fără PIN) rămâne cu modificările ei nesalvate
+  Object.keys(_sSt).forEach(k=>{ if(k==='emps') return; const s=_sSt[k]; if(s.timer) clearTimeout(s.timer); if(s.retryT) clearTimeout(s.retryT); delete _sSt[k]; });
+  Object.keys(_sBase).forEach(k=>{ if(k!=='emps') delete _sBase[k]; });
+  if(!(_sSt.emps&&_sSt.emps.retryT)) _sBar(false); _sUpd();
+}
+try{ window.addEventListener("beforeunload",e=>{ if(_sSaving&&_sKeys().some(_sDirty)){ e.preventDefault(); e.returnValue="Ai modificări de Salarii nesalvate."; return e.returnValue; } }); }catch(e){}
+/*SAL_SAFE_END*/
+
 function loadSalarii(){
   if(!canSalarii()) return;
   if(_salUnsubEmps){ try{_salUnsubEmps();}catch(e){} }
   _salUnsubEmps = db.collection("salarii").doc("angajati").onSnapshot(snap=>{
-    salEmps = snap.exists ? (snap.data().emps||[]) : [];
+    _sOnSnap("emps",{emps:(snap.exists&&Array.isArray(snap.data().emps))?snap.data().emps:[]});   // se îmbină cu modificările nesalvate (nu le ignoră)
     const first=!_salEmpsLoaded; _salEmpsLoaded=true;
     if(first) salProcessSync();
     if(appMode==="salarii") renderSalarii();
@@ -10437,6 +10662,8 @@ function salLoadMonth(){
   const mk=salMk();
   if(_salMonthLoadedKey===mk) return;
   if(_salUnsubMonth){ try{_salUnsubMonth();}catch(e){} }
+  if(_salMonthLoadedKey){ const pk0="m_"+_salMonthLoadedKey; if(_sDirty(pk0)) _sFlushCaptured(_sCapture(k=>k===pk0),60000,"la schimbarea lunii",4).catch(()=>{}); }   // ce ai modificat în luna veche se trimite înainte să dispară din memorie
+  delete _sBase["m_"+mk];
   _salMonthLoadedKey=mk;
   salMonthData={rows:{},lma:null};
   try{ const pd=new Date(salCur.getFullYear(),salCur.getMonth()-1,1); const pk=pd.getFullYear()+"-"+String(pd.getMonth()+1).padStart(2,"0");
@@ -10444,25 +10671,13 @@ function salLoadMonth(){
     db.collection("salarii").doc("m_"+pk).get().then(sn=>{ if(_salMonthLoadedKey!==mk) return; _salPrevObs={key:mk,rows:(sn.exists&&sn.data().rows)||{}}; if(appMode==="salarii") renderSalarii(); }).catch(()=>{});
   }catch(e){}
   _salUnsubMonth = db.collection("salarii").doc("m_"+mk).onSnapshot(snap=>{
-    if(_salSaveTimer) return; // nu suprascriem editarea în curs
-    salMonthData = snap.exists ? {rows:(snap.data().rows||{}),lma:(snap.data().lma||null)} : {rows:{},lma:null};
+    if(_salMonthLoadedKey!==mk) return;
+    _sOnSnap("m_"+mk,{rows:(snap.exists&&snap.data().rows)||{},lma:(snap.exists&&snap.data().lma)||null});   // îmbinare cu modificările nesalvate, nu „ignor snapshot-ul”
     if(appMode==="salarii") renderSalarii();
   }, e=>{ console.warn("salarii month err",e); if(e&&e.code==="permission-denied") salLockNow(true); });
 }
-function salSaveMonthSoon(){
-  if(_salSaveTimer) clearTimeout(_salSaveTimer);
-  const mk=salMk();
-  _salSaveTimer=setTimeout(async()=>{
-    _salSaveTimer=null;
-    if(!_salUnlocked){ toast("🔒 Salarii e blocat — modificarea NU s-a salvat. Redeschide cu PIN-ul și repetă-o.",true); return; }
-    try{ await db.collection("salarii").doc("m_"+mk).set(JSON.parse(JSON.stringify({rows:salMonthData.rows,lma:salMonthData.lma||null,updatedAt:new Date().toISOString()}))); }
-    catch(e){ toast("❌ Eroare salvare salarii: "+(e.message||e.code),true); }
-  },600);
-}
-async function salSaveEmps(){
-  try{ await db.collection("salarii").doc("angajati").set(JSON.parse(JSON.stringify({emps:salEmps,updatedAt:new Date().toISOString()}))); return true; }
-  catch(e){ toast("❌ Eroare salvare angajați: "+(e.message||e.code),true); return false; }
-}
+function salSaveMonthSoon(){ _sSaveSoon("m_"+(_salMonthLoadedKey||salMk()),600); }
+async function salSaveEmps(){ return !!(await _sSaveNow("emps")); }
 function salChangeMonth(d){ salCur=new Date(salCur.getFullYear(),salCur.getMonth()+d,1); salLoadMonth(); renderSalarii(); }
 function salGoToday(){ const n=new Date(); salCur=new Date(n.getFullYear(),n.getMonth(),1); salLoadMonth(); renderSalarii(); }
 
@@ -10682,20 +10897,11 @@ function salVorsCalc(id,mk){
 function loadVorschuss(){
   if(_salUnsubVors){ try{_salUnsubVors();}catch(e){} }
   _salUnsubVors=db.collection("salarii").doc("vorschuss").onSnapshot(snap=>{
-    if(_salVorsTimer) return;
-    salVors = snap.exists ? {emps:(snap.data().emps||{})} : {emps:{}};
+    _sOnSnap("vors",{emps:(snap.exists&&snap.data().emps)||{}});
     if(appMode==="salarii") renderSalarii();
   }, e=>{ console.warn("vorschuss err",e); if(e&&e.code==="permission-denied") salLockNow(true); });
 }
-function salVorsSaveSoon(){
-  if(_salVorsTimer) clearTimeout(_salVorsTimer);
-  _salVorsTimer=setTimeout(async()=>{
-    _salVorsTimer=null;
-    if(!_salUnlocked){ toast("🔒 Salarii e blocat — modificarea NU s-a salvat. Redeschide cu PIN-ul și repetă-o.",true); return; }
-    try{ await db.collection("salarii").doc("vorschuss").set(JSON.parse(JSON.stringify({emps:salVors.emps,updatedAt:new Date().toISOString()}))); }
-    catch(e){ toast("❌ Eroare salvare vorschuss: "+(e.message||e.code),true); }
-  },500);
-}
+function salVorsSaveSoon(){ _sSaveSoon("vors",500); }
 function salShowView(v){
   _salView=v;
   ["main","vors","pkg","stat","bani"].forEach(k=>{ const el=document.getElementById("salView"+k.charAt(0).toUpperCase()+k.slice(1)); if(el) el.style.display=v===k?"":"none"; const tb=document.getElementById("salTab"+(k==="main"?"Main":k.charAt(0).toUpperCase()+k.slice(1))); if(tb) tb.classList.toggle("on",v===k||(k==="vors"&&v==="bani")); });
@@ -10835,7 +11041,7 @@ async function salArchSource(sid){
     const r=await callFn("salArchiveList",{sid}); const s=(window._saSrc||[]).find(x=>x.sid===sid)||{kind:"",id:sid.split("__")[1]||sid}; window._saVers=r.versions||[]; window._saSid=sid;
     cModalBody('<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><button class="btn btn-secondary btn-small" onclick="salArchRender()">← Toate documentele</button><b>'+_cEsc(_saLabel(s))+'</b><button class="btn btn-small" onclick="salArchVerify(\''+sid+'\')">🔗 Verifică lanțul</button><span id="saVerMsg" style="color:var(--text-dim)"></span></div>'+
       '<div style="max-height:56vh;overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--text-dim)"><th style="padding:4px 6px">#</th><th>Când</th><th>Motiv</th><th>Cine</th><th>Schimbări</th><th>Amprentă</th></tr></thead><tbody>'+
-      (window._saVers.map(v=>'<tr onclick="salArchVersion(\''+sid+'\','+v.seq+')" style="cursor:pointer;border-top:1px solid var(--border);'+(v.postPaid?"background:rgba(239,68,68,.10)":"")+'"><td style="padding:5px 6px"><b>'+v.seq+'</b></td><td style="white-space:nowrap">'+_saWhen(v.at)+'</td><td>'+_cEsc(v.reason||"")+'</td><td>'+_cEsc(v.by||"")+'</td><td>'+(v.deleted?"<b style='color:#dc2626'>document șters</b>":(v.n||0))+(v.postPaid?' <span style="color:#dc2626" title="Rânduri deja plătite, modificate">⚠</span>':'')+'</td><td style="font-family:monospace;color:var(--text-dim)">'+_cEsc(String(v.hash||"").slice(0,10))+'</td></tr>').join("")||'<tr><td colspan="6" style="padding:12px;color:var(--text-dim)">Nicio versiune.</td></tr>')+'</tbody></table></div>');
+      (window._saVers.map(v=>'<tr onclick="salArchVersion(\''+sid+'\','+v.seq+')" style="cursor:pointer;border-top:1px solid var(--border);'+(v.postPaid?"background:rgba(239,68,68,.10)":"")+'"><td style="padding:5px 6px"><b>'+v.seq+'</b></td><td style="white-space:nowrap">'+_saWhen(v.at)+'</td><td>'+_cEsc(v.reason||"")+'</td><td>'+_cEsc(v.by||"")+'</td><td>'+(v.deleted?"<b style='color:#dc2626'>document șters</b>":(v.seq===1?"<span style='color:var(--text-dim)' title='Prima fotografie a documentului: nu are față de ce să fie comparată'>prima versiune</span>":(v.n||0)))+(v.postPaid?' <span style="color:#dc2626" title="Rânduri deja plătite, modificate">⚠</span>':'')+'</td><td style="font-family:monospace;color:var(--text-dim)">'+_cEsc(String(v.hash||"").slice(0,10))+'</td></tr>').join("")||'<tr><td colspan="6" style="padding:12px;color:var(--text-dim)">Nicio versiune.</td></tr>')+'</tbody></table></div>');
   }catch(e){ cModalBody('<div style="color:#ef4444">'+_saErr(e)+'</div>'); }
 }
 async function salArchVersion(sid,seq){
@@ -11150,7 +11356,7 @@ function updateAdminPanelBtn(){
   pb.style.display=any?"block":"none";
   pb.onclick=adm?openAdminPanel:openBorrowedDaysManager;
   const n=(typeof salPending!=="undefined"?salPending.length:0);
-  pb.textContent=adm?("⚙️ Panou Admin"+(n?" — "+n+" de aprobat":"")):"📅 Zile împrumutate";
+  pb.textContent=adm?("⚙️ Panou Admin"+(n?" — "+n+" de aprobat":"")+((typeof _cbkOld!=="undefined"&&_cbkOld)?" 🔴":"")):"📅 Zile împrumutate";
   pb.style.borderColor=n?"#f59e0b":"#6366f1"; pb.style.color=n?"#f59e0b":"#6366f1";
 }
 (function(){
@@ -11509,8 +11715,10 @@ async function salLmaConfirm(){
     } else {
       const snap=await db.collection("salarii").doc("m_"+mk).get();
       const keep=salMonthData; salMonthData={rows:(snap.exists?snap.data().rows:null)||{},lma:snap.exists?(snap.data().lma||null):null};
+      const base0=_sClone({rows:salMonthData.rows,lma:salMonthData.lma===undefined?null:salMonthData.lma});     // ce era pe server înainte de modificare
       const sk=doApply(); const data=salMonthData; salMonthData=keep; if(sk===false) return;
-      await db.collection("salarii").doc("m_"+mk).set(JSON.parse(JSON.stringify({rows:data.rows,lma:data.lma,updatedAt:new Date().toISOString()})));
+      await _sTx(_sCfg("m_"+mk),base0,{rows:data.rows||{},lma:data.lma===undefined?null:data.lma},window.activeUserKey||"admin");   // tranzacție + îmbinare, nu `set` peste tot documentul
+      _sFlushCaptured(_sCapture(k=>/^m_/.test(k)),60000,"la schimbarea lunii",4).catch(()=>{});      // luna afișată acum: ce e nesalvat se trimite înainte să se reîncarce
       salCur=new Date(y,m-1,1); _salMonthLoadedKey=null; _salPkgCache={};
     }
   }catch(e){ err.textContent="Eroare: "+(e.message||e.code); return; }
@@ -12449,6 +12657,7 @@ async function zetIdbGet(k){ const db=await zetIdb(); return new Promise((res,re
 async function zetIdbSet(k,v){ const db=await zetIdb(); return new Promise((res,rej)=>{ const t=db.transaction("h","readwrite"); t.objectStore("h").put(v,k); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error); }); }
 const zetFsKey=()=>"dir_"+(window._simUser||window.activeUserKey||"x");
 async function zetFsInit(){
+  if(_zetCtx==="admin"){ _zetFsState={st:"cbk"}; zetFsChipRefresh(); return; }   // Admin: copia simplă pe PC (Excel cu tarif) e ÎNLOCUITĂ de Copia criptată (Panou Admin)
   if(window.activeUserKey==="mihaela"){ _zetFsState={st:"unsupported"}; return; }   // verifică dacă există folder salvat și dacă avem încă permisiunea
   if(!ZET_FS_OK){ _zetFsState={st:"unsupported"}; return; }
   try{ const h=await zetIdbGet(zetFsKey()); if(!h){ _zetFsState={st:"none"}; return; }
@@ -12457,6 +12666,7 @@ async function zetFsInit(){
   zetFsChipRefresh();
 }
 async function zetFsPick(){
+  if(_zetCtx==="admin"){ cbkOpen(); return; }
   try{ const h=await window.showDirectoryPicker({mode:"readwrite"}); await zetIdbSet(zetFsKey(),h); _zetFsState={st:"ok",name:h.name,at:""}; zetFsChipRefresh(); await zetFsBackup(true); toast("✓ Copia pe PC activată în folderul „"+h.name+"”"); }
   catch(e){ if(e&&e.name!=="AbortError") toast("❌ Folder: "+(e.message||e),true); }
 }
@@ -12473,11 +12683,12 @@ function zetDiffLines(a,b){
   return out;
 }
 function zetFsBackupSoon(){
+  if(_zetCtx==="admin") return;   // Admin: nu se mai scrie copie necriptată (cu tarif) pe PC
   if(window.activeUserKey==="mihaela"||window._simUser||!ZET_FS_OK||_zetFsState.st!=="ok"||!_zetData) return;
   if(_zetFsT) clearTimeout(_zetFsT); _zetFsT=setTimeout(()=>zetFsBackup(false),1000);
 }
 async function zetFsBackup(force){
-  _zetFsT=null; if(window._simUser||!_zetData) return;
+  _zetFsT=null; if(window._simUser||!_zetData||_zetCtx==="admin") return;
   try{
     const h=await zetIdbGet(zetFsKey()); if(!h) return; if((await h.queryPermission({mode:"readwrite"}))!=="granted"){ _zetFsState={st:"perm",name:h.name}; zetFsChipRefresh(); return; }
     const y=_zetCur.getFullYear(), m=_zetCur.getMonth(); const ps=zetPeople().filter(p=>_zetData.emps[p.id]&&zetCalc(_zetData.emps[p.id],y,m).any);
@@ -12498,6 +12709,11 @@ async function zetFsBackup(force){
   }catch(e){ _zetFsState={st:"err",msg:(e&&e.message)||String(e)}; zetFsChipRefresh(); }
 }
 function zetFsChipHtml(){
+  if(_zetCtx==="admin"){
+    const l=cbkLast(), bt=(t,f)=>`<button onclick="${f}" style="margin-left:8px;padding:3px 10px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-size:12px;color:var(--text)">${t}</button>`;
+    const d=l.at?new Date(l.at).toLocaleString("ro-RO",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
+    return l.at?`<div style="font-size:12.5px;padding:7px 12px;border-radius:10px;border:1px dashed var(--border);color:var(--text-dim)">🔐 Copia pe PC e <b>criptată</b> (Panou Admin → Copie criptată) · ultima: ${zetEsc(d)}${l.err?`<div style="color:#dc2626;margin-top:4px">Ultima eroare: ${zetEsc(l.err)}</div>`:""}${bt("Deschide","cbkOpen()")}</div>`:`<div style="font-size:12.5px;padding:7px 12px;border-radius:10px;border:2px solid #dc2626;color:#dc2626">⚠ Copia criptată pe PC nu e încă activată (nu se mai face copie simplă, cu tarif, pe PC). ${bt("Configurează","cbkOpen()")}</div>`;
+  }
   const st=_zetFsState.st; const b=(t,f)=>`<button onclick="${f}" style="margin-left:8px;padding:3px 10px;border:1px solid var(--border);border-radius:999px;background:var(--bg-elev);cursor:pointer;font-size:12px;color:var(--text)">${t}</button>`;
   const base='style="font-size:12.5px;padding:7px 12px;border-radius:10px;border:1px dashed var(--border);color:var(--text-dim)"';
   if(st==="ok") return `<div ${base}>💾 Copie automată pe PC activă — folder „${zetEsc(_zetFsState.name||"")}”${_zetFsState.at?" · ultima: "+_zetFsState.at:""}${_zetFsState.warn?`<div style="color:#b45309;margin-top:4px">⚠ ${zetEsc(_zetFsState.warn)}</div>`:""}${b("Schimbă folderul","zetFsPick()")}${b("Salvează acum","zetFsBackup(true)")}</div>`;
@@ -12509,6 +12725,242 @@ function zetFsChipHtml(){
   return `<div ${base}>💾 Nu ai activat copia automată pe PC ${b("Alege folderul pentru copie","zetFsPick()")}</div>`;
 }
 function zetFsChipRefresh(){ const el=document.getElementById("zetFsChip"); if(el) el.innerHTML=zetFsChipHtml(); }
+
+/*CBK_BEGIN*/
+// ============================================================
+// COPIE CRIPTATĂ PE PC (doar Admin; Chrome / Edge pe calculator). A doua copie a datelor, în afara cloud-ului, citibilă DOAR cu cheia privată pe care o ai tu.
+//  • Conținut: Concedii (toate documentele, toți anii), Pontaj (zeiten + setări) și — doar cât e deschisă sesiunea PIN Salarii — salarii/* și stundenzettel/* (cu tarif).
+//  • Criptare: fiecare copie = JSON comprimat (gzip), criptat cu o cheie AES-256-GCM aleatoare, înfășurată cu cheia PUBLICĂ RSA-OAEP 3072 (SHA-256). Aici nu există nicio cheie privată.
+//  • Folder ales o dată (File System Access API). După scriere, fișierul se CITEȘTE înapoi și se verifică SHA-256. manifest.json (fără date sensibile) listează fișierele cu SHA-256.
+//  • Rotație: ultimele 30 de zile câte o copie pe zi (+ cea cu Salarii), apoi câte una pe lună; cea mai nouă nu se șterge niciodată.
+//  • Decriptare: pagina offline decripteaza.html sau scriptul decripteaza.py, cu fișierul de cheie privată + fraza ta.
+// ============================================================
+const CBK_OK=typeof window!=="undefined"&&!!window.showDirectoryPicker&&!!(window.crypto&&crypto.subtle);
+const CBK_DIR="MTC-Copie-Criptata";
+function cbkColls(){   // anul de bază = "concedii"; ceilalți ani = "concedii_AAAA" (2024 … anul viitor +1, minim 2030); documentele care nu există se sar
+  const base=(typeof BASE_YEAR!=="undefined")?BASE_YEAR:2026, last=Math.max(2030,new Date().getFullYear()+2), out=["concedii"];
+  for(let y=2024;y<=last;y++) if(y!==base) out.push("concedii_"+y); return out;
+}
+const CBK_RE=/^mtc-(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})(-S)?\.mtcenc$/;
+let _cbkBusy=false, _cbkState={}, _cbkNagged=false, _cbkOld=false, _cbkTimer=null;
+const cbkB64=u8=>{ let s=""; for(let i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000)); return btoa(s); };
+const cbkUnB64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const cbkHex=u8=>Array.from(u8,x=>x.toString(16).padStart(2,"0")).join("");
+async function cbkSha(buf){ return cbkHex(new Uint8Array(await crypto.subtle.digest("SHA-256",buf))); }
+function cbkLast(){ try{ return JSON.parse(localStorage.getItem("mtc_cbk_last")||"{}")||{}; }catch(e){ return {}; } }
+function cbkSetLast(o){ try{ localStorage.setItem("mtc_cbk_last",JSON.stringify(Object.assign(cbkLast(),o))); }catch(e){} }
+const cbkP2=n=>String(n).padStart(2,"0");
+function cbkFileName(d,sal){ return "mtc-"+d.getFullYear()+"-"+cbkP2(d.getMonth()+1)+"-"+cbkP2(d.getDate())+"_"+cbkP2(d.getHours())+cbkP2(d.getMinutes())+(sal?"-S":"")+".mtcenc"; }
+function cbkParseName(n){ const m=CBK_RE.exec(n); return m?{name:n,t:new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5]).getTime(),sal:!!m[6],day:m[1]+"-"+m[2]+"-"+m[3],mon:m[1]+"-"+m[2]}:null; }
+// Rotația (funcție pură): ce rămâne / ce se poate șterge
+function cbkRotatePlan(names,now){
+  const items=names.map(cbkParseName).filter(Boolean).sort((a,b)=>b.t-a.t), keep=new Set(), seen=new Set();
+  if(items.length) keep.add(items[0].name);                                  // cea mai nouă: niciodată
+  const s0=items.find(x=>x.sal); if(s0) keep.add(s0.name);                    // cea mai nouă cu Salarii: niciodată
+  items.forEach(x=>{ const k=((now-x.t)<=30*86400000?"d"+x.day:"m"+x.mon)+(x.sal?"S":"N"); if(!seen.has(k)){ seen.add(k); keep.add(x.name); } });   // în fiecare zi (30 zile) / lună: cea mai nouă
+  return {keep:[...keep],del:items.filter(x=>!keep.has(x.name)).map(x=>x.name)};
+}
+function cbkPlain(v){
+  if(v===undefined) return null; if(v===null||typeof v!=="object") return v;
+  if(typeof v.toDate==="function"&&typeof v.seconds==="number") return {__ts:v.toDate().toISOString(),s:v.seconds,n:v.nanoseconds||0};   // s/n păstrează precizia exactă la restaurare
+  if(typeof v.path==="string"&&v.firestore) return {__ref:v.path};
+  if(Array.isArray(v)) return v.map(cbkPlain);
+  const o={}; Object.keys(v).forEach(k=>{ if(v[k]!==undefined) o[k]=cbkPlain(v[k]); }); return o;
+}
+// citește din Firestore tot ce intră în copie; o citire OBLIGATORIE eșuată oprește copia (nu se scrie o copie pe jumătate goală)
+async function cbkCollect(withSal){
+  const docs={}, counts={}, warn=[]; const put=(p,d,g)=>{ docs[p]=cbkPlain(d); counts[g]=(counts[g]||0)+1; };
+  const colls=cbkColls();
+  for(const c of colls) for(const d of C_DOCS){ const s=await db.collection(c).doc(d).get(); if(s.exists) put(c+"/"+d,s.data(),"concedii"); }
+  if(!counts.concedii) throw new Error("Concedii: nu s-a găsit niciun document — copia nu se scrie");
+  for(const c of ["zeiten","zeiten_cfg"]){ const q=await db.collection(c).get(); q.forEach(s=>put(c+"/"+s.id,s.data(),c)); }
+  let sal=false;
+  if(withSal){
+    try{ const a=await db.collection("salarii").get(), b=await db.collection("stundenzettel").get(); a.forEach(s=>put("salarii/"+s.id,s.data(),"salarii")); b.forEach(s=>put("stundenzettel/"+s.id,s.data(),"stundenzettel")); sal=true; }
+    catch(e){ ["salarii","stundenzettel"].forEach(g=>{ Object.keys(docs).filter(p=>p.startsWith(g+"/")).forEach(p=>delete docs[p]); delete counts[g]; }); warn.push("Salarii nu s-au putut citi ("+((e&&e.message)||e)+") — copia e fără Salarii"); }
+  }
+  return {obj:{fmt:"mtc-copie",v:1,at:new Date().toISOString(),by:window.activeUserKey||"",version:_cVer(),project:"calendar-f2589",sal,counts,docs},sal,counts,warn};
+}
+async function cbkGzip(u8){
+  if(typeof CompressionStream==="undefined") return {u8,z:"none"};
+  const cs=new CompressionStream("gzip"), w=cs.writable.getWriter(); w.write(u8); w.close();
+  return {u8:new Uint8Array(await new Response(cs.readable).arrayBuffer()),z:"gzip"};
+}
+async function cbkEncrypt(plain,pubKey,kid,at,sal){
+  const g=await cbkGzip(plain), aes=await crypto.subtle.generateKey({name:"AES-GCM",length:256},true,["encrypt"]), iv=crypto.getRandomValues(new Uint8Array(12));
+  const aad=new TextEncoder().encode(["MTCENC1",kid,at,sal?1:0,g.z].join("|"));
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv,additionalData:aad},aes,g.u8));
+  const wk=new Uint8Array(await crypto.subtle.encrypt({name:"RSA-OAEP"},pubKey,await crypto.subtle.exportKey("raw",aes)));
+  return JSON.stringify({fmt:"MTCENC1",kid,at,sal:!!sal,z:g.z,wk:cbkB64(wk),iv:cbkB64(iv),ct:cbkB64(ct)});
+}
+async function cbkImportPub(text){
+  const m=/-----BEGIN PUBLIC KEY-----([\s\S]*?)-----END PUBLIC KEY-----/.exec(String(text||"")); if(!m) throw new Error("Nu pare o cheie publică (lipsește „BEGIN PUBLIC KEY”). Lipește exact ce ți-a dat pagina de generare.");
+  const spki=cbkUnB64(m[1].replace(/\s+/g,"")); let key;
+  try{ key=await crypto.subtle.importKey("spki",spki,{name:"RSA-OAEP",hash:"SHA-256"},false,["encrypt"]); }catch(e){ throw new Error("Cheia publică nu e validă: "+(e.message||e)); }
+  if(!key.algorithm||key.algorithm.modulusLength<3072) throw new Error("Cheia e prea scurtă (minim 3072 de biți). Generează cheia cu pagina din pachet.");
+  return {key,spki:cbkB64(spki),kid:(await cbkSha(spki)).slice(0,16)};
+}
+async function cbkDirOf(h){ return h.getDirectoryHandle(CBK_DIR,{create:true}); }
+async function cbkWrite(dir,name,data){ const fh=await dir.getFileHandle(name,{create:true}), w=await fh.createWritable(); await w.write(data); await w.close(); }
+async function cbkRead(dir,name){ const fh=await dir.getFileHandle(name); return new Uint8Array(await (await fh.getFile()).arrayBuffer()); }
+async function cbkList(dir){ const out=[]; for await(const e of dir.values()){ if(e.kind==="file"&&CBK_RE.test(e.name)) out.push(e.name); } return out; }
+async function cbkManifest(dir){ try{ const m=JSON.parse(new TextDecoder().decode(await cbkRead(dir,"manifest.json"))); if(m&&Array.isArray(m.copies)) return m; }catch(e){} return {fmt:"mtc-manifest",v:1,copies:[]}; }
+async function cbkStatus(){
+  const st={ok:CBK_OK}; if(!CBK_OK) return st;
+  try{ const h=await zetIdbGet("cbk_dir"); if(h){ st.dir=h.name; st.perm=await h.queryPermission({mode:"readwrite"}); } }catch(e){}
+  try{ const k=await zetIdbGet("cbk_pub"); if(k){ st.kid=k.kid; st.keyAt=k.at; } }catch(e){}
+  Object.assign(st,cbkLast()); return st;
+}
+// o copie: colectează → criptează → scrie → citește înapoi și verifică → manifest → rotație
+async function cbkRun(withSal,manual){
+  if(_cbkBusy) return {ok:false,msg:"o copie rulează deja"}; _cbkBusy=true;
+  try{
+    if(!CBK_OK) return {ok:false,msg:"Browserul nu permite folderul (folosește Chrome sau Edge pe calculator)"};
+    const rec=await zetIdbGet("cbk_pub"); if(!rec) return {ok:false,msg:"Cheia publică nu e setată"};
+    const h=await zetIdbGet("cbk_dir"); if(!h) return {ok:false,msg:"Folderul nu e ales"};
+    let perm=await h.queryPermission({mode:"readwrite"}); if(perm!=="granted"&&manual) perm=await h.requestPermission({mode:"readwrite"});
+    if(perm!=="granted") return {ok:false,msg:"Browserul cere confirmarea accesului la folder (apasă „Copie acum”)",perm:true};
+    const pub=await crypto.subtle.importKey("spki",cbkUnB64(rec.spki),{name:"RSA-OAEP",hash:"SHA-256"},false,["encrypt"]);
+    const c=await cbkCollect(!!withSal&&_salUnlocked);
+    const plain=new TextEncoder().encode(JSON.stringify(c.obj)), at=c.obj.at, now=new Date(at);
+    const file=await cbkEncrypt(plain,pub,rec.kid,at,c.sal), bytes=new TextEncoder().encode(file), name=cbkFileName(now,c.sal), sha=await cbkSha(bytes);
+    const dir=await cbkDirOf(h); await cbkWrite(dir,name,bytes);
+    let back=null; try{ back=await cbkRead(dir,name); }catch(e){}
+    if(!back||back.length!==bytes.length||(await cbkSha(back))!==sha){ try{ await dir.removeEntry(name); }catch(e){} throw new Error("Verificarea după scriere a eșuat (fișierul de pe disc nu e identic) — copia NU e bună"); }
+    const man=await cbkManifest(dir); man.copies=man.copies.filter(x=>x.name!==name); man.copies.push({name,at,bytes:bytes.length,sha256:sha,sal:c.sal,kid:rec.kid,counts:c.counts}); man.copies.sort((a,b)=>a.name<b.name?-1:1);
+    const plan=cbkRotatePlan((await cbkList(dir)).concat([name]),Date.now()); let deleted=0;
+    for(const n of plan.del){ try{ await dir.removeEntry(n); deleted++; }catch(e){} }
+    const present=new Set(await cbkList(dir)); man.copies=man.copies.filter(x=>present.has(x.name)); man.updated=at;
+    await cbkWrite(dir,"manifest.json",new TextEncoder().encode(JSON.stringify(man,null,1)));
+    try{ await cbkWrite(dir,"CITESTE-MA.txt",new TextEncoder().encode("Copii criptate MTC (*.mtcenc). Se deschid DOAR cu fișierul de cheie privată + fraza-parolă, cu decripteaza.html (offline) sau decripteaza.py.\nmanifest.json = lista fișierelor cu SHA-256 (nu conține date sensibile). Nu șterge și nu redenumi fișierele manual.\n")); }catch(e){}
+    cbkSetLast(Object.assign({at:Date.now(),name,bytes:bytes.length,err:null},c.sal?{sal:Date.now()}:{}));
+    _cbkState={ok:true,name,sal:c.sal,warn:c.warn,deleted,bytes:bytes.length};
+    return {ok:true,name,sal:c.sal,warn:c.warn,deleted,bytes:bytes.length,counts:c.counts};
+  }catch(e){ console.error("copie criptată",e); cbkSetLast({err:String((e&&e.message)||e).slice(0,200),errAt:Date.now()}); return {ok:false,msg:(e&&e.message)||String(e)}; }
+  finally{ _cbkBusy=false; cbkNagRefresh(); }
+}
+// automat: la deschiderea aplicației (Admin) și după deblocarea Salarii
+function cbkAuto(){
+  try{
+    if(!isAdmin()||window._simUser||!CBK_OK||_cbkBusy) return;
+    const last=cbkLast(), now=Date.now(), sal=!!_salUnlocked, need=sal?(now-(last.sal||0)>6*3600000):(now-(last.at||0)>12*3600000);
+    if(!need) { cbkNagRefresh(); return; }
+    cbkRun(sal,false).then(r=>{ if(!r.ok&&!_cbkNagged&&!/nu e setată|nu e ales/.test(r.msg||"")){ _cbkNagged=true; toast("⚠ Copia criptată pe PC nu s-a făcut: "+r.msg,true); } });
+  }catch(e){}
+}
+function cbkStart(){
+  if(!isAdmin()||window._simUser||_cbkTimer) return;
+  _cbkTimer=setInterval(cbkAuto,30*60*1000); setTimeout(cbkAuto,20000);
+}
+async function cbkNagRefresh(){
+  try{
+    const c=document.getElementById("cbkBtn"); if(!isAdmin()) return;
+    const st=await cbkStatus(), last=st.at||0;
+    _cbkOld=!CBK_OK?false:(!st.kid||!st.dir||(Date.now()-last)>48*3600000);   // 🔴 în Panou Admin dacă nu e configurată / nu s-a făcut copie de >48 h
+    if(c) c.textContent=(_cbkOld?"🔴 ":"")+"🔐 Copie criptată (PC)"; try{ updateAdminPanelBtn(); }catch(e){}
+  }catch(e){}
+}
+async function cbkPick(){
+  try{ const h=await window.showDirectoryPicker({mode:"readwrite",id:"mtc-cbk"}); await zetIdbSet("cbk_dir",h); toast("✓ Folder ales: „"+h.name+"”"); cbkOpen(); }
+  catch(e){ if(e&&e.name!=="AbortError") toast("❌ Folder: "+(e.message||e),true); }
+}
+async function cbkSaveKey(){
+  const t=document.getElementById("cbkKeyTxt"), m=document.getElementById("cbkKeyMsg"); if(!t) return;
+  try{ const k=await cbkImportPub(t.value); await zetIdbSet("cbk_pub",{spki:k.spki,kid:k.kid,at:new Date().toISOString()}); toast("✓ Cheia publică salvată (kid "+k.kid+")"); cbkOpen(); }
+  catch(e){ if(m){ m.style.color="#dc2626"; m.textContent=e.message||String(e); } }
+}
+async function cbkNow(withSal){
+  const m=document.getElementById("cbkRunMsg"); if(m){ m.style.color="var(--text-dim)"; m.textContent="⏳ Se face copia…"; }
+  const r=await cbkRun(withSal,true);
+  if(m){ m.style.color=r.ok?"#16a34a":"#dc2626"; m.textContent=r.ok?("✓ Copie scrisă și verificată: "+r.name+" ("+Math.round(r.bytes/1024)+" KB"+(r.sal?", cu Salarii":", fără Salarii")+")"+(r.warn&&r.warn.length?" ⚠ "+r.warn.join("; "):"")+(r.deleted?" · "+r.deleted+" copii vechi șterse":"")):("❌ "+r.msg); }
+  cbkNagRefresh(); setTimeout(()=>{ if(r.ok) cbkOpen(); },1800);
+}
+async function cbkVerify(){
+  const m=document.getElementById("cbkRunMsg"); if(m){ m.style.color="var(--text-dim)"; m.textContent="⏳ Se verifică fișierele…"; }
+  try{
+    const h=await zetIdbGet("cbk_dir"); if(!h) throw new Error("Folderul nu e ales"); if((await h.queryPermission({mode:"readwrite"}))!=="granted") await h.requestPermission({mode:"readwrite"});
+    const dir=await cbkDirOf(h), man=await cbkManifest(dir), names=await cbkList(dir), bad=[], ok=[];
+    for(const x of man.copies){ if(!names.includes(x.name)){ bad.push(x.name+": LIPSEȘTE din folder"); continue; } const sha=await cbkSha(await cbkRead(dir,x.name)); (sha===x.sha256?ok:bad).push(sha===x.sha256?x.name:x.name+": conținutul NU se potrivește cu manifestul (modificat după scriere)"); }
+    names.filter(n=>!man.copies.some(x=>x.name===n)).forEach(n=>bad.push(n+": nu e în manifest"));
+    if(m){ m.style.color=bad.length?"#dc2626":"#16a34a"; m.innerHTML=(bad.length?"❌ Probleme: "+bad.map(_cEsc).join(" · ")+"<br>":"")+(ok.length?"✓ "+ok.length+" fișiere se potrivesc cu manifestul (integritate). Decriptarea se verifică separat, cu decripteaza.html și cheia ta privată.":(bad.length?"":"Nu există încă nicio copie.")); }
+  }catch(e){ if(m){ m.style.color="#dc2626"; m.textContent="❌ "+(e.message||e); } }
+}
+async function cbkOpen(){
+  if(!isAdmin()) return;
+  cModal("🔐 Copie criptată pe PC","<div style='padding:16px;text-align:center;color:var(--text-dim)'>⏳…</div>");
+  const st=await cbkStatus(), D=t=>t?new Date(t).toLocaleString("ro-RO",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
+  const row=(ic,t,b)=>"<div style='display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--border)'><div>"+ic+" "+t+"</div><div>"+(b||"")+"</div></div>";
+  const btn=(t,f,x)=>"<button class='btn btn-secondary btn-small' onclick=\""+f+"\" "+(x||"")+">"+t+"</button>";
+  if(!st.ok){ cModalBody("<p>⚠ Copia criptată merge doar în <b>Chrome sau Edge pe calculator</b>. Deschide aplicația de acolo.</p>"); return; }
+  let h="<p style='margin:0 0 6px;color:var(--text-dim);font-size:13px'>A doua copie a datelor, <b>criptată</b>, într-un folder de pe PC-ul tău. Se citește doar cu cheia ta privată (pe care aplicația n-o are niciodată). Conține Concedii, Pontaj și — doar când Salarii e deschis cu PIN — Salarii și Stundenzettel.</p>";
+  h+=row(st.dir?(st.perm==="granted"?"✅":"⚠"):"❌","Folder: "+(st.dir?"<b>„"+_cEsc(st.dir)+"”</b>"+(st.perm==="granted"?"":" — cere confirmare (apasă „Copie acum”)"):"nu e ales"),btn(st.dir?"Schimbă folderul":"Alege folderul","cbkPick()"));
+  h+=row(st.kid?"✅":"❌","Cheia publică: "+(st.kid?"<code>"+_cEsc(st.kid)+"</code> (din "+_cEsc(D(st.keyAt))+")":"nu e setată"),"");
+  h+="<details "+(st.kid?"":"open")+" style='margin:2px 0 8px'><summary style='cursor:pointer;color:var(--accent,#2563eb)'>"+(st.kid?"Schimbă cheia publică":"Setează cheia publică")+"</summary><div style='font-size:12.5px;color:var(--text-dim);margin:6px 0'>Deschide <b>genereaza-cheie.html</b> (din pachet, pe calculatorul tău), generează cheile și lipește aici <b>cheia publică</b> (începe cu „-----BEGIN PUBLIC KEY-----”). Cheia privată rămâne doar la tine.</div><textarea id='cbkKeyTxt' style='width:100%;min-height:110px;font:12px monospace' placeholder='-----BEGIN PUBLIC KEY-----'></textarea><div id='cbkKeyMsg' style='font-size:12.5px;margin:4px 0'></div>"+btn("Salvează cheia","cbkSaveKey()")+"</details>";
+  h+=row(st.at?"✅":"❌","Ultima copie: <b>"+_cEsc(D(st.at))+"</b>"+(st.sal?" · ultima cu Salarii: "+_cEsc(D(st.sal)):" · cu Salarii: niciodată")+(st.err?"<div style='color:#dc2626;font-size:12.5px'>Ultima eroare: "+_cEsc(st.err)+"</div>":""),btn("💾 Copie acum","cbkNow(false)")+" "+(_salUnlocked?btn("💾 Copie acum + Salarii","cbkNow(true)"):"<span style='font-size:12px;color:var(--text-dim)'>(Salarii e blocat: deschide-l cu PIN ca să intre în copie)</span>"));
+  h+=row("🧾","Verifică fișierele din folder față de manifest (integritate)",btn("Verifică copiile","cbkVerify()"));
+  h+="<div id='cbkRunMsg' style='font-size:13px;margin:8px 0;min-height:18px'></div>";
+  const yNow=new Date().getFullYear(), mNow=yNow+"-"+cbkP2(new Date().getMonth()+1);
+  h+="<div style='border-top:2px solid var(--border);margin-top:10px;padding-top:10px'><b>☁️ Arhivă pe server (proiectul separat <code>mtc-backup</code>)</b>"
+    +"<div style='font-size:12.5px;color:var(--text-dim);margin:4px 0 6px'>Săptămânal și lunar, serverul scrie în proiectul separat o copie <b>criptată</b> (aceeași cheie și aceleași unelte de decriptare), inclusiv Salarii, fără să ai nevoie de PIN și fără nimic în clar. Scrierea e doar „creare” (nu suprascrie, nu șterge). Pași de configurare: PASI-ARHIVA-SERVER.txt.</div>"
+    +"<div id='cbkSrvStatus' style='font-size:13px;margin:6px 0'>⏳ Se verifică serverul…</div>"
+    +"<div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0'><input id='cbkBucket' placeholder='nume bucket, ex. mtc-backup-arhiva-123' style='flex:1;min-width:230px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text)'>"+btn("Salvează destinația + cheia publică","cbkSrvSave()")+btn("Rulează acum","cbkSrvRun()")+"</div>"
+    +"<div id='cbkSrvMsg' style='font-size:13px;margin:4px 0;min-height:18px'></div>"
+    +"<div style='border-top:1px solid var(--border);margin-top:8px;padding-top:8px'><b>📗 Excel generat pe server</b> <span style='font-size:12px;color:var(--text-dim)'>(la cerere; fără tarif; nimic nu se trimite pe email)</span><div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px'>"
+    +"<input id='cbkXYear' type='number' min='2020' max='2040' value='"+yNow+"' style='width:90px;padding:5px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text)'>"+btn("Concedii (an)","cbkExcel('concedii')")
+    +"<input id='cbkXMonth' type='month' value='"+mNow+"' style='padding:5px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text)'>"+btn("Pontaj (lună)","cbkExcel('pontaj')")
+    +(_salUnlocked?btn("Salarii (lună, cu PIN)","cbkExcel('salarii')"):"<span style='font-size:12px;color:var(--text-dim)'>Salarii: deschide Salarii cu PIN ca să apară butonul</span>")
+    +"</div><div id='cbkXMsg' style='font-size:13px;margin:4px 0;min-height:18px'></div></div></div>";
+  h+="<div style='font-size:12.5px;color:var(--text-dim);border-top:1px solid var(--border);padding-top:8px'>Automat: la deschiderea aplicației (la 12 ore) și după deblocarea Salarii (la 6 ore). Se păstrează câte o copie pe zi 30 de zile, apoi câte una pe lună. Decriptare: <b>decripteaza.html</b> sau <b>decripteaza.py</b> + <b>fișierul de cheie privată</b> + fraza-parolă. <b>Fără cheia privată și fraza, copiile nu se pot citi de nimeni, nici de mine.</b></div>";
+  cModalBody(h); cbkSrvLoad();
+}
+// ----- Arhivă pe server + Excel pe server (apeluri către funcțiile din faza D) -----
+async function cbkCall(name,data,timeoutMs){
+  if(window._simUser) throw new Error("Simulare: doar vizualizare");
+  const payload=Object.assign({},data||{}); try{ if(auth.currentUser) payload._t=await auth.currentUser.getIdToken(); }catch(e){}
+  try{ payload.deviceId=window.mtcDeviceId(); }catch(e){}
+  return (await fns.httpsCallable(name,{timeout:timeoutMs||70000})(payload)).data;
+}
+const cbkFmtT=t=>t?new Date(t).toLocaleString("ro-RO",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
+async function cbkSrvLoad(){
+  const el=document.getElementById("cbkSrvStatus"); if(!el) return;
+  try{
+    const r=await cbkCall("arhStatus",{}), loc=await zetIdbGet("cbk_pub").catch(()=>null);
+    let h=r.configured?("✅ Configurată: bucket <b>"+_cEsc(r.bucket)+"</b> · cheie <code>"+_cEsc(r.kid)+"</code>"):"❌ Nu e configurată (completează numele bucket-ului și apasă „Salvează”).";
+    if(r.configured&&loc&&loc.kid&&loc.kid!==r.kid) h+="<div style='color:#dc2626'>⚠ Cheia de pe server (<code>"+_cEsc(r.kid)+"</code>) diferă de cheia setată pe acest PC (<code>"+_cEsc(loc.kid)+"</code>): copiile de pe server se decriptează cu cheia privată corespunzătoare serverului.</div>";
+    if(r.lastOk) h+="<div>Ultima arhivă reușită: <b>"+_cEsc(cbkFmtT(r.lastOk.atMs))+"</b> ("+_cEsc(r.lastOk.kind)+") · "+Math.round((r.lastOk.bytes||0)/1024)+" KB · "+(r.lastOk.excel||0)+" Excel · <code>"+_cEsc(r.lastOk.name)+"</code></div>"; else if(r.configured) h+="<div style='color:#b45309'>Încă nicio arhivă reușită (prima rulează duminică 03:50 sau apasă „Rulează acum”).</div>";
+    if(r.lastErr) h+="<div style='color:#dc2626'>Ultima eroare ("+_cEsc(cbkFmtT(r.lastErr.atMs))+"): "+_cEsc(r.lastErr.msg)+"</div>";
+    (r.warn||[]).forEach(w=>{ h+="<div style='color:#b45309'>⚠ "+_cEsc(w)+"</div>"; });
+    el.innerHTML=h;
+  }catch(e){ el.innerHTML="<span style='color:#dc2626'>Serverul nu răspunde (funcțiile din faza D nu sunt deployate încă?): "+_cEsc((e&&e.message)||e)+"</span>"; }
+}
+async function cbkSrvSave(){
+  const m=document.getElementById("cbkSrvMsg"), say=(t,ok)=>{ if(m){ m.style.color=ok?"#16a34a":"#dc2626"; m.textContent=t; } };
+  const b=((document.getElementById("cbkBucket")||{}).value||"").trim();
+  if(!/^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$/.test(b)){ say("Numele bucket-ului nu e valid (litere mici, cifre, - . _ ; 3–63 caractere).",false); return; }
+  let rec=null; try{ rec=await zetIdbGet("cbk_pub"); }catch(e){}
+  if(!rec||!rec.spki){ say("Setează mai întâi cheia publică (secțiunea de mai sus), ca să o putem trimite și serverului.",false); return; }
+  say("⏳ Se salvează…",true);
+  try{ const r=await cbkCall("arhCfgSet",{bucket:b,spki:rec.spki}); say("✓ Salvat: bucket "+r.bucket+", cheie "+r.kid+". Apasă „Rulează acum” ca să verifici că serverul poate scrie în bucket.",true); cbkSrvLoad(); }
+  catch(e){ say("❌ "+((e&&e.message)||e),false); }
+}
+async function cbkSrvRun(){
+  const m=document.getElementById("cbkSrvMsg"), say=(t,ok)=>{ if(m){ m.style.color=ok?"#16a34a":"#dc2626"; m.textContent=t; } };
+  say("⏳ Serverul face arhiva (poate dura 1–2 minute)…",true);
+  try{ const r=await cbkCall("arhRunNow",{},300000); say("✓ Arhivă scrisă în bucket: "+r.name+" ("+Math.round((r.bytes||0)/1024)+" KB, "+(r.excel||0)+" Excel)"+((r.warn&&r.warn.length)?" ⚠ "+r.warn.join("; "):""),true); cbkSrvLoad(); }
+  catch(e){ say("❌ "+((e&&e.message)||e)+" — verifică în PASI-ARHIVA-SERVER.txt: bucket-ul există și contul de serviciu are rolul „Storage Object Creator”.",false); cbkSrvLoad(); }
+}
+async function cbkExcel(kind){
+  const m=document.getElementById("cbkXMsg"), say=(t,ok)=>{ if(m){ m.style.color=ok?"#16a34a":"#dc2626"; m.textContent=t; } };
+  const y=parseInt((document.getElementById("cbkXYear")||{}).value,10), mk=((document.getElementById("cbkXMonth")||{}).value||"");
+  say("⏳ Serverul generează Excel-ul…",true);
+  try{
+    const fn=kind==="salarii"?"salExcelGet":"arhExcelGet", data=kind==="concedii"?{kind:"concedii",year:y}:kind==="pontaj"?{kind:"pontaj",mk}:{mk};
+    const r=await cbkCall(fn,data,120000), bin=cbkUnB64(r.b64);
+    zetDownloadBlob(new Blob([bin],{type:r.type||"application/octet-stream"}),r.name); say("✓ "+r.name+" ("+Math.round(bin.length/1024)+" KB)",true);
+  }catch(e){ say("❌ "+((e&&e.message)||e),false); }
+}
+/*CBK_END*/
+
 
 function salPkgFilter(){
   const q=normalizeForSearch((document.getElementById("salPkgQ")||{}).value||"").trim();
@@ -12668,8 +13120,7 @@ let salBani={entries:[],hist:[]}, _salUnsubBani=null, _salBaniTimer=null, _salBa
 function loadBani(){
   if(_salUnsubBani){ try{_salUnsubBani();}catch(e){} }
   _salUnsubBani=db.collection("salarii").doc("bani").onSnapshot(snap=>{
-    if(_salBaniTimer) return;
-    salBani=snap.exists?{entries:snap.data().entries||[],hist:snap.data().hist||[]}:{entries:[],hist:[]};
+    _sOnSnap("bani",{entries:(snap.exists&&snap.data().entries)||[],hist:(snap.exists&&snap.data().hist)||[]});
     if(appMode==="salarii") renderBani();
   }, e=>{ console.warn("bani err",e); if(e&&e.code==="permission-denied") salLockNow(true); });
 }
@@ -12679,15 +13130,7 @@ function salBaniHist(a,x,old){
   (salBani.hist=salBani.hist||[]).push({ts:new Date().toISOString(),by:window.activeUserKey||"?",a,id:x.id,empId:x.empId,kind:x.kind,amount:salNum(x.amount),date:x.date||"",note:x.note||"",...(old?{old}:{})});
 }
 const salDt=iso=>{ if(!iso) return "—"; const d=new Date(iso); if(isNaN(d)) return "—"; const p=n=>String(n).padStart(2,"0"); return p(d.getDate())+"."+p(d.getMonth()+1)+"."+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes()); };
-function salBaniSaveSoon(){
-  if(_salBaniTimer) clearTimeout(_salBaniTimer);
-  _salBaniTimer=setTimeout(async()=>{
-    _salBaniTimer=null;
-    if(!_salUnlocked){ toast("🔒 Salarii e blocat — modificarea NU s-a salvat. Redeschide cu PIN-ul și repetă-o.",true); return; }
-    try{ await db.collection("salarii").doc("bani").set(JSON.parse(JSON.stringify({entries:salBani.entries,hist:(salBani.hist||[]).slice(-3000),updatedAt:new Date().toISOString()}))); }
-    catch(e){ toast("❌ Eroare salvare bani: "+(e.message||e.code),true); }
-  },500);
-}
+function salBaniSaveSoon(){ _sSaveSoon("bani",500); }
 function salBaniCalc(id){
   const l=salBani.entries.filter(x=>x.empId===id); let prev=0,dat=0,pri=0;
   l.forEach(x=>{ const a=salNum(x.amount); if(x.kind==="inainte") prev+=a; else if(x.kind==="dat") dat+=a; else pri+=a; });
@@ -18092,7 +18535,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 <script>window.MTC_AUTO_UPDATE=true;</script>
 <!--MTC-UPDATE-START-->
 <script id="mtc-update">
-/*MTC_VERSION*/const MTC_APP_VERSION='20261116-143012';
+/*MTC_VERSION*/const MTC_APP_VERSION='20261116-165314';
 (function(){
   var V=MTC_APP_VERSION, busy=false, shown=false, lastIdx=0;
   window.MTC_APP_VERSION=V;
@@ -18160,7 +18603,7 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
     // dacă aplicația are o salvare programată (Concedii/Pontaj), o pornește ACUM și așteaptă să se termine (max. 6 s)
     try{ if(typeof saveTimer!=='undefined' && saveTimer && typeof saveDriversNow==='function'){ clearTimeout(saveTimer); saveTimer=null; saveDriversNow().catch(function(){}); } }catch(e){}
     await wait(900);
-    try{ for(var i=0;i<24 && ((typeof isSaving!=='undefined' && isSaving) || (typeof _zetSaveT!=='undefined' && _zetSaveT) || (typeof _zSaving!=='undefined' && _zSaving));i++) await wait(250); }catch(e){}
+    try{ for(var i=0;i<24 && ((typeof isSaving!=='undefined' && isSaving) || (typeof _zetSaveT!=='undefined' && _zetSaveT) || (typeof _zSaving!=='undefined' && _zSaving) || (typeof _sSaving!=='undefined' && _sSaving) || (typeof _cbkBusy!=='undefined' && _cbkBusy));i++) await wait(250); }catch(e){}
     var n=tries(sv)+1; setTries(sv,n);
     say('Se șterge memoria veche…');
     try{ if(window.caches){ var ks=await caches.keys(); await Promise.all(ks.map(function(k){ return caches.delete(k); })); } }catch(e){}
@@ -18194,6 +18637,11 @@ function applyTheme(){ document.documentElement.setAttribute("data-theme","light
 })();
 </script>
 <!--MTC-UPDATE-END-->
+
+
+
+
+
 
 
 
